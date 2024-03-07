@@ -1,0 +1,21 @@
+[package]
+name = "adaptor"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = "1.36.0"
+tokio-stream = "0.1.14"
+reqwest = {version = "0.11.24", features = ["json"]}
+avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"]}
+henosis = { git = "https://github.com/Banana-Wallet/Henosis.git", branch = "main" }
+nexus-core = { path = "../core", features = ["zkvm"]}
+
+[patch.crates-io]
+sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-io = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-runtime = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-std = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-core-hashing = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
