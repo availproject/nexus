@@ -3,7 +3,7 @@ use parity_scale_codec::{Decode, Encode};
 use risc0_zkvm::Groth16Seal;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug, Decode, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct SubmitProofTransaction {
     pub signature: TxSignature,
     pub params: SubmitProof,
