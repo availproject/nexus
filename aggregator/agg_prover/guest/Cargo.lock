@@ -559,11 +559,13 @@ checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 name = "g16_verifier"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ark-bn254 0.3.0",
  "ark-ec 0.3.0",
  "ark-ff 0.3.0",
  "ark-groth16 0.3.0",
  "ark-poly 0.3.0",
+ "num-bigint",
 ]
 
 [[package]]
