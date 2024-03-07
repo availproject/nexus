@@ -1,4 +1,4 @@
-use crate::types::{SubmitProof, TxSignature};
+use crate::types::{RollupPublicInputsV2, SubmitProof, TxSignature};
 use parity_scale_codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
@@ -19,3 +19,5 @@ pub struct AggregatedTransaction {
     pub submit_proof_txs: Vec<RuntimeTransaction>,
     pub aggregated_proof: Vec<u8>,
 }
+
+pub struct AggregatedPublicInput(Vec<RollupPublicInputsV2>);
