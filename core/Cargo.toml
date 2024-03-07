@@ -1,0 +1,26 @@
+[package]
+name = "nexus-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.79"
+avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"], optional = true}
+avail-core = { version = "0.5", git = "https://github.com/availproject/avail-core", tag = "avail-core/v0.5.0", optional = true}
+serde = "1.0.196"
+sparse-merkle-tree = { git = "https://github.com/vibhurajeev/sparse-merkle-tree.git", optional = true, default-features = false }
+rocksdb = {version = "0.22.0", optional = true }
+risc0-zkvm = { version = "0.20.1", default-features = false, features = ["std"]}
+serde_json = "1.0.114"
+parity-scale-codec = { version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2", default-features = false, features = ["derive"] }
+blake2b_simd = "1.0.2"
+serde-big-array = "0.5.1"
+tokio = {version = "1.36.0", optional = true}
+
+[features]
+default = ["native"]
+native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio"]
+zkvm = ["sparse-merkle-tree/arch-32", "sparse-merkle-tree/std"]

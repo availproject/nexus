@@ -1,0 +1,20 @@
+[package]
+name = "relayer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = "1.36.0"
+tokio-stream = "0.1.14"
+avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"]}
+serde = "1.0.196"
+serde_json = "1.0.113"
+
+[patch.crates-io]
+sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-io = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-runtime = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-std = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-core-hashing = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
