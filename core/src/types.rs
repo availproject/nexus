@@ -84,6 +84,7 @@ pub struct RollupPublicInputsV2 {
     pub pre_state_root: H256,
     pub next_state_root: H256,
     pub tx_root: H256,
+    pub statement: H256,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
