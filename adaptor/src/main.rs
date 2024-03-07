@@ -1,12 +1,19 @@
+use std::str::FromStr;
+use std::sync::mpsc::Receiver;
+
+use avail_subxt::config::polkadot::H256;
 use henosis::fetcher::fetch_proof_and_pub_signal;
 use reqwest::Error;
-use avail_subxt;
+// use avail_subxt;
 use nexus_core::types::SubmitProof;
 use nexus_core::agg_types::SubmitProofTransaction;
+use ckb_types::h256;
+use converter::converter::converter_fflonk_to_groth16;
+use tokio::runtime::Runtime;
+use tokio::task;
 
-#[tokio::main]
-async fn main() {
-
+fn main() {
+    let transaction = generate_proof_transaction();
     let subscription = get_avail_subscription();
     monitor_avail_and_send_proof(subscription)
 }
@@ -52,18 +59,30 @@ async fn monitor_avail_and_send_proof(header_subscription: Subscription<Header>)
     println!("exited...")
 }
 
-async fn generate_proof_transaction() -> SubmitProofTransaction {
-    let tx_hash = "0x38517b8514418d4fca0ff8b6dffe43199bfccd5b368523d747b01f76471bb8a4";
-    let (proof, publicVarsZK) = fetch_proof_and_pub_signal(tx_hash).await();
+fn generate_proof_transaction()  {
+    let rt = Runtime::new().unwrap();
+    let tx_hash_str = "0x38517b8514418d4fca0ff8b6dffe43199bfccd5b368523d747b01f76471bb8a4";
+    let txn_hash = tx_hash_str.parse().unwrap();
+    let resp = rt.block_on(async move {
+        fetch_proof_and_pub_signal(txn_hash).await
+    });
+    let receipt = converter_fflonk_to_groth16([resp.0], [resp.1]);
+
+    let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
+        prev_state_root: H256::from_str("0x"),
+        next_state_root: H256::from_str("0x"),
+        tx_root: H256::from_str("0x"),
+        statement: H256::from_str("0x"),
+    };
 
     let proof_params = SubmitProof{
         app_account_id: 1,
-        public_inputs : publicVars
+        public_inputs
     };
 
     let transaction = SubmitProofTransaction {
-        proof: proof,
-        signature: [u08;32],
+        proof: receipt.snark,
+        signature: [u08; ],
         params: proof_params
     };
 

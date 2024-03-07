@@ -10,8 +10,11 @@ tokio = "1.36.0"
 tokio-stream = "0.1.14"
 reqwest = {version = "0.11.24", features = ["json"]}
 avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"]}
-henosis = { git = "https://github.com/Banana-Wallet/Henosis.git", branch = "main" }
+henosis = { git = "https://github.com/Banana-Wallet/Henosis.git", rev = "2b693c6" }
+converter = { git = "https://github.com/Banana-Wallet/Henosis.git", rev = "2b693c6" }
 nexus-core = { path = "../core", features = ["zkvm"]}
+num-bigint = "0.4.4"
+ckb-types = "0.114.0"
 
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
