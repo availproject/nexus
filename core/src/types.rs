@@ -8,6 +8,7 @@ use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtens
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
 use parity_scale_codec::{Decode, Encode};
 use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigest, Sha256};
+use risc0_zkvm::Journal;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use sparse_merkle_tree::traits::{Hasher, Value};
@@ -51,13 +52,15 @@ pub enum TxParamsV2 {
 pub struct TransactionV2 {
     pub signature: TxSignature,
     pub params: TxParamsV2,
+    pub proof: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct SubmitProof {
     //Disabled for now.
     //pub proof: risc0_zkvm::InnerReceipt,
-    pub public_inputs: RollupPublicInputs,
+    pub public_inputs: RollupPublicInputsV2,
+    pub app_account_id: AppAccountId,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -74,6 +77,14 @@ pub struct RollupPublicInputs {
     pub proof_at_avail_hash: H256,
     pub app_account_id: AppAccountId,
     //Assuming that nexus sequencer provides linkability to current avail hash.
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct RollupPublicInputsV2 {
+    pub pre_state_root: H256,
+    pub next_state_root: H256,
+    pub tx_root: H256,
+    pub statement: H256,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
