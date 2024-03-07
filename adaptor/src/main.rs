@@ -1,20 +1,18 @@
-use henosis::fetcher::fetch_proof_and_pub_signal;
-use reqwest::Error;
 use avail_subxt;
-use nexus_core::types::SubmitProof;
+use henosis::fetcher::fetch_proof_and_pub_signal;
 use nexus_core::agg_types::SubmitProofTransaction;
+use nexus_core::types::{AppAccountId, RollupPublicInputsV2, SubmitProof, TxSignature};
+use reqwest::Error;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+pub use sparse_merkle_tree::H256;
 
 #[tokio::main]
 async fn main() {
-
-    let subscription = get_avail_subscription();
-    monitor_avail_and_send_proof(subscription)
+    monitor_avail_and_send_proof().await
 }
-// [0u8; 32]
 
-async fn get_avail_subscription() -> Subscription<Header> {
-    let (subxt_client, _) =
-    avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
+async fn monitor_avail_and_send_proof() {
+    let (subxt_client, _) = avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
         .await
         .unwrap();
     println!("Built client");
@@ -26,19 +24,14 @@ async fn get_avail_subscription() -> Subscription<Header> {
         .await
         .expect("Subscription initialisation failed.");
 
-    println!("subscribed");
-    header_subscription
-}
-
-async fn monitor_avail_and_send_proof(header_subscription: Subscription<Header>) {
     while let Some(header_result) = header_subscription.next().await {
         println!("Got next");
         match header_result {
             Ok(header) => {
                 println!("Got header: {:?}", header.parent_hash);
-                let tx = generate_proof_transaction().await();
+                let tx = generate_proof_transaction().await;
 
-                if let Err(e) = send_post_request("<TBD>",tx) {
+                if let Err(e) = send_post_request("<TBD>", tx).await {
                     println!("Failed to send header: {}", e);
                 }
             }
@@ -53,32 +46,54 @@ async fn monitor_avail_and_send_proof(header_subscription: Subscription<Header>)
 }
 
 async fn generate_proof_transaction() -> SubmitProofTransaction {
-    let tx_hash = "0x38517b8514418d4fca0ff8b6dffe43199bfccd5b368523d747b01f76471bb8a4";
-    let (proof, publicVarsZK) = fetch_proof_and_pub_signal(tx_hash).await();
+    let tx_hash =
+        hex_str_to_u8_array("0x38517b8514418d4fca0ff8b6dffe43199bfccd5b368523d747b01f76471bb8a4");
+    let (proof, _, _, nle, nsr) = fetch_proof_and_pub_signal(tx_hash.into()).await;
 
-    let proof_params = SubmitProof{
-        app_account_id: 1,
-        public_inputs : publicVars
+    let public_vars = RollupPublicInputsV2 {
+        next_state_root: nsr.into(),
+        pre_state_root: nle.into(),
+        statement: tx_hash.into(),
+        tx_root: tx_hash.into(),
+    };
+
+    let proof_params = SubmitProof {
+        app_account_id: AppAccountId([0u8; 32]),
+        public_inputs: public_vars,
     };
 
     let transaction = SubmitProofTransaction {
-        proof: proof,
-        signature: [u08;32],
-        params: proof_params
+        proof: proof.iter().flat_map(|s| s.bytes()).collect(),
+        signature: TxSignature([0u8; 64]),
+        params: proof_params,
     };
 
     transaction
 }
 
-
-async fn send_post_request (
+async fn send_post_request<T: Serialize + DeserializeOwned>(
     url: &str,
     body: T,
 ) -> Result<(), Error> {
-    let client: Client = reqwest::Client::new();
-    let _response = client.post(url).json(&body).send().await();
+    // Create a reqwest client
+    let client = reqwest::Client::new();
 
-    println!("POST request to {} with body completed", url);
+    let _response = client.post(url).json(&body).send().await?;
+
+    println!("POST request to {} with body completed.", url);
 
     Ok(())
+}
+
+fn hex_str_to_u8_array(hex_str: &str) -> [u8; 32] {
+    // Remove the "0x" prefix if present
+    let hex_str = hex_str.trim_start_matches("0x");
+
+    // Decode the hex string to a byte vector
+    let bytes = hex::decode(hex_str).expect("Decoding failed");
+
+    // Convert Vec<u8> to [u8; 32]
+    let bytes_array: [u8; 32] = bytes.try_into().expect("Incorrect length");
+
+    bytes_array
 }
