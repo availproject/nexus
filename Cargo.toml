@@ -5,9 +5,10 @@ members = [
     "core",
     "nexus/host",
     "nexus/prover",
-    "demo_rollup",
-    "adaptor",
-]
+    "demo_rollup", 
+    "aggregator/agg_host",
+    "aggregator/agg_prover", 
+    "aggregator/g16_verifier"]
 
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
