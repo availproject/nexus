@@ -1,9 +1,11 @@
+use crate::agg_types::{AggregatedTransaction, InitTransaction};
 use crate::db::NodeDB;
 use crate::simple_stf::StateTransitionFunction;
 use crate::state::VmState;
 use crate::types::{
-    AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, RollupPublicInputs, StateUpdate,
-    SubmitProof, TransactionV2, TxParamsV2, H256,
+    AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, RollupPublicInputs,
+    SimpleAccountState, SimpleStateUpdate, StateUpdate, SubmitProof, TransactionV2, TxParamsV2,
+    H256,
 };
 use anyhow::Error;
 use avail_subxt::config::Header as HeaderTrait;
@@ -30,33 +32,25 @@ impl StateMachine {
 
     pub fn execute_batch(
         &mut self,
-        new_header: &AvailHeader,
-        old_headers: &mut HeaderStore,
-        txs: &Vec<TransactionV2>,
-    ) -> Result<StateUpdate, Error> {
-        let pre_state: Vec<(AppAccountId, AccountState)> = txs
+        txs: &Vec<InitTransaction>,
+        aggregated_tx: AggregatedTransaction,
+    ) -> Result<SimpleStateUpdate, Error> {
+        let pre_state: Vec<(AppAccountId, SimpleAccountState)> = txs
             .iter()
             .map(|tx| {
-                let app_account_id: AppAccountId = match &tx.params {
-                    TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_account_id.clone(),
-                    TxParamsV2::InitAccount(init_account) => {
-                        AppAccountId::from(init_account.app_id.clone())
-                    }
-                };
+                let app_account_id: AppAccountId = tx.params.app_id.clone();
 
                 let account_state = match self.state.get(&app_account_id.as_h256(), false) {
                     Ok(Some(account)) => account,
                     Err(e) => return Err(anyhow::anyhow!(e)),
-                    Ok(None) => AccountState::zero(),
+                    Ok(None) => SimpleAccountState::zero(),
                 };
 
                 Ok((app_account_id, account_state))
             })
             .collect::<Result<Vec<_>, _>>()?; //TODO: Need to simplify this part.
 
-        let result = self
-            .stf
-            .execute_batch(&new_header, old_headers, txs, &pre_state)?;
+        let result = self.stf.execute_batch(txs, aggregated_tx, &pre_state)?;
 
         if !result.is_empty() {
             Ok(self.state.update_set(
@@ -66,7 +60,7 @@ impl StateMachine {
                     .collect(),
             )?)
         } else {
-            Ok(StateUpdate {
+            Ok(SimpleStateUpdate {
                 pre_state_root: self.state.get_root(),
                 post_state_root: self.state.get_root(),
                 pre_state: vec![],

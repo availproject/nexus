@@ -1,11 +1,11 @@
-use crate::types::TransactionV2;
+use crate::{agg_types::InitTransaction, types::TransactionV2};
 use anyhow::{anyhow, Error};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
 pub struct Mempool {
-    tx_list: Arc<Mutex<Vec<TransactionV2>>>,
+    tx_list: Arc<Mutex<Vec<InitTransaction>>>,
 }
 
 impl Mempool {
@@ -15,7 +15,7 @@ impl Mempool {
         }
     }
 
-    pub async fn get_current_txs(&self) -> (Vec<TransactionV2>, usize) {
+    pub async fn get_current_txs(&self) -> (Vec<InitTransaction>, usize) {
         let tx_list = self.tx_list.lock().await;
 
         (tx_list.clone(), tx_list.len())
@@ -33,7 +33,7 @@ impl Mempool {
         }
     }
 
-    pub async fn add_tx(&self, tx: TransactionV2) {
+    pub async fn add_tx(&self, tx: InitTransaction) {
         let mut tx_list = self.tx_list.lock().await;
 
         tx_list.push(tx);
