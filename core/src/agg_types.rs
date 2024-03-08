@@ -1,12 +1,13 @@
 use crate::types::{InitAccount, RollupPublicInputsV2, SubmitProof, TxSignature};
 use parity_scale_codec::{Decode, Encode};
+use bonsai_sdk::alpha::responses::Groth16Seal;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct SubmitProofTransaction {
     pub signature: TxSignature,
     pub params: SubmitProof,
-    pub proof: Vec<u8>,
+    pub proof: Groth16Seal,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]

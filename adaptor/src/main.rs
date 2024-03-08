@@ -1,14 +1,22 @@
+use std::{result, str::FromStr};
+use std::sync::mpsc::Receiver;
+
+use nexus_core::types::H256;
 use avail_subxt;
 use henosis::fetcher::fetch_proof_and_pub_signal;
-use nexus_core::agg_types::SubmitProofTransaction;
-use nexus_core::types::{AppAccountId, RollupPublicInputsV2, SubmitProof, TxSignature};
 use reqwest::Error;
+// use avail_subxt;
+use nexus_core::types::SubmitProof;
+use nexus_core::agg_types::SubmitProofTransaction;
+use converter::converter::converter_fflonk_to_groth16;
+use tokio::runtime::Runtime;
+use tokio::task;
+use nexus_core::types::{AppAccountId, RollupPublicInputsV2, TxSignature};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-pub use sparse_merkle_tree::H256;
 
-#[tokio::main]
-async fn main() {
-    monitor_avail_and_send_proof().await
+fn main() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(monitor_avail_and_send_proof());
 }
 
 async fn monitor_avail_and_send_proof() {
@@ -29,7 +37,8 @@ async fn monitor_avail_and_send_proof() {
         match header_result {
             Ok(header) => {
                 println!("Got header: {:?}", header.parent_hash);
-                let tx = generate_proof_transaction().await;
+                let rt: Runtime = Runtime::new().unwrap();
+                let tx =  rt.spawn_blocking(generate_proof_transaction).await.unwrap();
 
                 if let Err(e) = send_post_request("<TBD>", tx).await {
                     println!("Failed to send header: {}", e);
@@ -45,27 +54,33 @@ async fn monitor_avail_and_send_proof() {
     println!("exited...")
 }
 
-async fn generate_proof_transaction() -> SubmitProofTransaction {
-    let tx_hash =
-        hex_str_to_u8_array("0x38517b8514418d4fca0ff8b6dffe43199bfccd5b368523d747b01f76471bb8a4");
-    let (proof, _, _, nle, nsr) = fetch_proof_and_pub_signal(tx_hash.into()).await;
+fn generate_proof_transaction() -> SubmitProofTransaction {
+    let rt = Runtime::new().unwrap();
+    let tx_hash_str = "0x38517b8514418d4fca0ff8b6dffe43199bfccd5b368523d747b01f76471bb8a4";
+    let txn_hash = tx_hash_str.parse().unwrap();
+    let resp = rt.block_on(async move {
+        fetch_proof_and_pub_signal(txn_hash).await
+    });
+    let receipt = converter_fflonk_to_groth16([resp.0], [resp.1]);
 
-    let public_vars = RollupPublicInputsV2 {
-        next_state_root: nsr.into(),
-        pre_state_root: nle.into(),
-        statement: tx_hash.into(),
-        tx_root: tx_hash.into(),
+    let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
+        pre_state_root: H256::zero(),
+        next_state_root: H256::zero(),
+        tx_root: H256::zero(),
+        statement: H256::zero(),
     };
 
-    let proof_params = SubmitProof {
-        app_account_id: AppAccountId([0u8; 32]),
-        public_inputs: public_vars,
+    let app_account_id = AppAccountId([0u8; 32]);
+
+    let proof_params = SubmitProof{
+        app_account_id,
+        public_inputs
     };
 
     let transaction = SubmitProofTransaction {
-        proof: proof.iter().flat_map(|s| s.bytes()).collect(),
+        proof: receipt.snark,
         signature: TxSignature([0u8; 64]),
-        params: proof_params,
+        params: proof_params
     };
 
     transaction

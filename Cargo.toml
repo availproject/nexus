@@ -6,6 +6,7 @@ members = [
     "nexus/host",
     "nexus/prover",
     "demo_rollup",
+    "adaptor",
 ]
 
 [patch.crates-io]
