@@ -2,11 +2,14 @@
 // If you want to try std support, also update the guest Cargo.toml file
 // std support is experimental
 
+use nexus_core::agg_types::AggregatedTransaction;
+use nexus_core::agg_types::InitTransaction;
+use nexus_core::simple_zkvm_state_machine::ZKVMStateMachine;
 use nexus_core::types::AvailHeader;
 use nexus_core::types::HeaderStore;
+use nexus_core::types::SimpleStateUpdate;
 use nexus_core::types::StateUpdate;
 use nexus_core::types::TransactionV2;
-use nexus_core::zkvm_state_machine::ZKVMStateMachine;
 use risc0_zkvm::guest::env;
 risc0_zkvm::guest::entry!(main);
 
@@ -14,22 +17,13 @@ fn main() {
     let start = env::cycle_count();
     eprintln!("Start cycle {}", start);
 
-    let avail_header: AvailHeader = env::read();
-    let before_headers = env::cycle_count();
-    let mut old_headers: HeaderStore = env::read();
-    let after_headers = env::cycle_count();
-    eprintln!(
-        "cycle count to read {} headers: {}",
-        old_headers.inner().len(),
-        after_headers - before_headers
-    );
-
-    let txs: Vec<TransactionV2> = env::read();
-    let touched_states: StateUpdate = env::read();
+    let txs: Vec<InitTransaction> = env::read();
+    let aggregated_tx: AggregatedTransaction = env::read();
+    let touched_states: SimpleStateUpdate = env::read();
 
     let zkvm_state_machine = ZKVMStateMachine::new();
     let zkvm_result = zkvm_state_machine
-        .execute_batch(&avail_header, &mut old_headers, &txs, touched_states)
+        .execute_batch(&txs, aggregated_tx, touched_states)
         .expect("Should not have panicked.");
 
     let after_stf = env::cycle_count();

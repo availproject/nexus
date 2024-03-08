@@ -1,6 +1,8 @@
+use crate::agg_types::{AggregatedTransaction, InitTransaction};
 use crate::simple_stf::StateTransitionFunction;
 use crate::types::{
-    AvailHeader, HeaderStore, NexusHeader, ShaHasher, StateUpdate, TransactionV2, H256,
+    AvailHeader, HeaderStore, NexusHeader, ShaHasher, SimpleNexusHeader, SimpleStateUpdate,
+    StateUpdate, TransactionV2, H256,
 };
 use anyhow::anyhow;
 use sparse_merkle_tree::traits::Value;
@@ -18,11 +20,10 @@ impl ZKVMStateMachine {
 
     pub fn execute_batch(
         &self,
-        new_header: &AvailHeader,
-        old_headers: &mut HeaderStore,
-        txs: &Vec<TransactionV2>,
-        state_update: StateUpdate,
-    ) -> Result<NexusHeader, anyhow::Error> {
+        txs: &Vec<InitTransaction>,
+        aggregated_tx: AggregatedTransaction,
+        state_update: SimpleStateUpdate,
+    ) -> Result<SimpleNexusHeader, anyhow::Error> {
         if !txs.is_empty() {
             if let Some(proof) = state_update.proof.clone() {
                 match proof.verify::<ShaHasher>(
@@ -50,9 +51,9 @@ impl ZKVMStateMachine {
             }
         }
 
-        let result =
-            self.stf
-                .execute_batch(new_header, old_headers, txs, &state_update.pre_state)?;
+        let result = self
+            .stf
+            .execute_batch(txs, aggregated_tx, &state_update.pre_state)?;
 
         if !txs.is_empty() {
             if let Some(proof) = state_update.proof {
@@ -77,10 +78,14 @@ impl ZKVMStateMachine {
                 return Err(anyhow!("Merkle proof for stateupdate not provided."));
             }
         }
-        Ok(NexusHeader {
+        Ok(SimpleNexusHeader {
             state_root: state_update.post_state_root,
             prev_state_root: state_update.pre_state_root,
-            avail_header_hash: H256::from(new_header.hash().as_fixed_slice().clone()),
+            //Tx root over all the transactions sent to nexus.
+            tx_root: H256::zero(),
+            //Tx root over avail blobs that were used for proof aggregation, this needs to be checked to ensure
+            //that Avail blob order has been followed, this will be deprecated and replaced with avail header hash.
+            avail_blob_root: H256::zero(),
         })
     }
 }
