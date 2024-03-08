@@ -3,3 +3,4 @@ target/
 **/header.json
 **/node_db
 **/runtime_db
+Cargo.lock
