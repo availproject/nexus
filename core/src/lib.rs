@@ -5,7 +5,7 @@ pub mod db;
 mod state;
 // #[cfg(any(feature = "native"))]
 // pub mod state_machine;
-mod traits;
+pub mod traits;
 //mod trie;
 pub mod agg_types;
 #[cfg(any(feature = "native"))]

@@ -1,9 +1,0 @@
-{
-  "rust-analyzer.linkedProjects": [
-    "./core/Cargo.toml",
-    "./nexus/prover/guest/Cargo.toml",
-    "./demo_rollup/Cargo.toml",
-    "./aggregator/agg_prover/guest/Cargo.toml",
-    "./aggregator/agg_prover/guest/Cargo.toml"
-  ]
-}
