@@ -4,17 +4,17 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let init_tx = TransactionV2 {
-        signature: TxSignature([0; 64]),
-        params: TxParamsV2::InitAccount(InitAccount {
-            app_id: AppAccountId::from(AppId(1)),
-            statement: [1; 32],
-        }),
-    };
-    let client = reqwest::Client::new();
-    println!("trying to send");
+    // let init_tx = TransactionV2 {
+    //     signature: TxSignature([0; 64]),
+    //     params: TxParamsV2::InitAccount(InitAccount {
+    //         app_id: AppAccountId::from(AppId(1)),
+    //         statement: [1; 32],
+    //     }),
+    // };
+    // let client = reqwest::Client::new();
+    // println!("trying to send");
 
-    send_post_request("http://127.0.0.1:7000/tx", init_tx).await?;
+    // send_post_request("http://127.0.0.1:7000/tx", init_tx).await?;
 
     Ok(())
 }
