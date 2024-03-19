@@ -196,7 +196,9 @@ name = "adapter-host"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "adapter_sdk",
  "anyhow",
+ "demo_rollup_core",
  "methods 0.1.0",
  "nexus-core",
  "parity-scale-codec",
@@ -226,7 +228,6 @@ dependencies = [
  "risc0-zkvm",
  "serde",
  "serde_json",
- "sparse-merkle-tree",
  "tokio",
  "tokio-stream",
 ]
@@ -2240,6 +2241,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "demo_rollup_core"
+version = "0.1.0"
+dependencies = [
+ "adapter_sdk",
+ "anyhow",
+ "nexus-core",
+ "serde",
+]
+
+[[package]]
 name = "der"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4070,7 +4081,6 @@ dependencies = [
 name = "host"
 version = "0.1.0"
 dependencies = [
- "actix-web",
  "anyhow",
  "nexus-core",
  "parity-scale-codec",
@@ -5263,7 +5273,6 @@ dependencies = [
  "avail-core 0.5.0",
  "avail-subxt",
  "blake2b_simd",
- "bonsai-sdk",
  "parity-scale-codec",
  "risc0-zkvm",
  "rocksdb",

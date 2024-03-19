@@ -66,12 +66,12 @@ use serde::Serialize;
 ///
 /// Ensure that the types `Proof`, `RollupPublicInputs`, `AdapterPublicInputs`, `AdapterPrivateInputs`, `Error`, and `Digest` are properly defined and implemented.
 
-pub fn verify_proof<P: Proof, PI: RollupPublicInputs + Serialize>(
+pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
     proof: P,
     rollup_public_inputs: PI,
     prev_adapter_public_inputs: Option<AdapterPublicInputs>,
     private_inputs: AdapterPrivateInputs,
-    img_id: impl Into<Digest>,
+    img_id: Digest,
     vk: [u8; 32],
 ) -> Result<AdapterPublicInputs, Error> {
     /*  Things adapter must check,
@@ -106,7 +106,10 @@ pub fn verify_proof<P: Proof, PI: RollupPublicInputs + Serialize>(
         }
 
         match env::verify(img_id, &to_vec(&prev_public_input).unwrap()) {
-            Ok(()) => (),
+            Ok(()) => {
+                println!("Verified proof");
+                ()
+            }
             Err(e) => return Err(anyhow::anyhow!("Invalid proof")),
         }
     } else {
@@ -118,12 +121,14 @@ pub fn verify_proof<P: Proof, PI: RollupPublicInputs + Serialize>(
     //TODO: Check inclusion proof for data blob, app index check, and empty block check.
 
     //TODO: Remove unwrap below.
-    proof.verify(&vk, rollup_public_inputs.to_vec())?;
+    //TODO: Allow custom encoding here.
+    proof.verify(&vk, &rollup_public_inputs)?;
 
     Ok(AdapterPublicInputs {
         header_hash: current_avail_hash,
         state_root: rollup_public_inputs.post_state_root(),
         avail_start_hash: private_inputs.avail_start_hash,
         app_id: private_inputs.app_id,
+        img_id: img_id.clone(),
     })
 }

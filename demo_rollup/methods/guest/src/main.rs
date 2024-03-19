@@ -2,32 +2,36 @@
 // If you want to try std support, also update the guest Cargo.toml file
 // std support is experimental
 
-use nexus_core::agg_types::AggregatedTransaction;
-use nexus_core::agg_types::InitTransaction;
-use nexus_core::simple_zkvm_state_machine::ZKVMStateMachine;
-use nexus_core::types::AvailHeader;
-use nexus_core::types::HeaderStore;
-use nexus_core::types::SimpleStateUpdate;
-use nexus_core::types::StateUpdate;
-use nexus_core::types::TransactionV2;
+use adapter_sdk::types::AdapterPrivateInputs;
+use adapter_sdk::types::AdapterPublicInputs;
+use demo_rollup_core::DemoRollupPublicInputs;
 use risc0_zkvm::guest::env;
 risc0_zkvm::guest::entry!(main);
+use adapter_sdk::adapter_zkvm::verify_proof;
+use demo_rollup_core::DemoProof;
+use risc0_zkvm::sha::Digest;
 
 fn main() {
     let start = env::cycle_count();
     eprintln!("Start cycle {}", start);
 
-    let txs: Vec<InitTransaction> = env::read();
-    let aggregated_tx: AggregatedTransaction = env::read();
-    let touched_states: SimpleStateUpdate = env::read();
+    let proof: DemoProof = env::read();
+    let rollup_public_inputs: DemoRollupPublicInputs = env::read();
+    let prev_adapter_public_inputs: Option<AdapterPublicInputs> = env::read();
+    let img_id: Digest = env::read();
+    let private_inputs: AdapterPrivateInputs = env::read();
+    let vk: [u8; 32] = env::read();
 
-    let zkvm_state_machine = ZKVMStateMachine::new();
-    let zkvm_result = zkvm_state_machine
-        .execute_batch(&txs, aggregated_tx, touched_states)
-        .expect("Should not have panicked.");
+    let result = verify_proof(
+        proof,
+        rollup_public_inputs,
+        prev_adapter_public_inputs,
+        private_inputs,
+        img_id,
+        vk,
+    )
+    .unwrap();
 
-    let after_stf = env::cycle_count();
-    eprintln!("after STF {}", after_stf);
-
-    env::commit(&zkvm_result);
+    eprintln!("Current cycle count: {}", env::cycle_count());
+    env::commit(&result);
 }
