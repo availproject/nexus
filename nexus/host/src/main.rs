@@ -2,15 +2,17 @@
 // The ELF is used for proving and the ID is used for verification.
 use anyhow::{Context, Error};
 use nexus_core::{
+    agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction},
     db::NodeDB,
     mempool::Mempool,
-    state_machine::StateMachine,
+    simple_state_machine::StateMachine,
     types::{AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256},
 };
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
 use risc0_zkvm::{default_executor, default_prover, serde::from_slice, ExecutorEnv, Receipt};
 use std::sync::Arc;
+use tokio::time::{sleep, Duration};
 use tokio::{self, sync::Mutex};
 use warp::Filter;
 
@@ -28,8 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => H256::zero(),
     };
     let mut state_machine = StateMachine::new(old_state_root, "./runtime_db");
-    let relayer = Relayer::new();
-    let shared_relayer = Arc::new(Mutex::new(relayer));
+    //let relayer = Relayer::new();
+    //let shared_relayer = Arc::new(Mutex::new(relayer));
 
     // let init_tx = TransactionV2 {
     //     signature: TxSignature([0; 64]),
@@ -42,49 +44,71 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
-        let receiver = {
-            let mut relayer = shared_relayer.lock().await;
+        // let receiver = {
+        //     let mut relayer = shared_relayer.lock().await;
 
-            relayer.receiver()
-        };
+        //     relayer.receiver()
+        // };
         let mempool = Mempool::new();
         let mempool_clone = mempool.clone();
+        let batches_to_aggregate = BatchesToAggregate::new();
+        let batches_to_aggregate_clone: BatchesToAggregate = batches_to_aggregate.clone();
 
-        let relayer = tokio::spawn(async move {
-            let cloned_relayer = shared_relayer.lock().await;
-            println!("Trying to start");
-            println!("started from our side bro");
-            cloned_relayer.start().await;
-        });
+        // let relayer = tokio::spawn(async move {
+        //     let cloned_relayer = shared_relayer.lock().await;
+        //     println!("Trying to start");
+        //     println!("started from our side bro");
+        //     cloned_relayer.start().await;
+        // });
+
+        // let execution_engine = tokio::spawn(async move {
+        //     while let Some(header) = receiver.lock().await.recv().await {
+        //         let mut old_headers: HeaderStore = match db.get(b"previous_headers") {
+        //             Ok(Some(i)) => i,
+        //             Ok(None) => HeaderStore::new(32),
+        //             Err(_) => break,
+        //         };
+        //         let (txs, index) = mempool_clone.get_current_txs().await;
+        //         //let (txs, index) = (vec![], 0);
+
+        //         match execute_batch(
+        //             &AvailHeader::from(&header),
+        //             &mut old_headers,
+        //             &txs,
+        //             &db,
+        //             &mut state_machine,
+        //         ) {
+        //             Ok(_) => mempool_clone.clear_upto_tx(index).await,
+        //             Err(e) => {
+        //                 println!("Breaking because of error {:?}", e);
+        //                 break;
+        //             }
+        //         };
+        //     }
+        // });
 
         let execution_engine = tokio::spawn(async move {
-            while let Some(header) = receiver.lock().await.recv().await {
-                let mut old_headers: HeaderStore = match db.get(b"previous_headers") {
-                    Ok(Some(i)) => i,
-                    Ok(None) => HeaderStore::new(32),
-                    Err(_) => break,
-                };
-                let (txs, index) = mempool_clone.get_current_txs().await;
-                //let (txs, index) = (vec![], 0);
+            let five_seconds = Duration::from_secs(5);
+            loop {
+                if let Some(batch) = batches_to_aggregate_clone.get_next_batch().await {
+                    match execute_batch(&batch.0, batch.1, &db, &mut state_machine) {
+                        Ok(_) => batches_to_aggregate_clone.remove_first_batch(),
+                        Err(e) => {
+                            println!("Breaking because of error {:?}", e);
+                            break;
+                        }
+                    };
+                } else {
+                    println!("No batches. trying again in 5 seconds.");
+                }
 
-                match execute_batch(
-                    &AvailHeader::from(&header),
-                    &mut old_headers,
-                    &txs,
-                    &db,
-                    &mut state_machine,
-                ) {
-                    Ok(_) => mempool_clone.clear_upto_tx(index).await,
-                    Err(e) => {
-                        println!("Breaking because of error {:?}", e);
-                        break;
-                    }
-                };
+                // Sleep for 5 seconds
+                sleep(five_seconds).await;
             }
         });
 
         //Server part//
-        let routes = routes(mempool);
+        let routes = routes(mempool, batches_to_aggregate);
         let cors = warp::cors()
             .allow_any_origin()
             .allow_methods(vec!["POST"])
@@ -103,10 +127,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         //start_rpc_server().await;
 
-        let result = tokio::try_join!(server, execution_engine, relayer);
+        let result = tokio::try_join!(server, execution_engine);
 
         match result {
-            Ok((_, _, _)) => {
+            Ok((_, _)) => {
                 println!("Exiting node, should not have happened.");
             }
             Err(e) => {
@@ -119,21 +143,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn execute_batch(
-    new_header: &AvailHeader,
-    old_headers: &mut HeaderStore,
-    txs: &Vec<TransactionV2>,
+    txs: &Vec<InitTransaction>,
+    aggregated_tx: AggregatedTransaction,
     db: &NodeDB,
     state_machine: &mut StateMachine,
 ) -> Result<Receipt, Error> {
-    let mut cloned_old_headers = old_headers.clone();
-    let state_update = state_machine.execute_batch(&new_header, &mut cloned_old_headers, &txs)?;
+    //let mut cloned_old_headers = old_headers.clone();
+    let state_update = state_machine.execute_batch(&txs, aggregated_tx.clone())?;
 
     let env = ExecutorEnv::builder()
-        .write(&new_header)
-        .unwrap()
-        .write(&old_headers)
-        .unwrap()
         .write(&txs)
+        .unwrap()
+        .write(&aggregated_tx)
         .unwrap()
         .write(&state_update)
         .unwrap()
@@ -150,7 +171,7 @@ fn execute_batch(
 
     let result: NexusHeader = from_slice(&session_info.journal.bytes).unwrap();
 
-    db.put(b"previous_headers", &cloned_old_headers)?;
+    //db.put(b"previous_headers", &cloned_old_headers)?;
 
     db.set_current_root(&result.state_root)?;
 
@@ -158,11 +179,9 @@ fn execute_batch(
 
     //Proof generation part.
     let env = ExecutorEnv::builder()
-        .write(&new_header)
-        .unwrap()
-        .write(&old_headers)
-        .unwrap()
         .write(&txs)
+        .unwrap()
+        .write(&aggregated_tx)
         .unwrap()
         .write(&state_update)
         .unwrap()
@@ -172,4 +191,32 @@ fn execute_batch(
 
     println!("generating proof..");
     Ok(prover.prove(env, NEXUS_RUNTIME_ELF)?)
+}
+
+#[derive(Clone, Debug)]
+pub struct BatchesToAggregate(Arc<Mutex<Vec<(Vec<InitTransaction>, AggregatedTransaction)>>>);
+
+impl BatchesToAggregate {
+    pub fn new() -> Self {
+        Self(Arc::new(Mutex::new(vec![])))
+    }
+
+    pub async fn add_batch(&self, batch: (Vec<InitTransaction>, AggregatedTransaction)) {
+        self.0.lock().await.push(batch);
+    }
+
+    pub async fn get_next_batch(&self) -> Option<(Vec<InitTransaction>, AggregatedTransaction)> {
+        Some(self.0.lock().await.first()?.clone())
+    }
+
+    pub async fn remove_first_batch(&self) {
+        let mut list = &mut self.0.lock().await;
+
+        if !list.is_empty() {
+            &list.remove(0);
+        } else {
+            // Handle case where index exceeds the length of tx_list
+            list.clear();
+        }
+    }
 }

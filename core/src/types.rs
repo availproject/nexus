@@ -8,6 +8,7 @@ use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtens
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
 use parity_scale_codec::{Decode, Encode};
 use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigest, Sha256};
+#[cfg(any(feature = "native"))]
 use risc0_zkvm::Journal;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
@@ -40,6 +41,13 @@ pub struct AccountState {
     pub statement: [u8; 32],
     pub state_root: [u8; 32],
     pub last_avail_block_hash: [u8; 32],
+}
+
+//TODO: Need to check PartialEq to Eq difference, to ensure there is not security vulnerability.
+#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+pub struct SimpleAccountState {
+    pub statement: [u8; 32],
+    pub state_root: [u8; 32],
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -94,12 +102,29 @@ pub struct NexusHeader {
     pub avail_header_hash: H256,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SimpleNexusHeader {
+    pub prev_state_root: H256,
+    pub state_root: H256,
+    pub tx_root: H256,
+    pub avail_blob_root: H256,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StateUpdate {
     pub pre_state_root: H256,
     pub post_state_root: H256,
     pub pre_state: Vec<(AppAccountId, AccountState)>,
     pub post_state: Vec<(AppAccountId, AccountState)>,
+    pub proof: Option<MerkleProof>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SimpleStateUpdate {
+    pub pre_state_root: H256,
+    pub post_state_root: H256,
+    pub pre_state: Vec<(AppAccountId, SimpleAccountState)>,
+    pub post_state: Vec<(AppAccountId, SimpleAccountState)>,
     pub proof: Option<MerkleProof>,
 }
 
@@ -339,6 +364,27 @@ impl Value for AccountState {
             state_root: [0; 32],
             statement: [0; 32],
             last_avail_block_hash: [0; 32],
+        }
+    }
+}
+
+impl Value for SimpleAccountState {
+    fn to_h256(&self) -> H256 {
+        if self.statement == [0u8; 32] {
+            return H256::zero();
+        }
+
+        let mut hasher = ShaHasher::new();
+        let serialized = self.encode();
+        hasher.0.update(&serialized);
+
+        hasher.finish()
+    }
+
+    fn zero() -> Self {
+        Self {
+            state_root: [0; 32],
+            statement: [0; 32],
         }
     }
 }
