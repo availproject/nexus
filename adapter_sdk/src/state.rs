@@ -41,15 +41,8 @@ impl AdapterState {
             match maybe_proof {
                 Some(proof) => {
                     println!("Processing proof: {:?}", proof);
-                    // Add here the processing logic for each proof
-
-                    // If the processing is significantly long or blocking, consider spawning a new task for it
-                    // tokio::spawn(async move {
-                    //     // process proof here
-                    // });
                 }
                 None => {
-                    // If the queue is empty, wait for some time before trying again
                     sleep(Duration::from_secs(1)).await;
                 }
             }
