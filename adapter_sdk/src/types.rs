@@ -1,3 +1,5 @@
+use nexus_core::db::NodeDB;
+use nexus_core::types::AppId;
 use nexus_core::types::{AppAccountId, AvailHeader, H256};
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
@@ -26,4 +28,20 @@ pub struct AdapterPrivateInputs {
     pub header: AvailHeader,
     pub avail_start_hash: H256,
     pub app_id: AppAccountId,
+}
+
+pub struct Adapter {
+    app_id: AppId,
+    db: NodeDB,
+}
+
+pub struct Config<'a> {
+    proof_type: ProofType,
+    app_id: AppId,
+    db_path: &'a str,
+}
+
+enum ProofType {
+    Groth16,
+    RiscZero,
 }

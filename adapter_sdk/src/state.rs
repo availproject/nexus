@@ -27,5 +27,3 @@ impl AdapterState {
     // function to store the till_avail_block, and the corresponding adapter proof generated in local storage
     fn store_local_state(&self) {}
 }
-
-fn query_avail_blocks() {}
