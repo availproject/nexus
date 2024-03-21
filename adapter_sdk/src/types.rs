@@ -4,7 +4,7 @@ use nexus_core::types::{AppAccountId, AvailHeader, H256};
 use risc0_zkvm::sha::Digest;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AdapterPublicInputs {
     pub header_hash: H256,
     pub state_root: H256,

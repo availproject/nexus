@@ -1,27 +1,25 @@
 // track starting block of the rollup.
 // track the last queried block of the rollup
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
+use crate::proof_storage::{GenericProof, ProofTrait};
 use crate::types::AdapterPublicInputs;
-use serde::{Deserialize, Serialize};
+use risc0_zkvm::Receipt;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Proof(pub [u8; 32]);
-
 // usage : create an object for this struct and use as a global dependency
-#[derive(Debug)]
-pub struct AdapterState {
+#[derive(Debug, Clone)]
+pub struct AdapterState<P: ProofTrait + 'static> {
     pub starting_block_number: u8,
     pub last_queried_block_number: u8,
     pub public_inputs: AdapterPublicInputs,
-    proof_queue: Arc<Mutex<VecDeque<Proof>>>,
+    proof_queue: Arc<Mutex<VecDeque<Box<GenericProof<P>>>>>,
 }
 
-impl AdapterState {
+impl<P: ProofTrait + 'static> AdapterState<P> {
     pub fn new(public_inputs: AdapterPublicInputs) -> Self {
         AdapterState {
             starting_block_number: 0,

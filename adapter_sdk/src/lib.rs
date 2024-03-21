@@ -116,4 +116,23 @@
 // }
 
 pub mod adapter_zkvm;
+pub mod proof_storage;
+pub mod rollup;
+pub mod state;
 pub mod types;
+
+use rollup::server;
+use state::AdapterState;
+use types::AdapterPublicInputs;
+
+pub async fn run(public_inputs: AdapterPublicInputs) {
+    let adapter_state = AdapterState::new(public_inputs);
+
+    let state_copy = adapter_state.clone();
+    tokio::spawn(async move {
+        adapter_state.process_queue().await;
+    });
+
+    // Start the server with the state
+    server(state_copy).await;
+}
