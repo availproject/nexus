@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
-risc0-zkvm = { version = "0.20.1", default-features = false, features = ["std"] }
+risc0-zkvm = { version = "0.20", default-features = false, features = ["std"] }
 nexus-core = { path = "../../../core", default-features = false, features = ["zkvm"]}

@@ -5,6 +5,7 @@
 use adapter_sdk::types::AdapterPrivateInputs;
 use adapter_sdk::types::AdapterPublicInputs;
 use demo_rollup_core::DemoRollupPublicInputs;
+use nexus_core::types::StatementDigest;
 use risc0_zkvm::guest::env;
 risc0_zkvm::guest::entry!(main);
 use adapter_sdk::adapter_zkvm::verify_proof;
@@ -27,7 +28,7 @@ fn main() {
         rollup_public_inputs,
         prev_adapter_public_inputs,
         private_inputs,
-        img_id,
+        StatementDigest::from(img_id),
         vk,
     )
     .unwrap();

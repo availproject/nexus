@@ -7,7 +7,10 @@ use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtens
 #[cfg(any(feature = "native"))]
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
 use parity_scale_codec::{Decode, Encode};
-use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigest, Sha256};
+use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
+use risc0_zkvm::sha::Digest as RiscZeroDigest;
+#[cfg(any(feature = "native"))]
+use risc0_zkvm::CompositeReceipt;
 #[cfg(any(feature = "native"))]
 use risc0_zkvm::Journal;
 use serde::{Deserialize, Serialize};
@@ -56,11 +59,12 @@ pub enum TxParamsV2 {
     InitAccount(InitAccount),
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TransactionV2 {
     pub signature: TxSignature,
     pub params: TxParamsV2,
-    pub proof: Option<Vec<u8>>,
+    pub proof: Option<CompositeReceipt>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -68,7 +72,6 @@ pub struct SubmitProof {
     //Disabled for now.
     //pub proof: risc0_zkvm::InnerReceipt,
     pub public_inputs: RollupPublicInputsV2,
-    pub app_account_id: AppAccountId,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -88,11 +91,15 @@ pub struct RollupPublicInputs {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct StatementDigest(pub [u32; 8]);
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct RollupPublicInputsV2 {
-    pub pre_state_root: H256,
-    pub next_state_root: H256,
-    pub tx_root: H256,
-    pub statement: H256,
+    pub header_hash: H256,
+    pub state_root: H256,
+    pub avail_start_hash: H256,
+    pub app_id: AppAccountId,
+    pub img_id: StatementDigest,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -460,6 +467,29 @@ impl From<H256> for AppAccountId {
 impl AppAccountId {
     pub fn as_h256(&self) -> H256 {
         H256::from(self.0)
+    }
+}
+
+impl RollupPublicInputsV2 {
+    pub fn check_consistency(&self, img_id: &StatementDigest) -> Result<(), anyhow::Error> {
+        if img_id != &self.img_id {
+            Err(anyhow::anyhow!("The same img_id not used for recursion"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl From<RiscZeroDigest> for StatementDigest {
+    fn from(item: RiscZeroDigest) -> Self {
+        let words = item.as_words();
+        let mut new_digest = [0u32; 8];
+
+        for (i, &element) in words.iter().take(8).enumerate() {
+            new_digest[i] = element;
+        }
+
+        Self(new_digest)
     }
 }
 
