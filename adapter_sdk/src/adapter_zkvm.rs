@@ -1,12 +1,12 @@
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs};
 use anyhow::Error;
 use nexus_core::traits::{Proof, RollupPublicInputs};
-use nexus_core::types::{AppId, AvailHeader, H256};
+use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
 use risc0_zkvm::{
     guest::env::{self, verify},
     serde::to_vec,
-    sha::Digest,
 };
+
 use serde::Serialize;
 
 /// Verifies a proof against a specified set of public inputs.
@@ -71,7 +71,7 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
     rollup_public_inputs: PI,
     prev_adapter_public_inputs: Option<AdapterPublicInputs>,
     private_inputs: AdapterPrivateInputs,
-    img_id: Digest,
+    img_id: StatementDigest,
     vk: [u8; 32],
 ) -> Result<AdapterPublicInputs, Error> {
     /*  Things adapter must check,
@@ -105,7 +105,7 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
             ));
         }
 
-        match env::verify(img_id, &to_vec(&prev_public_input).unwrap()) {
+        match env::verify(img_id.0, &to_vec(&prev_public_input).unwrap()) {
             Ok(()) => {
                 println!("Verified proof");
                 ()

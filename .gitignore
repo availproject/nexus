@@ -1,6 +1,7 @@
 target/
 **/app_node
 **/header.json
+**/submit_tx.json
 **/node_db
 **/runtime_db
 Cargo.lock
