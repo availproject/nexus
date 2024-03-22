@@ -1,30 +1,23 @@
+use anyhow::Error;
+use nexus_core::traits::{Proof, RollupPublicInputs};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
-pub trait ProofTrait: Debug + Clone + Serialize + for<'de> Deserialize<'de> {
-    fn verify(&self) -> String;
+#[derive(Debug, Clone, Copy)]
+pub struct GenericProof<PI, P> {
+    proof: P,
+    _marker: PhantomData<PI>,
 }
 
-#[derive(Debug)]
-pub struct GenericProof<P: ProofTrait> {
-    proofs: Vec<P>,
-}
-
-impl<P: ProofTrait> GenericProof<P> {
-    pub fn new() -> Self {
-        Self { proofs: Vec::new() }
-    }
-}
-
-impl<'de, P> Deserialize<'de> for GenericProof<P>
+impl<PI, P> Proof<PI> for GenericProof<PI, P>
+// Ensure we specify `GenericProof<PI, P>` here
 where
-    P: ProofTrait,
+    PI: RollupPublicInputs,
+    P: Proof<PI>, // This ensures `P` implements the Proof trait for some PI
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let proofs = Vec::<P>::deserialize(deserializer)?;
-        Ok(Self { proofs })
+    fn verify(&self, vk: &[u8; 32], public_inputs: &PI) -> Result<(), Error> {
+        // Forward the call to P's verify method
+        self.proof.verify(vk, public_inputs)
     }
 }

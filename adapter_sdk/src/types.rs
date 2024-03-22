@@ -23,7 +23,7 @@ impl AdapterPublicInputs {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterPrivateInputs {
     pub header: AvailHeader,
     pub avail_start_hash: H256,
