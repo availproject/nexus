@@ -302,16 +302,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aggregator_core"
-version = "0.1.0"
-dependencies = [
- "adapter_sdk",
- "anyhow",
- "nexus-core",
- "serde",
-]
-
-[[package]]
 name = "aggregator_methods"
 version = "0.1.0"
 dependencies = [
