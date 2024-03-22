@@ -8,6 +8,9 @@ members = [
     "demo_rollup/host", 
     "demo_rollup/methods",
     "demo_rollup/core",
+    "aggregator/host",
+    "aggregator/methods",
+    "aggregator/core",
     "adapter_sdk",
     "old_demo_rollup"
 ]
