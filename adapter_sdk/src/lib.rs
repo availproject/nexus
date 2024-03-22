@@ -9,18 +9,24 @@ use rollup::server;
 use state::AdapterState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use types::AdapterPublicInputs;
+use types::{AdapterPrivateInputs, AdapterPublicInputs};
 
-pub async fn run<P: ProofTrait + 'static + Send + Sync>(public_inputs: AdapterPublicInputs) {
-    let adapter_state: Arc<Mutex<AdapterState<P>>> =
-        Arc::new(Mutex::new(AdapterState::new(public_inputs)));
+pub async fn run<P: ProofTrait + 'static + Send + Sync>(
+    public_inputs: AdapterPublicInputs,
+    private_inputs: AdapterPrivateInputs,
+    vk: [u8; 32],
+) -> Arc<Mutex<AdapterState<P>>> {
+    let adapter_state: Arc<Mutex<AdapterState<P>>> = Arc::new(Mutex::new(AdapterState::new(
+        public_inputs,
+        private_inputs,
+        vk,
+    )));
 
     let state_copy: Arc<Mutex<AdapterState<P>>> = Arc::clone(&adapter_state);
     tokio::spawn(async move {
-        let mut state = state_copy.lock().await;
+        let state = state_copy.lock().await;
         state.process_queue().await;
     });
 
-    // Start the server with the state
     server(adapter_state).await;
 }
