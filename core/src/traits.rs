@@ -9,6 +9,8 @@ use anyhow::{anyhow, Error};
 #[cfg(any(feature = "native"))]
 use avail_subxt::avail::PairSigner;
 
+pub use sparse_merkle_tree::traits::Hasher;
+
 pub trait Leaf<K> {
     fn get_key(&self) -> K;
 }

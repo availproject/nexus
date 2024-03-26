@@ -161,8 +161,8 @@ pub enum Extension {
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
 pub struct V3Extension {
-    app_lookup: DataLookup,
-    commitment: KateCommitment,
+    pub app_lookup: DataLookup,
+    pub commitment: KateCommitment,
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Default, Serialize, Deserialize)]
