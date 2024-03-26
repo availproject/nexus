@@ -4,10 +4,17 @@ use crate::adapter_zkvm::verify_proof;
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 use crate::proof_storage::GenericProof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs};
+use anyhow::{anyhow, Error};
 use avail_subxt;
+use avail_subxt::api::identity::calls::types::SetFee;
 use nexus_core::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::H256;
-use risc0_zkvm::Receipt;
+use risc0_zkp::core::digest::Digest;
+use risc0_zkvm::{default_prover, Receipt};
+use risc0_zkvm::{
+    serde::{from_slice, to_vec},
+    Executor, ExecutorEnv,
+};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,6 +30,8 @@ pub struct AdapterState<PI: RollupPublicInputs, P: Proof<PI>> {
     private_inputs: AdapterPrivateInputs,
     pub(crate) proof_queue: Arc<Mutex<VecDeque<GenericProof<PI, P>>>>,
     pub blob_data: Arc<Mutex<VecDeque<H256>>>,
+    pub elf: Box<[u8]>,
+    pub elf_id: Digest,
     pub vk: [u8; 32],
 }
 
@@ -31,6 +40,8 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
         public_inputs: AdapterPublicInputs,
         private_inputs: AdapterPrivateInputs,
         vk: [u8; 32],
+        zkvm_elf: &[u8],
+        zkvm_id: impl Into<Digest>,
     ) -> Self {
         AdapterState {
             starting_block_number: 0,
@@ -39,13 +50,15 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
             private_inputs,
             proof_queue: Arc::new(Mutex::new(VecDeque::new())),
             blob_data: Arc::new(Mutex::new(VecDeque::new())),
+            elf: zkvm_elf.into(),
+            elf_id: zkvm_id.into(),
             vk,
         }
     }
 
-    // function triggered by rollup in a loop to process its proofs.
+    // function triggered by rollup in a loop to pro+cess its proofs.
     pub async fn process_queue(&mut self, rollup_public_inputs: PI) {
-        self.verify_and_generate_proof(rollup_public_inputs).await
+        // self.verify_and_generate_proof(rollup_public_inputs).await
         // TODO: return the proof from above ( by modifying the zkvm ) and use it against blob data
     }
 
@@ -56,6 +69,7 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
             avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
                 .await
                 .unwrap();
+
         println!("Built client");
     }
 
@@ -65,27 +79,43 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
     }
 
     // function to generate proof against avail data when proof is received and verified from the rollup
-    pub async fn verify_and_generate_proof(&mut self, rollup_public_inputs: PI) {
+    pub async fn verify_and_generate_proof(
+        &mut self,
+        rollup_public_inputs: PI,
+    ) -> Result<Receipt, Error> {
         let proof_lock = self.proof_queue.lock().await;
         let front_proof_ref = proof_lock.front().expect("Queue is empty");
         let front_proof_clone = front_proof_ref.clone(); // Clone the value
 
-        let new_public_inputs = verify_proof(
-            front_proof_clone,
-            rollup_public_inputs,
-            Some(self.public_inputs.clone()),
-            self.private_inputs.clone(),
-            self.public_inputs.img_id,
-            self.vk,
-        );
+        let env = ExecutorEnv::builder()
+            .write(&to_vec(&front_proof_clone)?)
+            .unwrap()
+            .write(&to_vec(&rollup_public_inputs)?)
+            .unwrap()
+            .write(&to_vec(&self.public_inputs)?)
+            .unwrap()
+            .write(&to_vec(&self.private_inputs)?)
+            .unwrap()
+            .write(&to_vec(&self.public_inputs.img_id)?)
+            .unwrap()
+            .write(&to_vec(&self.vk)?)
+            .unwrap()
+            .build()
+            .unwrap();
 
-        match (new_public_inputs) {
-            Ok(value) => {
-                self.public_inputs = value;
-                self.proof_queue.lock().await.pop_front();
-            }
-            Err(e) => println!("Error: {}", e),
-        }
+        let prover = default_prover();
+
+        let receipt = prover.prove(env, &self.elf);
+
+        receipt
+        // let new_public_inputs = verify_proof(
+        //     front_proof_clone,
+        //     rollup_public_inputs,
+        //     Some(self.public_inputs.clone()),
+        //     self.private_inputs.clone(),
+        //     self.public_inputs.img_id,
+        //     self.vk,
+        // );
     }
 
     // function to store the till_avail_block, and the corresponding adapter proof generated in local storage

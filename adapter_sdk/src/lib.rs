@@ -14,7 +14,7 @@ pub async fn setup<PI: RollupPublicInputs, P: Proof<PI>>(
     public_inputs: AdapterPublicInputs,
     private_inputs: AdapterPrivateInputs,
     vk: [u8; 32],
-) -> AdapterState<PI, P> {
-    let adapter_state: AdapterState<PI, P> = AdapterState::new(public_inputs, private_inputs, vk);
-    adapter_state
+) {
+    // let adapter_state: AdapterState<PI, P> = AdapterState::new(public_inputs, private_inputs, vk);
+    // adapter_state
 }
