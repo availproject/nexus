@@ -1,10 +1,13 @@
-use crate::types::{AdapterPrivateInputs, AdapterPublicInputs};
-use anyhow::Error;
-use nexus_core::traits::{Proof, RollupPublicInputs};
-use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
+use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+use anyhow::{anyhow, Error};
+use nexus_core::traits::{Hasher, Proof, RollupPublicInputs};
+use nexus_core::types::{
+    AppAccountId, AvailHeader, Extension, ShaHasher, StatementDigest, V3Extension, H256,
+};
 use risc0_zkvm::{
     guest::env::{self, verify},
     serde::to_vec,
+    sha::rust_crypto::Digest,
 };
 
 use serde::Serialize;
@@ -67,8 +70,7 @@ use serde::Serialize;
 /// Ensure that the types `Proof`, `RollupPublicInputs`, `AdapterPublicInputs`, `AdapterPrivateInputs`, `Error`, and `Digest` are properly defined and implemented.
 
 pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
-    proof: P,
-    rollup_public_inputs: PI,
+    rollup_proof: Option<RollupProof<PI, P>>,
     prev_adapter_public_inputs: Option<AdapterPublicInputs>,
     private_inputs: AdapterPrivateInputs,
     img_id: StatementDigest,
@@ -82,53 +84,106 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
     5. Check if current proof is sequential as per last proof - ✅
     6. Verify current proof -  ✅
     7. Hash the header provided - ✅
-    8. Allow verification of empty proof - ❌
+    8. Allow verification of empty proof - ✅
     */
+
+    let current_avail_hash: H256 = private_inputs.header.hash();
+    //TODO: Check inclusion proof for data blob, app index check, and empty block check.
+    let mut hasher = ShaHasher::new();
+
+    hasher.0.update(private_inputs.app_id.0.to_be_bytes());
+
+    let hash: H256 = hasher.finish();
+    let app_account_id: AppAccountId = AppAccountId::from(hash);
+
+    let (proof, rollup_public_inputs) = match rollup_proof {
+        Some(i) => (i.proof, i.public_inputs),
+        None => {
+            let app_lookup = match private_inputs.header.extension {
+                Extension::V3(extension) => extension.app_lookup,
+                _ => unreachable!("Other headers not expected"),
+            };
+
+            let mut empty_block: bool = true;
+
+            for appindex in app_lookup.index {
+                if appindex.app_id == private_inputs.app_id {
+                    empty_block = false;
+                }
+            }
+
+            if !empty_block {
+                return Err(anyhow!("Header not empty, but no proof"));
+            }
+
+            return Ok(match prev_adapter_public_inputs {
+                Some(i) => AdapterPublicInputs {
+                    header_hash: current_avail_hash,
+                    state_root: i.state_root,
+                    avail_start_hash: i.avail_start_hash,
+                    app_id: app_account_id,
+                    img_id: i.img_id,
+                },
+                None => AdapterPublicInputs {
+                    header_hash: current_avail_hash,
+                    state_root: H256::zero(),
+                    avail_start_hash: current_avail_hash,
+                    app_id: app_account_id,
+                    img_id: img_id.clone(),
+                },
+            });
+        }
+    };
 
     let prev_state_root: H256 = rollup_public_inputs.prev_state_root();
     let post_state_root: H256 = rollup_public_inputs.post_state_root();
-    let current_avail_hash: H256 = private_inputs.header.hash();
-
-    if prev_state_root != H256::zero() {
-        let prev_public_input: AdapterPublicInputs = match prev_adapter_public_inputs {
-            Some(i) => i,
-            None => return Err(anyhow::anyhow!("Previous proof not submitted")),
-        };
-
-        if prev_state_root != prev_public_input.state_root {
-            return Err(anyhow::anyhow!("Not sequential proof"));
-        }
-
-        if prev_public_input.header_hash != private_inputs.header.parent_hash {
-            return Err(anyhow::anyhow!(
-                "Proof for previous avail height not provided."
-            ));
-        }
-
-        match env::verify(img_id.0, &to_vec(&prev_public_input).unwrap()) {
-            Ok(()) => {
-                println!("Verified proof");
-                ()
-            }
-            Err(e) => return Err(anyhow::anyhow!("Invalid proof")),
-        }
-    } else {
-        if current_avail_hash != private_inputs.avail_start_hash {
-            return Err(anyhow::anyhow!("First proof needs to be at start height."));
-        }
-    }
-
-    //TODO: Check inclusion proof for data blob, app index check, and empty block check.
 
     //TODO: Remove unwrap below.
     //TODO: Allow custom encoding here.
     proof.verify(&vk, &rollup_public_inputs)?;
 
+    let prev_public_input: AdapterPublicInputs = match prev_adapter_public_inputs {
+        Some(i) => i,
+        None => {
+            return {
+                if prev_state_root != H256::zero() {
+                    Err(anyhow::anyhow!("Previous proof not submitted"))
+                } else {
+                    Ok(AdapterPublicInputs {
+                        header_hash: current_avail_hash,
+                        state_root: post_state_root,
+                        avail_start_hash: current_avail_hash,
+                        app_id: app_account_id,
+                        img_id: img_id.clone(),
+                    })
+                }
+            }
+        }
+    };
+
+    if prev_state_root != prev_public_input.state_root {
+        return Err(anyhow::anyhow!("Not sequential proof"));
+    }
+
+    if prev_public_input.header_hash != private_inputs.header.parent_hash {
+        return Err(anyhow::anyhow!(
+            "Proof for previous avail height not provided."
+        ));
+    }
+
+    match env::verify(img_id.0, &to_vec(&prev_public_input).unwrap()) {
+        Ok(()) => {
+            println!("Verified proof");
+            ()
+        }
+        Err(e) => return Err(anyhow::anyhow!("Invalid proof")),
+    }
+
     Ok(AdapterPublicInputs {
         header_hash: current_avail_hash,
         state_root: rollup_public_inputs.post_state_root(),
-        avail_start_hash: private_inputs.avail_start_hash,
-        app_id: private_inputs.app_id,
+        avail_start_hash: prev_public_input.avail_start_hash,
+        app_id: app_account_id,
         img_id: img_id.clone(),
     })
 }

@@ -10,6 +10,8 @@ use anyhow::{anyhow, Error};
 use avail_subxt::avail::PairSigner;
 use serde::Serialize;
 
+pub use sparse_merkle_tree::traits::Hasher;
+
 pub trait Leaf<K> {
     fn get_key(&self) -> K;
 }
