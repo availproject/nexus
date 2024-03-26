@@ -2,8 +2,8 @@ use crate::adapter_zkvm::verify_proof;
 // track starting block of the rollup.
 // track the last queried block of the rollup
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
-use crate::proof_storage::GenericProof;
-use crate::types::{AdapterPrivateInputs, AdapterPublicInputs};
+
+use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
 use avail_subxt::api::identity::calls::types::SetFee;
 use nexus_core::traits::{Proof, RollupPublicInputs};
@@ -27,7 +27,7 @@ pub struct AdapterState<PI: RollupPublicInputs, P: Proof<PI>> {
     pub last_queried_block_number: u8,
     pub public_inputs: AdapterPublicInputs,
     private_inputs: AdapterPrivateInputs,
-    pub(crate) proof_queue: Arc<Mutex<VecDeque<GenericProof<PI, P>>>>,
+    pub(crate) proof_queue: Arc<Mutex<VecDeque<RollupProof<PI, P>>>>,
     pub blob_data: Arc<Mutex<VecDeque<H256>>>,
     pub elf: Box<[u8]>,
     pub elf_id: Digest,
@@ -72,7 +72,7 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
         println!("Built client");
     }
 
-    pub async fn add_proof(&mut self, proof: GenericProof<PI, P>) {
+    pub async fn add_proof(&mut self, proof: RollupProof<PI, P>) {
         // proof input validation ???
         self.proof_queue.lock().await.push_back(proof)
     }

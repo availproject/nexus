@@ -15,7 +15,7 @@ impl Proof<DemoRollupPublicInputs> for DemoProof {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Copy)]
 pub struct DemoRollupPublicInputs {
     pub prev_state_root: H256,
     pub post_state_root: H256,
