@@ -1,24 +1,17 @@
-use crate::adapter_zkvm::verify_proof;
 // track starting block of the rollup.
 // track the last queried block of the rollup
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
-use avail_subxt::api::identity::calls::types::SetFee;
 use nexus_core::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::H256;
 use risc0_zkp::core::digest::Digest;
 use risc0_zkvm::{default_prover, Receipt};
-use risc0_zkvm::{
-    serde::{from_slice, to_vec},
-    Executor, ExecutorEnv,
-};
+use risc0_zkvm::{serde::to_vec, ExecutorEnv};
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio::time::sleep;
 
 // usage : create an object for this struct and use as a global dependency
 #[derive(Debug, Clone)]
@@ -107,14 +100,6 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
         let receipt = prover.prove(env, &self.elf);
 
         receipt
-        // let new_public_inputs = verify_proof(
-        //     front_proof_clone,
-        //     rollup_public_inputs,
-        //     Some(self.public_inputs.clone()),
-        //     self.private_inputs.clone(),
-        //     self.public_inputs.img_id,
-        //     self.vk,
-        // );
     }
 
     // function to store the till_avail_block, and the corresponding adapter proof generated in local storage

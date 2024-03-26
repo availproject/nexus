@@ -4,7 +4,7 @@ use nexus_core::{
     traits::{Proof, RollupPublicInputs},
     types::AppId,
 };
-use risc0_zkvm::sha::Digest;
+
 use serde::{Deserialize, Serialize};
 
 // #[derive(Serialize, Deserialize, Debug)]
@@ -22,7 +22,7 @@ pub struct AdapterPrivateInputs {
     pub app_id: AppId,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
 pub struct RollupProof<PI: RollupPublicInputs, P: Proof<PI>> {
     pub proof: P,
     pub public_inputs: PI,
