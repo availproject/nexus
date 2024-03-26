@@ -8,6 +8,7 @@ use crate::{
 use anyhow::{anyhow, Error};
 #[cfg(any(feature = "native"))]
 use avail_subxt::avail::PairSigner;
+use serde::Serialize;
 
 pub trait Leaf<K> {
     fn get_key(&self) -> K;
@@ -28,11 +29,11 @@ pub trait RollupAdapter<PI: RollupPublicInputs, P: Proof<PI>> {
     fn submit_proof_for_blob() -> impl Future<Output = Result<(), anyhow::Error>>;
 }
 
-pub trait Proof<PI> {
+pub trait Proof<PI>: Clone + Serialize {
     fn verify(&self, vk: &[u8; 32], public_inputs: &PI) -> Result<(), Error>;
 }
 
-pub trait RollupPublicInputs {
+pub trait RollupPublicInputs: Clone + Copy + Serialize {
     fn prev_state_root(&self) -> H256;
     fn post_state_root(&self) -> H256;
     fn blob_hash(&self) -> H256;

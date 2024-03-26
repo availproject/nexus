@@ -223,13 +223,26 @@ dependencies = [
  "henosis",
  "hex",
  "nexus-core",
- "num-bigint",
+ "num-bigint 0.4.4",
  "reqwest",
+ "risc0-zkp 0.18.0",
  "risc0-zkvm",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
+ "warp",
+]
+
+[[package]]
+name = "addchain"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b2e69442aa5628ea6951fa33e24efe8313f4321a91bd729fc2f75bdfc858570"
+dependencies = [
+ "num-bigint 0.3.3",
+ "num-integer",
+ "num-traits",
 ]
 
 [[package]]
@@ -284,18 +297,6 @@ dependencies = [
  "cfg-if 1.0.0",
  "cipher",
  "cpufeatures",
-]
-
-[[package]]
-name = "aggregator"
-version = "0.1.0"
-dependencies = [
- "avail-subxt",
- "hex",
- "reqwest",
- "tokio",
- "tokio-stream",
- "warp",
 ]
 
 [[package]]
@@ -491,7 +492,7 @@ dependencies = [
  "ark-serialize 0.3.0",
  "ark-std 0.3.0",
  "derivative",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-traits",
  "paste",
  "rustc_version 0.3.3",
@@ -511,7 +512,7 @@ dependencies = [
  "derivative",
  "digest 0.10.7",
  "itertools 0.10.5",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-traits",
  "paste",
  "rustc_version 0.4.0",
@@ -544,7 +545,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db2fd794a08ccb318058009eefdf15bcaaaaf6f8161eb3345f907222bac38b20"
 dependencies = [
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-traits",
  "quote",
  "syn 1.0.109",
@@ -556,7 +557,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7abe79b0e4288889c4574159ab790824d0033b9fdcb2a112a3182fac2e514565"
 dependencies = [
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-traits",
  "proc-macro2",
  "quote",
@@ -636,7 +637,7 @@ dependencies = [
  "ark-serialize-derive 0.4.2",
  "ark-std 0.4.0",
  "digest 0.10.7",
- "num-bigint",
+ "num-bigint 0.4.4",
 ]
 
 [[package]]
@@ -1065,8 +1066,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes",
- "rand 0.7.3",
- "rand_core 0.5.1",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
  "serde",
  "unicode-normalization",
 ]
@@ -2357,6 +2358,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "directories"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a49173b84e034382284f27f1af4dcbbd231ffa358c0fe316541a7337f376a35"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
 name = "dirs"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3132,8 +3142,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
 dependencies = [
  "bitvec 1.0.1",
+ "byteorder",
+ "ff_derive",
  "rand_core 0.6.4",
  "subtle",
+]
+
+[[package]]
+name = "ff_derive"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f54704be45ed286151c5e11531316eaef5b8f5af7d597b806fdb8af108d84a"
+dependencies = [
+ "addchain",
+ "cfg-if 1.0.0",
+ "num-bigint 0.3.3",
+ "num-integer",
+ "num-traits",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -3145,7 +3173,7 @@ dependencies = [
  "ark-ec 0.3.0",
  "ark-ff 0.3.0",
  "ark-poly 0.3.0",
- "num-bigint",
+ "num-bigint 0.4.4",
  "tiny-keccak",
 ]
 
@@ -3719,7 +3747,7 @@ dependencies = [
  "halo2-base",
  "halo2-ecc",
  "halo2curves",
- "num-bigint",
+ "num-bigint 0.4.4",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
@@ -3802,7 +3830,7 @@ dependencies = [
  "itertools 0.11.0",
  "jemallocator",
  "log 0.4.20",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-integer",
  "num-traits",
  "poseidon-primitives",
@@ -3822,7 +3850,7 @@ checksum = "aeba4bd49c6eb05815a9809e749f1db525b26b17f5cafb40c5d9a9a4d483f541"
 dependencies = [
  "halo2-base",
  "itertools 0.11.0",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-integer",
  "num-traits",
  "rand 0.8.5",
@@ -3844,7 +3872,7 @@ dependencies = [
  "ff 0.13.0",
  "group 0.13.0",
  "lazy_static",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-traits",
  "pairing",
  "pasta_curves",
@@ -3869,7 +3897,7 @@ dependencies = [
  "hex",
  "lazy_static",
  "maybe-rayon",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-traits",
  "pairing",
  "pasta_curves",
@@ -4006,7 +4034,7 @@ dependencies = [
  "ethers",
  "fflonk_verifier",
  "groth16_aggregator",
- "num-bigint",
+ "num-bigint 0.4.4",
  "queues",
  "regex",
  "sha256",
@@ -4982,6 +5010,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2532096657941c2fea9c289d370a250971c689d4f143798ff67113ec042024a5"
 
 [[package]]
+name = "matrixmultiply"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7574c1cf36da4798ab73da5b215bbf444f50718207754cb522201d78d1cd0ff2"
+dependencies = [
+ "autocfg 1.1.0",
+ "rawpointer",
+]
+
+[[package]]
 name = "maybe-rayon"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5261,6 +5299,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ndarray"
+version = "0.15.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adb12d4e967ec485a5f71c6311fe28158e9d6f4bc4a447b474184d0f91a8fa32"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "rawpointer",
+ "rayon",
+]
+
+[[package]]
 name = "net2"
 version = "0.2.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5368,6 +5420,17 @@ dependencies = [
 
 [[package]]
 name = "num-bigint"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f6f7833f2cbf2360a6cfd58cd41a53aa7a90bd4c202f5b1c7dd2ed73c57b2c3"
+dependencies = [
+ "autocfg 1.1.0",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-bigint"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "608e7659b5c3d7cba262d894801b9ec9d00de989e8a82bd4bef91d08da45cdc0"
@@ -5376,6 +5439,15 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23c6602fda94a57c990fe0df199a035d83576b496aa29f4e634a8ac6004e68a6"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -5421,7 +5493,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0638a1c9d0a3c0914158145bc76cff373a75a627e6ecbfb71cbe6f453a5a19b0"
 dependencies = [
  "autocfg 1.1.0",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-integer",
  "num-traits",
 ]
@@ -6513,6 +6585,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rawpointer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
+
+[[package]]
 name = "rayon"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6753,8 +6831,8 @@ checksum = "9d263c6370d7714d2a634b6d88deb3871d0fad1f9486a9da6d48139c1ac85b26"
 dependencies = [
  "anyhow",
  "elf",
- "risc0-zkp",
- "risc0-zkvm-platform",
+ "risc0-zkp 0.20.1",
+ "risc0-zkvm-platform 0.20.1",
  "serde",
  "tracing",
 ]
@@ -6770,10 +6848,24 @@ dependencies = [
  "cargo_metadata 0.17.0",
  "docker-generate",
  "risc0-binfmt",
- "risc0-zkp",
- "risc0-zkvm-platform",
+ "risc0-zkp 0.20.1",
+ "risc0-zkvm-platform 0.20.1",
  "serde",
  "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "risc0-build-kernel"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80b88d565a721641f355cb889fee75c12c719dec7b910aa42ecabffa30d99f87"
+dependencies = [
+ "cc",
+ "directories",
+ "glob",
+ "hex",
+ "sha2 0.10.8",
  "tempfile",
 ]
 
@@ -6786,8 +6878,8 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "hex",
- "risc0-core",
- "risc0-zkp",
+ "risc0-core 0.20.1",
+ "risc0-zkp 0.20.1",
  "tracing",
 ]
 
@@ -6798,10 +6890,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb1caa759ab74d08779e062fcf98f5bd34397dfde572516a52369f0ec46db650"
 dependencies = [
  "anyhow",
- "risc0-core",
- "risc0-zkp",
- "risc0-zkvm-platform",
+ "risc0-core 0.20.1",
+ "risc0-zkp 0.20.1",
+ "risc0-zkvm-platform 0.20.1",
  "tracing",
+]
+
+[[package]]
+name = "risc0-core"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08605aec93ea22ed83f7f81f42e2d7287a5b0c749d8671f94de9d5994020045c"
+dependencies = [
+ "bytemuck",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -6812,6 +6914,45 @@ checksum = "be79c89bcd18886b376073e3da22f8b7963247a42dce7b49cf3d09853f51641e"
 dependencies = [
  "bytemuck",
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "risc0-sys"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6d308c2ebc79e32c100f57722914b3172d2f0d69321703b684ea0c302e4f3a9"
+dependencies = [
+ "cc",
+ "glob",
+ "risc0-build-kernel",
+ "risc0-core 0.18.0",
+]
+
+[[package]]
+name = "risc0-zkp"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28166926bb177824939f4e91083198f9f3da8137aeac32361bd34548c0526fa5"
+dependencies = [
+ "anyhow",
+ "blake2",
+ "bytemuck",
+ "digest 0.10.7",
+ "ff 0.13.0",
+ "hex",
+ "lazy_static",
+ "log 0.4.20",
+ "ndarray",
+ "paste",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "rayon",
+ "risc0-core 0.18.0",
+ "risc0-sys",
+ "risc0-zkvm-platform 0.18.0",
+ "serde",
+ "sha2 0.10.8",
+ "tracing",
 ]
 
 [[package]]
@@ -6827,8 +6968,8 @@ dependencies = [
  "hex",
  "paste",
  "rand_core 0.6.4",
- "risc0-core",
- "risc0-zkvm-platform",
+ "risc0-core 0.20.1",
+ "risc0-zkvm-platform 0.20.1",
  "serde",
  "sha2 0.10.8",
  "tracing",
@@ -6851,7 +6992,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "getrandom 0.2.12",
  "hex",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-derive",
  "num-traits",
  "prost",
@@ -6860,15 +7001,21 @@ dependencies = [
  "risc0-binfmt",
  "risc0-circuit-recursion",
  "risc0-circuit-rv32im",
- "risc0-core",
- "risc0-zkp",
- "risc0-zkvm-platform",
+ "risc0-core 0.20.1",
+ "risc0-zkp 0.20.1",
+ "risc0-zkvm-platform 0.20.1",
  "rrs-lib",
  "semver 1.0.21",
  "serde",
  "sha2 0.10.8",
  "tracing",
 ]
+
+[[package]]
+name = "risc0-zkvm-platform"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8524b46783b58b00e9b2a4712e837093c975b23cf25bfaf99e1cf69e9011bf6b"
 
 [[package]]
 name = "risc0-zkvm-platform"
@@ -6934,7 +7081,7 @@ dependencies = [
  "ark-ff 0.4.2",
  "bytes 1.5.0",
  "fastrlp",
- "num-bigint",
+ "num-bigint 0.4.4",
  "parity-scale-codec",
  "primitive-types",
  "proptest",
@@ -7723,7 +7870,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adc4e5204eb1910f40f9cfa375f6f05b68c3abac4b6fd879c8ff5e7ae8a0a085"
 dependencies = [
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-traits",
  "thiserror",
  "time 0.3.34",
@@ -7770,7 +7917,7 @@ dependencies = [
  "hex",
  "itertools 0.11.0",
  "lazy_static",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-integer",
  "num-traits",
  "pairing",
@@ -7794,7 +7941,7 @@ dependencies = [
  "hex",
  "itertools 0.11.0",
  "lazy_static",
- "num-bigint",
+ "num-bigint 0.4.4",
  "num-integer",
  "num-traits",
  "rand 0.8.5",
@@ -10862,7 +11009,7 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if 1.0.0",
  "digest 0.10.7",
- "rand 0.7.3",
+ "rand 0.8.5",
  "static_assertions",
 ]
 
