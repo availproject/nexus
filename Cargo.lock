@@ -225,24 +225,13 @@ dependencies = [
  "nexus-core",
  "num-bigint 0.4.4",
  "reqwest",
- "risc0-zkp 0.18.0",
+ "risc0-zkp",
  "risc0-zkvm",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
  "warp",
-]
-
-[[package]]
-name = "addchain"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b2e69442aa5628ea6951fa33e24efe8313f4321a91bd729fc2f75bdfc858570"
-dependencies = [
- "num-bigint 0.3.3",
- "num-integer",
- "num-traits",
 ]
 
 [[package]]
@@ -7023,8 +7012,8 @@ checksum = "9d263c6370d7714d2a634b6d88deb3871d0fad1f9486a9da6d48139c1ac85b26"
 dependencies = [
  "anyhow",
  "elf",
- "risc0-zkp 0.20.1",
- "risc0-zkvm-platform 0.20.1",
+ "risc0-zkp",
+ "risc0-zkvm-platform",
  "serde",
  "tracing",
 ]
@@ -7040,8 +7029,8 @@ dependencies = [
  "cargo_metadata 0.17.0",
  "docker-generate",
  "risc0-binfmt",
- "risc0-zkp 0.20.1",
- "risc0-zkvm-platform 0.20.1",
+ "risc0-zkp",
+ "risc0-zkvm-platform",
  "serde",
  "serde_json",
  "tempfile",
@@ -7118,16 +7107,6 @@ dependencies = [
  "glob",
  "risc0-build-kernel",
  "risc0-core",
-]
-
-[[package]]
-name = "risc0-core"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08605aec93ea22ed83f7f81f42e2d7287a5b0c749d8671f94de9d5994020045c"
-dependencies = [
- "bytemuck",
- "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -7209,9 +7188,9 @@ dependencies = [
  "risc0-binfmt",
  "risc0-circuit-recursion",
  "risc0-circuit-rv32im",
- "risc0-core 0.20.1",
- "risc0-zkp 0.20.1",
- "risc0-zkvm-platform 0.20.1",
+ "risc0-core",
+ "risc0-zkp",
+ "risc0-zkvm-platform",
  "rrs-lib",
  "rustc-demangle",
  "semver 1.0.21",
@@ -7221,12 +7200,6 @@ dependencies = [
  "tracing",
  "typetag",
 ]
-
-[[package]]
-name = "risc0-zkvm-platform"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8524b46783b58b00e9b2a4712e837093c975b23cf25bfaf99e1cf69e9011bf6b"
 
 [[package]]
 name = "risc0-zkvm-platform"

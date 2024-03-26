@@ -5,7 +5,6 @@ use crate::adapter_zkvm::verify_proof;
 use crate::proof_storage::GenericProof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs};
 use anyhow::{anyhow, Error};
-use avail_subxt;
 use avail_subxt::api::identity::calls::types::SetFee;
 use nexus_core::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::H256;
