@@ -5,10 +5,11 @@ use crate::{
     agg_types::{AggregatedTransaction, SubmitProofTransaction},
     types::AppId,
 };
-use anyhow::{anyhow, Error};
+use anyhow::Error;
 #[cfg(any(feature = "native"))]
 use avail_subxt::avail::PairSigner;
-use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 pub use sparse_merkle_tree::traits::Hasher;
 
@@ -31,11 +32,11 @@ pub trait RollupAdapter<PI: RollupPublicInputs, P: Proof<PI>> {
     fn submit_proof_for_blob() -> impl Future<Output = Result<(), anyhow::Error>>;
 }
 
-pub trait Proof<PI>: Clone + Serialize {
+pub trait Proof<PI>: Clone + Serialize + Send + Sync + DeserializeOwned {
     fn verify(&self, vk: &[u8; 32], public_inputs: &PI) -> Result<(), Error>;
 }
 
-pub trait RollupPublicInputs: Clone + Copy + Serialize {
+pub trait RollupPublicInputs: Clone + Serialize + Copy + DeserializeOwned {
     fn prev_state_root(&self) -> H256;
     fn post_state_root(&self) -> H256;
     fn blob_hash(&self) -> H256;

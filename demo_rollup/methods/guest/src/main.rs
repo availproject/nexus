@@ -25,7 +25,6 @@ fn main() {
 
     let result = verify_proof(
         proof,
-        rollup_public_inputs,
         prev_adapter_public_inputs,
         private_inputs,
         StatementDigest::from(img_id),

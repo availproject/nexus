@@ -6,7 +6,6 @@ use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
 use nexus_core::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::{AppId, AvailHeader, H256};
-use relayer::types::Header;
 use relayer::Relayer;
 use risc0_zkp::core::digest::Digest;
 use risc0_zkvm::{default_prover, Receipt};
@@ -69,7 +68,7 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
             let new_queue_item = QueueItem {
                 proof: None,
                 blob: None,
-                header: header.into(),
+                header: AvailHeader::from(&header),
             };
             let mut queue = self.queue.lock().await;
             queue.push_back(new_queue_item);

@@ -11,6 +11,7 @@ tokio-stream = "0.1.14"
 avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"]}
 serde = "1.0.196"
 serde_json = "1.0.113"
+nexus-core = { path = "../core"}
 
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }

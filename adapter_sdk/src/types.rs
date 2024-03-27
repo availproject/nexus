@@ -5,7 +5,8 @@ use nexus_core::{
     types::AppId,
 };
 use relayer::types::Header;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::marker::PhantomData;
 use std::marker::{Send, Sync};
 
 // #[derive(Serialize, Deserialize, Debug)]
@@ -23,7 +24,7 @@ pub struct AdapterPrivateInputs {
     pub app_id: AppId,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RollupProof<PI: RollupPublicInputs, P: Proof<PI>> {
     pub proof: P,
     pub public_inputs: PI,

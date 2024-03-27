@@ -33,13 +33,13 @@ async fn server<
     // Proof handling route
     let proof_route = warp::post()
         .and(warp::path("proof"))
-        .and(warp::any().map(move || state.clone()))
-        .and(warp::body::json())
-        .and_then(handle_proof_handler);
+        .and(warp::any().map(move || state.clone()));
+    // .and(warp::body::json())
+    // .and_then(handle_proof_handler);
 
     // // Combined routes
     let routes = health_check_route.or(proof_route);
 
     // Start the server
-    warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
+    //  warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
 }

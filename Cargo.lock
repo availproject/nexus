@@ -224,6 +224,7 @@ dependencies = [
  "hex",
  "nexus-core",
  "num-bigint 0.4.4",
+ "relayer",
  "reqwest",
  "risc0-zkp",
  "risc0-zkvm",
@@ -6895,6 +6896,7 @@ name = "relayer"
 version = "0.1.0"
 dependencies = [
  "avail-subxt",
+ "nexus-core",
  "serde",
  "serde_json",
  "tokio",
