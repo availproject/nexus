@@ -7,9 +7,37 @@ use warp::{http::StatusCode, reject::Rejection, reply::Reply, Filter}; // Ensure
 use crate::state::AdapterState;
 use crate::types::RollupProof;
 use nexus_core::traits::{Proof, RollupPublicInputs};
+use std::marker::{Send, Sync};
 
-async fn server<PI: RollupPublicInputs, P: Proof<PI>>(
-    shared_state: Arc<Mutex<AdapterState<PI, P>>>,
+// Handler for the health check endpoint
+async fn health_check_handler() -> Result<impl Reply, Rejection> {
+    Ok(warp::reply::with_status("OK", StatusCode::OK))
+}
+
+// Proof handling function, adapted for generic parameters.
+async fn handle_proof_handler<PI: RollupPublicInputs, P: Proof<PI>>(
+    state: Arc<Mutex<AdapterState<PI, P>>>,
+    proof: RollupProof<PI, P>,
+) -> Result<impl Reply, Rejection> {
+    let mut locked_state = state.lock().await;
+
+    locked_state.add_proof(proof);
+    // Implement your logic here...
+    Ok(warp::reply::with_status("Proof received", StatusCode::OK))
+}
+
+async fn demo<I: RollupPublicInputs + Send + Sync, P: Proof<I> + Send + Sync>(
+    state: Arc<Mutex<AdapterState<I, P>>>,
+    proof: String,
+) -> Result<impl Reply, Rejection> {
+    Ok(warp::reply::with_status("Proof received", StatusCode::OK))
+}
+
+async fn server<
+    I: RollupPublicInputs + Send + Sync + 'static,
+    P: Proof<I> + Send + Sync + 'static,
+>(
+    state: Arc<Mutex<AdapterState<I, P>>>,
 ) {
     // Health check route
     let health_check_route = warp::get()
@@ -19,27 +47,13 @@ async fn server<PI: RollupPublicInputs, P: Proof<PI>>(
     // Proof handling route
     let proof_route = warp::post()
         .and(warp::path("proof"))
+        .and(warp::any().map(move || state.clone()))
         .and(warp::body::json())
-        .and(warp::any().map(move || shared_state.clone()));
-    // TODO:  .and_then(handle_proof_handler::<PI, P>);
+        .and_then(demo);
 
     // // Combined routes
-    // let routes = health_check_route.or(proof_route);
+    let routes = health_check_route.or(proof_route);
 
-    // // Start the server
-    // warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
-}
-
-// Handler for the health check endpoint
-async fn health_check_handler() -> Result<impl Reply, Rejection> {
-    Ok(warp::reply::with_status("OK", StatusCode::OK))
-}
-
-// Proof handling function, adapted for generic parameters.
-async fn handle_proof_handler<PI: RollupPublicInputs, P: Proof<PI>>(
-    proof: RollupProof<PI, P>,
-    state: Arc<Mutex<AdapterState<PI, P>>>,
-) -> Result<impl Reply, Rejection> {
-    // Implement your logic here...
-    Ok(warp::reply::with_status("Proof received", StatusCode::OK))
+    // Start the server
+    warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
 }

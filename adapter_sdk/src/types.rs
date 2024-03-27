@@ -4,8 +4,8 @@ use nexus_core::{
     traits::{Proof, RollupPublicInputs},
     types::AppId,
 };
-
 use serde::{Deserialize, Serialize};
+use std::marker::{Send, Sync};
 
 // #[derive(Serialize, Deserialize, Debug)]
 // pub struct AdapterPublicInputs {
