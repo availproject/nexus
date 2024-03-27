@@ -16,6 +16,6 @@ pub async fn setup<PI: RollupPublicInputs, P: Proof<PI>>(
     zkvm_elf: &[u8],
     zkvm_id: impl Into<Digest>,
 ) {
-    let adapter_state: AdapterState<PI, P> =
-        AdapterState::new(public_inputs, private_inputs, vk, zkvm_elf, zkvm_id);
+    // let adapter_state: AdapterState<PI, P> =
+    //     AdapterState::new(public_inputs, private_inputs, vk, zkvm_elf, zkvm_id);
 }

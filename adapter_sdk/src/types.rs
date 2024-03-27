@@ -4,6 +4,7 @@ use nexus_core::{
     traits::{Proof, RollupPublicInputs},
     types::AppId,
 };
+use relayer::types::Header;
 use serde::{Deserialize, Serialize};
 use std::marker::{Send, Sync};
 

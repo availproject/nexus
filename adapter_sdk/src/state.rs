@@ -6,12 +6,15 @@ use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
 use nexus_core::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::{AppId, AvailHeader, H256};
+use relayer::types::Header;
+use relayer::Relayer;
 use risc0_zkp::core::digest::Digest;
 use risc0_zkvm::{default_prover, Receipt};
 use risc0_zkvm::{serde::to_vec, ExecutorEnv};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration};
 
 #[derive(Debug, Clone)]
 struct InclusionProof(Vec<u8>);
@@ -50,42 +53,99 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
         }
     }
 
-    pub async fn run() {
+    pub async fn run(&self) {
         //On every new header,
         //Check if the block is empty for the stored app ID.
+        let mut relayer = Relayer::new();
+        let receiver = relayer.receiver();
+
+        tokio::spawn(async move {
+            relayer.start().await;
+        });
+
+        let mut receiver = receiver.lock().await;
+
+        while let Some(header) = receiver.recv().await {
+            let new_queue_item = QueueItem {
+                proof: None,
+                blob: None,
+                header: header.into(),
+            };
+            let mut queue = self.queue.lock().await;
+            queue.push_back(new_queue_item);
+        }
     }
 
-    // function triggered by rollup in a loop to pro+cess its proofs.
-    pub async fn process_queue(&mut self, rollup_public_inputs: PI) {
-        // self.verify_and_generate_proof(rollup_public_inputs).await
-        // TODO: return the proof from above ( by modifying the zkvm ) and use it against blob data
+    pub async fn process_queue(&mut self, rollup_public_inputs: PI) -> Result<Receipt, Error> {
+        let mut queue = self.queue.lock().await;
 
-        //Loops through the queue, for the first item in the queue, checks if the blob is empty.
-        //If empty, creates an empty proof.
-        //If not empty, checks if the proof is already submitted. If not submitted, exits loop until it is available.
-    }
+        while let Some(queue_item) = queue.pop_front() {
+            match &queue_item.blob {
+                Some((ref hash, ref inclusion_proof)) => {
+                    if queue_item.proof.is_some() {
+                        // Process the proof as before.
+                        println!("Processing proof for blob: {:?}", hash);
+                        return Err(anyhow!("Failed to process proof for blob: {:?}", hash));
+                    } else {
+                        queue.push_back(queue_item.clone());
+                        sleep(Duration::from_secs(5)).await;
+                    }
+                }
+                None => {
+                    println!(
+                        "Creating and processing empty proof for header: {:?}",
+                        queue_item.header
+                    );
 
-    // queries avail block to search for data related to the given app_id
-    pub async fn query_avail_blocks(&self) {
-        // TODO: return a mock result from this for now. Later, run this in seperte thread inside setup
-        let (subxt_client, _) =
-            avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
-                .await
-                .unwrap();
+                    //If empty, creates an empty proof.
+                    let private_inputs = AdapterPrivateInputs {
+                        header: queue_item.header,
+                        app_id: self.app_id.clone(),
+                    };
 
-        println!("Built client");
+                    let env = ExecutorEnv::builder()
+                        .write(&to_vec(&queue_item.proof)?)
+                        .unwrap()
+                        .write(&to_vec(&self.previous_adapter_proof)?)
+                        .unwrap()
+                        .write(&to_vec(&private_inputs)?)
+                        .unwrap()
+                        .write(&to_vec(&self.elf_id)?)
+                        .unwrap()
+                        .write(&to_vec(&self.vk)?)
+                        .unwrap()
+                        .build()
+                        .unwrap();
+
+                    let prover = default_prover();
+
+                    return prover.prove(env, &self.elf);
+                }
+            }
+        }
+
+        return Err(anyhow!("Failed to process queue"));
     }
 
     pub async fn add_proof(&mut self, proof: RollupProof<PI, P>) {
-        let queue = self.queue.lock().await;
+        let mut queue = self.queue.lock().await;
 
-        let updated_proof: bool = false;
-        for height in queue.iter() {
+        let mut updated_proof: bool = false;
+        for height in queue.iter_mut() {
             //Check if blob hash matches the blob hash in PI,
-            //If found, then set updated_proof to true and then reset the proof field from None to the given proof.
+            match height.blob.clone() {
+                Some(value) => {
+                    //If found, then set updated_proof to true and then reset the proof field from None to the given proof.
+                    if value.0 == proof.public_inputs.blob_hash() {
+                        updated_proof = true;
+                        height.proof = Some(proof);
+                        break;
+                    }
+                }
+                None => return,
+            }
             //Improvement will be to check if the proof is verifying.
         }
-        // proof input validation ???
     }
 
     // function to generate proof against avail data when proof is received and verified from the rollup
@@ -93,9 +153,6 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
         &mut self,
         queueItem: QueueItem<PI, P>,
     ) -> Result<Receipt, Error> {
-        let proof_lock = self.queue.lock().await;
-        let front_proof_ref = proof_lock.front().expect("Queue is empty");
-        let front_proof_clone = front_proof_ref.clone(); // Clone the value
         let private_inputs = AdapterPrivateInputs {
             header: queueItem.header,
             app_id: self.app_id.clone(),
@@ -137,14 +194,4 @@ impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
 
         receipt
     }
-
-    // function to store the till_avail_block, and the corresponding adapter proof generated in local storage
-    // fn store_local_state(
-    //     &mut self,
-    //     queried_block_number: u8,
-    //     latest_public_inputs: AdapterPublicInputs,
-    // ) {
-    //     self.last_queried_block_number = queried_block_number;
-    //     self.public_inputs = latest_public_inputs;
-    // }
 }
