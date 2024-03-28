@@ -5,12 +5,14 @@ use nexus_core::{
     agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction},
     db::NodeDB,
     mempool::Mempool,
-    simple_state_machine::StateMachine,
-    types::{AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256},
+    state_machine::StateMachine,
+    types::{AvailHeader, HeaderStore, NexusHeader, TransactionV2, TxParamsV2, H256},
 };
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
-use risc0_zkvm::{default_executor, default_prover, serde::from_slice, ExecutorEnv, Receipt};
+use risc0_zkvm::{
+    default_executor, default_prover, serde::from_slice, ExecutorEnv, Journal, Receipt,
+};
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use tokio::{self, sync::Mutex};
@@ -30,8 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => H256::zero(),
     };
     let mut state_machine = StateMachine::new(old_state_root, "./runtime_db");
-    //let relayer = Relayer::new();
-    //let shared_relayer = Arc::new(Mutex::new(relayer));
+    let relayer = Relayer::new();
+    let shared_relayer = Arc::new(Mutex::new(relayer));
 
     // let init_tx = TransactionV2 {
     //     signature: TxSignature([0; 64]),
@@ -44,71 +46,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
-        // let receiver = {
-        //     let mut relayer = shared_relayer.lock().await;
+        let receiver = {
+            let mut relayer = shared_relayer.lock().await;
 
-        //     relayer.receiver()
-        // };
+            relayer.receiver()
+        };
         let mempool = Mempool::new();
         let mempool_clone = mempool.clone();
-        let batches_to_aggregate = BatchesToAggregate::new();
-        let batches_to_aggregate_clone: BatchesToAggregate = batches_to_aggregate.clone();
-
-        // let relayer = tokio::spawn(async move {
-        //     let cloned_relayer = shared_relayer.lock().await;
-        //     println!("Trying to start");
-        //     println!("started from our side bro");
-        //     cloned_relayer.start().await;
-        // });
-
-        // let execution_engine = tokio::spawn(async move {
-        //     while let Some(header) = receiver.lock().await.recv().await {
-        //         let mut old_headers: HeaderStore = match db.get(b"previous_headers") {
-        //             Ok(Some(i)) => i,
-        //             Ok(None) => HeaderStore::new(32),
-        //             Err(_) => break,
-        //         };
-        //         let (txs, index) = mempool_clone.get_current_txs().await;
-        //         //let (txs, index) = (vec![], 0);
-
-        //         match execute_batch(
-        //             &AvailHeader::from(&header),
-        //             &mut old_headers,
-        //             &txs,
-        //             &db,
-        //             &mut state_machine,
-        //         ) {
-        //             Ok(_) => mempool_clone.clear_upto_tx(index).await,
-        //             Err(e) => {
-        //                 println!("Breaking because of error {:?}", e);
-        //                 break;
-        //             }
-        //         };
-        //     }
-        // });
+        let relayer_handle = tokio::spawn(async move {
+            let cloned_relayer = shared_relayer.lock().await;
+            println!("Trying to start");
+            println!("started from our side bro");
+            cloned_relayer.start().await;
+        });
 
         let execution_engine = tokio::spawn(async move {
-            let five_seconds = Duration::from_secs(5);
-            loop {
-                if let Some(batch) = batches_to_aggregate_clone.get_next_batch().await {
-                    match execute_batch(&batch.0, batch.1, &db, &mut state_machine) {
-                        Ok(_) => batches_to_aggregate_clone.remove_first_batch(),
-                        Err(e) => {
-                            println!("Breaking because of error {:?}", e);
-                            break;
-                        }
-                    };
-                } else {
-                    println!("No batches. trying again in 5 seconds.");
-                }
+            while let Some(header) = receiver.lock().await.recv().await {
+                let mut old_headers: HeaderStore = match db.get(b"previous_headers") {
+                    Ok(Some(i)) => i,
+                    Ok(None) => HeaderStore::new(32),
+                    Err(_) => break,
+                };
+                let (txs, index) = mempool_clone.get_current_txs().await;
+                //let (txs, index) = (vec![], 0);
 
-                // Sleep for 5 seconds
-                sleep(five_seconds).await;
+                match execute_batch(
+                    &txs,
+                    &db,
+                    &mut state_machine,
+                    &AvailHeader::from(&header),
+                    &mut old_headers,
+                ) {
+                    Ok(_) => mempool_clone.clear_upto_tx(index).await,
+                    Err(e) => {
+                        println!("Breaking because of error {:?}", e);
+                        break;
+                    }
+                };
             }
         });
 
         //Server part//
-        let routes = routes(mempool, batches_to_aggregate);
+        let routes = routes(mempool);
         let cors = warp::cors()
             .allow_any_origin()
             .allow_methods(vec!["POST"])
@@ -125,12 +104,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             warp::serve(routes).run(address).await;
         });
 
-        //start_rpc_server().await;
-
-        let result = tokio::try_join!(server, execution_engine);
+        let result = tokio::try_join!(server, execution_engine, relayer_handle);
 
         match result {
-            Ok((_, _)) => {
+            Ok((_, _, _)) => {
                 println!("Exiting node, should not have happened.");
             }
             Err(e) => {
@@ -143,54 +120,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn execute_batch(
-    txs: &Vec<InitTransaction>,
-    aggregated_tx: AggregatedTransaction,
+    txs: &Vec<TransactionV2>,
     db: &NodeDB,
     state_machine: &mut StateMachine,
+    header: &AvailHeader,
+    header_store: &mut HeaderStore,
 ) -> Result<Receipt, Error> {
     //let mut cloned_old_headers = old_headers.clone();
-    let state_update = state_machine.execute_batch(&txs, aggregated_tx.clone())?;
+    let state_update = state_machine.execute_batch(&header, &mut header_store.clone(), &txs)?;
 
-    let env = ExecutorEnv::builder()
-        .write(&txs)
-        .unwrap()
-        .write(&aggregated_tx)
-        .unwrap()
-        .write(&state_update)
-        .unwrap()
-        .build()
-        .unwrap();
+    let mut env_builder = ExecutorEnv::builder();
 
-    let exec = default_executor();
-    let session_info = exec.execute(env, NEXUS_RUNTIME_ELF).unwrap();
-    let cycles = session_info
-        .segments
-        .iter()
-        .fold(0, |cycles, segment| (cycles + (1 << segment.po2)));
-    let cycles = cycles as u32;
+    let zkvm_txs = txs.iter().map(|tx| {
+        if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
+            let proof = match &tx.proof {
+                Some(i) => i,
+                None => unreachable!("Proof cannot be empty if submit proof tx."),
+            };
+            let receipt = Receipt {
+                inner: risc0_zkvm::InnerReceipt::Composite(proof.clone()),
+                journal: Journal {
+                    //TODO: remove unwrap below
+                    bytes: bincode::serialize(&submit_proof_tx.public_inputs).unwrap(),
+                },
+            };
 
-    let result: NexusHeader = from_slice(&session_info.journal.bytes).unwrap();
-
-    //db.put(b"previous_headers", &cloned_old_headers)?;
-
-    db.set_current_root(&result.state_root)?;
-
-    println!("{:?}, no of cycles: {:?}", result, cycles);
-
+            env_builder.add_assumption(receipt);
+        }
+    });
     //Proof generation part.
-    let env = ExecutorEnv::builder()
+    let env = env_builder
         .write(&txs)
         .unwrap()
-        .write(&aggregated_tx)
-        .unwrap()
         .write(&state_update)
+        .unwrap()
+        .write(&header)
+        .unwrap()
+        .write(&header_store)
         .unwrap()
         .build()
         .unwrap();
     let prover = default_prover();
+    let receipt = prover.prove(env, NEXUS_RUNTIME_ELF)?;
+    let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
 
-    println!("generating proof..");
-    Ok(prover.prove(env, NEXUS_RUNTIME_ELF)?)
+    //db.put(b"previous_headers", &cloned_old_headers)?;
+
+    db.set_current_root(&result.state_root)?;
+    Ok(receipt)
 }
 
 #[derive(Clone, Debug)]

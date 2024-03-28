@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
 pub struct Mempool {
-    tx_list: Arc<Mutex<Vec<InitTransaction>>>,
+    tx_list: Arc<Mutex<Vec<TransactionV2>>>,
 }
 
 impl Mempool {
@@ -15,7 +15,7 @@ impl Mempool {
         }
     }
 
-    pub async fn get_current_txs(&self) -> (Vec<InitTransaction>, usize) {
+    pub async fn get_current_txs(&self) -> (Vec<TransactionV2>, usize) {
         let tx_list = self.tx_list.lock().await;
 
         (tx_list.clone(), tx_list.len())
@@ -33,7 +33,7 @@ impl Mempool {
         }
     }
 
-    pub async fn add_tx(&self, tx: InitTransaction) {
+    pub async fn add_tx(&self, tx: TransactionV2) {
         let mut tx_list = self.tx_list.lock().await;
 
         tx_list.push(tx);

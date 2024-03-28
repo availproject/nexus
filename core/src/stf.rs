@@ -1,8 +1,13 @@
-use avail_core::{keccak256, AppExtrinsic};
-
 use crate::types::{
-    AccountState, AppAccountId, AppId, Header, MachineCallParams, Transaction, TxParams, H256,
+    AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, StatementDigest,
+    SubmitProof, TransactionZKVM, TxParamsV2, H256,
 };
+use anyhow::{anyhow, Error};
+use risc0_zkvm::guest::env;
+#[cfg(not(feature = "native"))]
+use risc0_zkvm::{guest::env::verify, serde::to_vec};
+use sparse_merkle_tree::traits::Value;
+
 pub struct StateTransitionFunction;
 
 //Notes
@@ -17,76 +22,128 @@ impl StateTransitionFunction {
     }
     pub fn execute_batch(
         &self,
-        new_header: Header,
-        data_commitments: Vec<(AppId, H256)>,
-        txs: &Vec<Transaction>,
+        new_header: &AvailHeader,
+        prev_headers: &mut HeaderStore,
+        txs: &Vec<TransactionZKVM>,
         pre_state: &Vec<(AppAccountId, AccountState)>,
-    ) -> Result<Vec<(AppAccountId, AccountState)>, anyhow::Error> {
-        let mut post_state: Vec<(AppAccountId, AccountState)>;
+    ) -> Result<(Vec<(AppAccountId, AccountState)>), anyhow::Error> {
+        //TODO: Need to remove is empty part. Should not be empty as this opens an attack vector.
+        if !prev_headers.is_empty() {
+            if new_header.parent_hash.as_fixed_slice()
+                != prev_headers.first().hash().as_fixed_slice()
+            {
+                return Err(anyhow!("Wrong fork, or Avail header skipped."));
+            }
+        }
+        prev_headers.push_front(new_header);
 
-        post_state = self.execute_tx(
-            &Transaction {
-                signature: None,
-                params: TxParams::MachineCall(MachineCallParams {
-                    header: new_header,
-                    data_commitments,
-                }),
-            },
-            pre_state,
-        )?;
-
-        for tx in txs {
-            post_state = self.execute_tx(tx, &post_state)?;
+        let mut post_state = vec![];
+        for (index, tx) in txs.iter().enumerate() {
+            post_state.push(self.execute_tx(tx, &pre_state[index], prev_headers)?);
         }
 
         Ok(post_state)
     }
+
     pub fn execute_tx(
         &self,
-        tx: &Transaction,
-        pre_state: &Vec<(AppAccountId, AccountState)>,
-    ) -> Result<Vec<(AppAccountId, AccountState)>, anyhow::Error> {
+        tx: &TransactionZKVM,
+        pre_state: &(AppAccountId, AccountState),
+        headers: &HeaderStore,
+    ) -> Result<(AppAccountId, AccountState), anyhow::Error> {
+        //TODO: Signature verification
         let post_state = match &tx.params {
-            TxParams::MachineCall(params) => {
-                self.machine_call(&params.header, &params.data_commitments, pre_state)?
-            }
+            TxParamsV2::SubmitProof(params) => self.submit_proof(&params, &pre_state, headers)?,
+            TxParamsV2::InitAccount(params) => self.init_account(params, pre_state)?,
         };
 
         Ok(post_state)
     }
 
-    fn machine_call(
+    fn submit_proof(
         &self,
-        new_header: &Header,
-        data_commitments: &Vec<(AppId, H256)>,
-        pre_state: &Vec<(AppAccountId, AccountState)>,
-    ) -> Result<Vec<(AppAccountId, AccountState)>, anyhow::Error> {
-        new_header.data_root();
-
-        let modified_state: Vec<(AppAccountId, AccountState)> = vec![];
-
-        for commitment in data_commitments {
-            let account = pre_state
-                .iter()
-                .find(|&account| account.0 == AppAccountId::from(commitment.0));
-
-            match account {
-                Some(value) => {
-                    let mut account = value.1.clone();
-
-                    account.add_hash(commitment.1.as_fixed_slice())
-                }
-                None => return Err(anyhow::anyhow!("Account not found..")),
-            }
+        params: &SubmitProof,
+        pre_state: &(AppAccountId, AccountState),
+        headers: &HeaderStore,
+    ) -> Result<(AppAccountId, AccountState), Error> {
+        if pre_state.1 == AccountState::zero() {
+            return Err(anyhow!("Invalid transaction, account not initiated."));
+        }
+        let public_inputs = &params.public_inputs;
+        // let journal_vec = match to_vec(&params.public_inputs) {
+        //     Ok(i) => i.iter().flat_map(|&x| x.to_le_bytes().to_vec()).collect(),
+        //     Err(e) => return Err(anyhow!(e)),
+        // };
+        //let proof: Receipt = Receipt::new(params.proof.clone(), journal_vec);
+        if public_inputs.app_id != pre_state.0.clone() {
+            return Err(anyhow!("Incorrect app account id"));
         }
 
-        let leafs: Vec<Vec<u8>> = data_commitments
-            .iter()
-            .map(|commitment| commitment.1.as_fixed_slice().to_vec())
-            .collect();
+        if public_inputs.avail_start_hash != H256::from(pre_state.1.start_avail_hash) {
+            return Err(anyhow!("Not a recursive proof from registered start hash."));
+        }
 
-        let root = calculate_data_root(leafs)?;
+        let mut last_header_hash_in_loop: H256 = H256::zero();
+        let mut found_match: bool = false;
 
-        Ok(modified_state)
+        for header in headers.inner().iter() {
+            if last_header_hash_in_loop == public_inputs.header_hash {
+                found_match = true;
+
+                break;
+            }
+
+            if last_header_hash_in_loop != H256::zero() {
+                if header.hash() != last_header_hash_in_loop {
+                    return Err(anyhow!("Incorrect header list given by sequencer."));
+                }
+            }
+            last_header_hash_in_loop = header.parent_hash;
+
+            continue;
+        }
+
+        if !found_match {
+            return Err(anyhow!("Not right fork, or against last 32 blocks"));
+        }
+
+        public_inputs.check_consistency(&pre_state.1.statement)?;
+
+        #[cfg(not(feature = "native"))]
+        let public_input_vec = match to_vec(&public_inputs) {
+            Ok(i) => i,
+            Err(e) => return Err(anyhow!("Could not encode public inputs of rollup.")),
+        };
+
+        #[cfg(not(feature = "native"))]
+        match verify(public_inputs.img_id.0, &public_input_vec) {
+            Ok(_) => (),
+            Err(e) => return Err(anyhow!("Invalid proof")),
+        };
+
+        let post_state: AccountState = AccountState {
+            statement: pre_state.1.statement.clone(),
+            start_avail_hash: pre_state.1.start_avail_hash,
+            state_root: public_inputs.state_root.as_fixed_slice().clone(),
+        };
+
+        Ok((public_inputs.app_id.clone(), post_state))
+    }
+
+    fn init_account(
+        &self,
+        params: &InitAccount,
+        pre_state: &(AppAccountId, AccountState),
+    ) -> Result<(AppAccountId, AccountState), Error> {
+        if pre_state.1 != AccountState::zero() {
+            return Err(anyhow!("Account already initiated."));
+        }
+
+        let mut post_account = AccountState::zero();
+
+        post_account.statement = params.statement.clone();
+        post_account.start_avail_hash = params.avail_start_hash.as_fixed_slice().clone();
+
+        Ok((pre_state.0.clone(), post_account))
     }
 }
