@@ -4215,6 +4215,7 @@ name = "host"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "nexus-core",
  "parity-scale-codec",
  "prover",
@@ -5497,6 +5498,7 @@ dependencies = [
  "anyhow",
  "avail-core 0.5.0",
  "avail-subxt",
+ "bincode",
  "blake2b_simd",
  "parity-scale-codec",
  "risc0-zkvm",

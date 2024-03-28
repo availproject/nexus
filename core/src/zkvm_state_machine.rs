@@ -1,6 +1,6 @@
-use crate::simple_stf::StateTransitionFunction;
+use crate::stf::StateTransitionFunction;
 use crate::types::{
-    AvailHeader, HeaderStore, NexusHeader, ShaHasher, StateUpdate, TransactionV2, H256,
+    AvailHeader, HeaderStore, NexusHeader, ShaHasher, StateUpdate, TransactionZKVM, H256,
 };
 use anyhow::anyhow;
 use sparse_merkle_tree::traits::Value;
@@ -20,7 +20,7 @@ impl ZKVMStateMachine {
         &self,
         new_header: &AvailHeader,
         old_headers: &mut HeaderStore,
-        txs: &Vec<TransactionV2>,
+        txs: &Vec<TransactionZKVM>,
         state_update: StateUpdate,
     ) -> Result<NexusHeader, anyhow::Error> {
         if !txs.is_empty() {
