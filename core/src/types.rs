@@ -1,5 +1,3 @@
-use anyhow::anyhow;
-use anyhow::Error;
 #[cfg(any(feature = "native"))]
 pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
@@ -11,8 +9,6 @@ use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
 use risc0_zkvm::sha::Digest as RiscZeroDigest;
 #[cfg(any(feature = "native"))]
 use risc0_zkvm::CompositeReceipt;
-#[cfg(any(feature = "native"))]
-use risc0_zkvm::Journal;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use sparse_merkle_tree::traits::{Hasher, Value};
@@ -41,16 +37,9 @@ pub struct UpdatedBlob {
 //TODO: Need to check PartialEq to Eq difference, to ensure there is not security vulnerability.
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct AccountState {
-    pub statement: [u8; 32],
+    pub statement: StatementDigest,
     pub state_root: [u8; 32],
-    pub last_avail_block_hash: [u8; 32],
-}
-
-//TODO: Need to check PartialEq to Eq difference, to ensure there is not security vulnerability.
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
-pub struct SimpleAccountState {
-    pub statement: [u8; 32],
-    pub state_root: [u8; 32],
+    pub start_avail_hash: [u8; 32],
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -67,6 +56,12 @@ pub struct TransactionV2 {
     pub proof: Option<CompositeReceipt>,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct TransactionZKVM {
+    pub signature: TxSignature,
+    pub params: TxParamsV2,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct SubmitProof {
     //Disabled for now.
@@ -77,17 +72,8 @@ pub struct SubmitProof {
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct InitAccount {
     pub app_id: AppAccountId,
-    pub statement: [u8; 32],
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
-pub struct RollupPublicInputs {
-    pub pre_state_root: H256,
-    pub next_state_root: H256,
-    pub start_avail_hash: H256,
-    pub proof_at_avail_hash: H256,
-    pub app_account_id: AppAccountId,
-    //Assuming that nexus sequencer provides linkability to current avail hash.
+    pub statement: StatementDigest,
+    pub avail_start_hash: H256,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
@@ -130,8 +116,8 @@ pub struct StateUpdate {
 pub struct SimpleStateUpdate {
     pub pre_state_root: H256,
     pub post_state_root: H256,
-    pub pre_state: Vec<(AppAccountId, SimpleAccountState)>,
-    pub post_state: Vec<(AppAccountId, SimpleAccountState)>,
+    pub pre_state: Vec<(AppAccountId, AccountState)>,
+    pub post_state: Vec<(AppAccountId, AccountState)>,
     pub proof: Option<MerkleProof>,
 }
 
@@ -353,31 +339,15 @@ impl AvailHeader {
     }
 }
 
-impl Value for AccountState {
-    fn to_h256(&self) -> H256 {
-        if self.statement == [0u8; 32] {
-            return H256::zero();
-        }
-
-        let mut hasher = ShaHasher::new();
-        let serialized = self.encode();
-        hasher.0.update(&serialized);
-
-        hasher.finish()
-    }
-
+impl StatementDigest {
     fn zero() -> Self {
-        Self {
-            state_root: [0; 32],
-            statement: [0; 32],
-            last_avail_block_hash: [0; 32],
-        }
+        Self([0u32; 8])
     }
 }
 
-impl Value for SimpleAccountState {
+impl Value for AccountState {
     fn to_h256(&self) -> H256 {
-        if self.statement == [0u8; 32] {
+        if self.statement == StatementDigest::zero() {
             return H256::zero();
         }
 
@@ -391,7 +361,8 @@ impl Value for SimpleAccountState {
     fn zero() -> Self {
         Self {
             state_root: [0; 32],
-            statement: [0; 32],
+            statement: StatementDigest::zero(),
+            start_avail_hash: [0; 32],
         }
     }
 }
@@ -492,81 +463,3 @@ impl From<RiscZeroDigest> for StatementDigest {
         Self(new_digest)
     }
 }
-
-// impl TryFrom<risc0_zkvm::Journal> for RollupPublicInputs {
-//     type Error = anyhow::Error;
-
-//     fn try_from(value: risc0_zkvm::Journal) -> Result<Self, Self::Error> {
-//         match from_slice(&value.bytes) {
-//             Ok(i) => Ok(i),
-//             Err(e) => Err(anyhow::anyhow!(e)),
-//         }
-//     }
-// }
-
-// #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode)]
-// pub struct AccountState {
-//     pub statement: [u8; 32],
-//     pub state_root: [u8; 32],
-//     pub last_avail_block_hash: [u8; 32],
-//     //TODO: Need to think about a structure to avoid bloat.
-//     pending_blob_hashes: Vec<[u8; 32]>,
-//     //hash(previous hash, h(blob1))
-//     archived_hash: [u8; 32],
-//     updated_blobs: Vec<UpdatedBlob>,
-//     timeout: Option<u32>,
-//     owner: Option<[u8; 32]>,
-// }
-
-// impl RollupPublicInputs {
-//     pub fn to_vec(&self) -> Result<Vec<u32>, anyhow::Error> {
-//         match risc0_zkvm::serde::to_vec(self) {
-//             Err(e) => Err(anyhow!(e)),
-//             Ok(i) => Ok(i),
-//         }
-//     }
-// }
-
-// impl AccountState {
-//     pub fn pending_blob_hashes_filled(&self) -> bool {
-//         if self.pending_blob_hashes.len() > 256 {
-//             true
-//         } else {
-//             false
-//         }
-//     }
-
-//     pub fn add_hash(&mut self, hash: &[u8; 32]) -> () {
-//         if !self.pending_blob_hashes_filled() {
-//             self.pending_blob_hashes.push(hash.clone())
-//         } else {
-//             let mut concat: Vec<u8> = vec![];
-//             let hash_to_archive: [u8; 32] = self.pending_blob_hashes.remove(0);
-
-//             concat.extend_from_slice(&self.archived_hash);
-//             concat.extend_from_slice(&hash_to_archive);
-
-//             //Need to update to shahasher.
-//             let hash = keccak_256(&concat);
-
-//             self.archived_hash = hash;
-//             //TODO: Remove is the worst for number of zkvm cycles. Need to optimise this.
-//             self.pending_blob_hashes.remove(0);
-//             self.pending_blob_hashes.push(hash.clone())
-//         }
-//     }
-// }
-
-// pub struct MachineCallParams {
-//     pub header: Header,
-// }
-
-// pub struct Transaction {
-//     pub signature: Option<TxSignature>,
-//     //TODO: To be replaced by an enum
-//     pub params: TxParams,
-// }
-
-// pub enum TxParams {
-//     MachineCall(MachineCallParams),
-// }

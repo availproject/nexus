@@ -1,7 +1,7 @@
 use crate::{
     state::MerkleStore,
     traits::Leaf,
-    types::{AppAccountId, ShaHasher, SimpleAccountState, SimpleStateUpdate},
+    types::{AccountState, AppAccountId, ShaHasher, StateUpdate},
 };
 use anyhow::{anyhow, Error};
 use rocksdb::{Options, DB};
@@ -15,7 +15,7 @@ use std::{
 
 //TODO - Replace MerkleStore with a generic so any backing store could be used.
 pub struct VmState {
-    tree: SparseMerkleTree<ShaHasher, SimpleAccountState, MerkleStore>,
+    tree: SparseMerkleTree<ShaHasher, AccountState, MerkleStore>,
     merkle_store: MerkleStore,
 }
 
@@ -64,10 +64,7 @@ impl VmState {
         }
     }
 
-    pub fn update_set(
-        &mut self,
-        set: Vec<(H256, SimpleAccountState)>,
-    ) -> Result<SimpleStateUpdate, Error> {
+    pub fn update_set(&mut self, set: Vec<(H256, AccountState)>) -> Result<StateUpdate, Error> {
         let pre_state_root = self.get_root();
         let pre_merkle_proof = self
             .tree
@@ -101,7 +98,7 @@ impl VmState {
 
         //println!("Pre: {:?} || Post {:?}", pre_merkle_proof, post_merkle_proof);
 
-        Ok(SimpleStateUpdate {
+        Ok(StateUpdate {
             pre_state_root,
             post_state_root,
             proof: Some(pre_merkle_proof),
@@ -110,14 +107,14 @@ impl VmState {
         })
     }
 
-    pub fn get(&self, key: &H256, committed: bool) -> Result<Option<SimpleAccountState>, Error> {
+    pub fn get(&self, key: &H256, committed: bool) -> Result<Option<AccountState>, Error> {
         self.merkle_store
             .get(key.as_slice(), committed)
             .map_err(|e| anyhow!({ e }))
     }
 
     //Gets from state even if not committed.
-    pub fn get_with_proof(&self, key: &H256) -> Result<(SimpleAccountState, MerkleProof), Error> {
+    pub fn get_with_proof(&self, key: &H256) -> Result<(AccountState, MerkleProof), Error> {
         let value = match self.tree.get(key) {
             Ok(i) => i,
             Err(_e) => return Err(anyhow!("Erroneous state.")),

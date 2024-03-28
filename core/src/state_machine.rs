@@ -1,13 +1,16 @@
 use crate::db::NodeDB;
-use crate::simple_stf::StateTransitionFunction;
 use crate::state::VmState;
+use crate::stf::StateTransitionFunction;
 use crate::types::{
-    AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, RollupPublicInputs, StateUpdate,
-    SubmitProof, TransactionV2, TxParamsV2, H256,
+    AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, StateUpdate, SubmitProof,
+    TransactionV2, TransactionZKVM, TxParamsV2, H256,
 };
 use anyhow::Error;
 use avail_subxt::config::Header as HeaderTrait;
 use parity_scale_codec::{Decode, Encode};
+use risc0_zkvm::serde::{to_vec, Serializer};
+use risc0_zkvm::{Journal, Receipt};
+use serde::Serialize;
 use sparse_merkle_tree::traits::Value;
 
 pub struct StateMachine {
@@ -38,7 +41,9 @@ impl StateMachine {
             .iter()
             .map(|tx| {
                 let app_account_id: AppAccountId = match &tx.params {
-                    TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_account_id.clone(),
+                    TxParamsV2::SubmitProof(submit_proof) => {
+                        submit_proof.public_inputs.app_id.clone()
+                    }
                     TxParamsV2::InitAccount(init_account) => {
                         AppAccountId::from(init_account.app_id.clone())
                     }
@@ -54,9 +59,18 @@ impl StateMachine {
             })
             .collect::<Result<Vec<_>, _>>()?; //TODO: Need to simplify this part.
 
+        let zkvm_txs: Vec<TransactionZKVM> = txs
+            .iter()
+            .map(|tx| {
+                return TransactionZKVM {
+                    params: tx.params.clone(),
+                    signature: tx.signature.clone(),
+                };
+            })
+            .collect();
         let result = self
             .stf
-            .execute_batch(&new_header, old_headers, txs, &pre_state)?;
+            .execute_batch(&new_header, old_headers, &zkvm_txs, &pre_state)?;
 
         if !result.is_empty() {
             Ok(self.state.update_set(
