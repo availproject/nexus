@@ -1,8 +1,9 @@
 pub mod adapter_zkvm;
 pub mod service;
 pub mod state;
+pub mod traits;
 pub mod types;
-use nexus_core::traits::{Proof, RollupPublicInputs};
+use crate::traits::{Proof, RollupPublicInputs};
 use risc0_zkp::core::digest::Digest;
 use state::AdapterState;
 use std::sync::Arc;

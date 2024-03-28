@@ -41,7 +41,6 @@ fn main() {
 
     let private_inputs: AdapterPrivateInputs = AdapterPrivateInputs {
         header: current_header.clone(),
-        avail_start_hash: current_header.hash(),
         app_id: AppAccountId::from(AppId(0)),
     };
 

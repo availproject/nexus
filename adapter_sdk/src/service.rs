@@ -1,5 +1,7 @@
+use crate::traits::{Proof, RollupPublicInputs};
 use crate::{state::AdapterState, types::RollupProof};
-use nexus_core::traits::{Proof, RollupPublicInputs};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{http::StatusCode, reject::Rejection, reply::Reply, Filter};
@@ -8,20 +10,23 @@ async fn health_check_handler() -> Result<impl Reply, Rejection> {
     Ok(warp::reply::with_status("OK", StatusCode::OK))
 }
 
-async fn handle_proof_handler<PI: RollupPublicInputs, P: Proof<PI>>(
+async fn handle_proof_handler<
+    PI: RollupPublicInputs + Clone + Serialize,
+    P: Proof<PI> + Clone + Serialize,
+>(
     state: Arc<Mutex<AdapterState<PI, P>>>,
     proof: RollupProof<PI, P>,
 ) -> Result<impl Reply, Rejection> {
     let mut locked_state = state.lock().await;
 
-    locked_state.add_proof(proof);
+    locked_state.add_proof(proof).await;
 
     Ok(warp::reply::with_status("Proof received", StatusCode::OK))
 }
 
-async fn server<
-    I: RollupPublicInputs + Send + Sync + 'static,
-    P: Proof<I> + Send + Sync + 'static,
+pub async fn server<
+    I: RollupPublicInputs + Clone + Send + Sync + 'static + DeserializeOwned + Serialize,
+    P: Proof<I> + Send + Clone + Sync + 'static + DeserializeOwned + Serialize,
 >(
     state: Arc<Mutex<AdapterState<I, P>>>,
 ) {
@@ -33,13 +38,13 @@ async fn server<
     // Proof handling route
     let proof_route = warp::post()
         .and(warp::path("proof"))
-        .and(warp::any().map(move || state.clone()));
-    // .and(warp::body::json())
-    // .and_then(handle_proof_handler);
+        .and(warp::any().map(move || state.clone()))
+        .and(warp::body::json())
+        .and_then(handle_proof_handler);
 
     // // Combined routes
     let routes = health_check_route.or(proof_route);
 
     // Start the server
-    //  warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
 }

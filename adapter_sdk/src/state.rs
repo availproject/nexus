@@ -2,14 +2,15 @@
 // track the last queried block of the rollup
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
+use crate::traits::{Proof, RollupPublicInputs};
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
-use nexus_core::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::{AppId, AvailHeader, H256};
 use relayer::Relayer;
 use risc0_zkp::core::digest::Digest;
 use risc0_zkvm::{default_prover, Receipt};
 use risc0_zkvm::{serde::to_vec, ExecutorEnv};
+use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -19,7 +20,7 @@ use tokio::time::{sleep, Duration};
 struct InclusionProof(Vec<u8>);
 
 #[derive(Debug, Clone)]
-struct QueueItem<I: RollupPublicInputs, P: Proof<I>> {
+struct QueueItem<I: RollupPublicInputs + Clone, P: Proof<I> + Clone> {
     proof: Option<RollupProof<I, P>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
@@ -27,7 +28,7 @@ struct QueueItem<I: RollupPublicInputs, P: Proof<I>> {
 
 // usage : create an object for this struct and use as a global dependency
 #[derive(Debug, Clone)]
-pub struct AdapterState<PI: RollupPublicInputs, P: Proof<PI>> {
+pub struct AdapterState<PI: RollupPublicInputs + Clone, P: Proof<PI> + Clone> {
     pub starting_block_number: u8,
     pub last_queried_block_number: u8,
     pub queue: Arc<Mutex<VecDeque<QueueItem<PI, P>>>>,
@@ -38,7 +39,9 @@ pub struct AdapterState<PI: RollupPublicInputs, P: Proof<PI>> {
     pub app_id: AppId,
 }
 
-impl<PI: RollupPublicInputs, P: Proof<PI>> AdapterState<PI, P> {
+impl<PI: RollupPublicInputs + Clone + Serialize, P: Proof<PI> + Clone + Serialize>
+    AdapterState<PI, P>
+{
     pub fn new(app_id: AppId, vk: [u8; 32], zkvm_elf: &[u8], zkvm_id: impl Into<Digest>) -> Self {
         AdapterState {
             starting_block_number: 0,

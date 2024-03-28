@@ -1,6 +1,7 @@
+use crate::traits::{Proof, RollupPublicInputs};
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
-use nexus_core::traits::{Hasher, Proof, RollupPublicInputs};
+use nexus_core::traits::Hasher;
 use nexus_core::types::{
     AppAccountId, AvailHeader, Extension, ShaHasher, StatementDigest, V3Extension, H256,
 };
