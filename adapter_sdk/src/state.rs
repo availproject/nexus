@@ -2,134 +2,189 @@
 // track the last queried block of the rollup
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
+use crate::db::DB;
 use crate::traits::{Proof, RollupPublicInputs};
-use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+use crate::types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
-use nexus_core::types::{AppId, AvailHeader, H256};
+use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
 use relayer::Relayer;
-use risc0_zkp::core::digest::Digest;
 use risc0_zkvm::{default_prover, Receipt};
-use risc0_zkvm::{serde::to_vec, ExecutorEnv};
-use serde::Serialize;
+use risc0_zkvm::{
+    serde::{from_slice, to_vec},
+    sha::rust_crypto::Digest,
+    ExecutorEnv,
+};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::thread;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
-#[derive(Debug, Clone)]
-struct InclusionProof(Vec<u8>);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct InclusionProof(pub Vec<u8>);
 
-#[derive(Debug, Clone)]
-struct QueueItem<I: RollupPublicInputs + Clone, P: Proof<I> + Clone> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct QueueItem<I: RollupPublicInputs + Clone, P: Proof<I> + Clone> {
     proof: Option<RollupProof<I, P>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
 }
 
 // usage : create an object for this struct and use as a global dependency
-#[derive(Debug, Clone)]
-pub struct AdapterState<PI: RollupPublicInputs + Clone, P: Proof<PI> + Clone> {
-    pub starting_block_number: u8,
-    pub last_queried_block_number: u8,
+pub struct AdapterState<
+    PI: RollupPublicInputs + Clone + DeserializeOwned + Serialize + 'static,
+    P: Proof<PI> + Clone + DeserializeOwned + Serialize + 'static,
+> {
+    pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<PI, P>>>>,
-    pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs)>,
-    pub elf: Box<[u8]>,
-    pub elf_id: Digest,
+    pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
+    pub elf: Vec<u8>,
+    pub elf_id: StatementDigest,
     pub vk: [u8; 32],
     pub app_id: AppId,
+    pub db: Arc<Mutex<DB<PI, P>>>,
 }
 
-impl<PI: RollupPublicInputs + Clone + Serialize, P: Proof<PI> + Clone + Serialize>
-    AdapterState<PI, P>
+impl<
+        PI: RollupPublicInputs + Clone + DeserializeOwned + Serialize + Send,
+        P: Proof<PI> + Clone + DeserializeOwned + Serialize + Send,
+    > AdapterState<PI, P>
 {
-    pub fn new(app_id: AppId, vk: [u8; 32], zkvm_elf: &[u8], zkvm_id: impl Into<Digest>) -> Self {
+    pub fn new(storage_path: String, config: AdapterConfig) -> Self {
+        let db = DB::from_path(storage_path);
+
         AdapterState {
-            starting_block_number: 0,
-            last_queried_block_number: 0,
+            starting_block_number: config.rollup_start_height,
             queue: Arc::new(Mutex::new(VecDeque::new())),
             previous_adapter_proof: None,
-            elf: zkvm_elf.into(),
-            elf_id: zkvm_id.into(),
-            vk,
-            app_id,
+            elf: config.elf,
+            elf_id: config.adapter_elf_id,
+            vk: config.vk,
+            app_id: config.app_id,
+            db: Arc::new(Mutex::new(db)),
         }
     }
 
-    pub async fn run(&self) {
+    pub async fn run(&mut self) -> Result<(), Error> {
+        let (stored_queue, previous_adapter_proof) = {
+            let db = self.db.lock().await;
+
+            (db.get_last_known_queue()?, db.get_last_proof()?)
+        };
+        let mut queue = self.queue.lock().await;
+        queue.clear();
+
+        //TODO: Optimise below part.
+        stored_queue
+            .iter()
+            .for_each(|item| queue.push_back(item.clone()));
+
+        drop(queue);
+        self.previous_adapter_proof = previous_adapter_proof;
+
         //On every new header,
         //Check if the block is empty for the stored app ID.
         let mut relayer = Relayer::new();
         let receiver = relayer.receiver();
+        let start_height = match &self.previous_adapter_proof {
+            Some(i) => i.2,
+            None => self.starting_block_number,
+        };
 
-        tokio::spawn(async move {
-            relayer.start().await;
+        let relayer_handle = tokio::spawn(async move {
+            println!("Start height {}", start_height);
+            //TODO: Should be able to start from last processed height.
+            relayer.start(start_height).await;
         });
 
-        let mut receiver = receiver.lock().await;
+        let queue_clone = self.queue.clone();
+        let db_clone = self.db.clone();
 
-        while let Some(header) = receiver.recv().await {
-            let new_queue_item = QueueItem {
-                proof: None,
-                blob: None,
-                header: AvailHeader::from(&header),
-            };
-            let mut queue = self.queue.lock().await;
-            queue.push_back(new_queue_item);
-        }
-    }
+        let avail_syncer_handle = tokio::spawn(async move {
+            let mut receiver = receiver.lock().await;
 
-    pub async fn process_queue(&mut self, rollup_public_inputs: PI) -> Result<Receipt, Error> {
-        let mut queue = self.queue.lock().await;
+            while let Some(header) = receiver.recv().await {
+                let new_queue_item = QueueItem {
+                    proof: None,
+                    blob: None,
+                    header: AvailHeader::from(&header),
+                };
+                let mut queue = queue_clone.lock().await;
+                queue.push_back(new_queue_item);
 
-        while let Some(queue_item) = queue.pop_front() {
-            match &queue_item.blob {
-                Some((ref hash, ref inclusion_proof)) => {
-                    if queue_item.proof.is_some() {
-                        // Process the proof as before.
-                        println!("Processing proof for blob: {:?}", hash);
-                        return Err(anyhow!("Failed to process proof for blob: {:?}", hash));
-                    } else {
-                        queue.push_back(queue_item.clone());
-                        sleep(Duration::from_secs(5)).await;
-                    }
-                }
-                None => {
-                    println!(
-                        "Creating and processing empty proof for header: {:?}",
-                        queue_item.header
-                    );
-
-                    //If empty, creates an empty proof.
-                    let private_inputs = AdapterPrivateInputs {
-                        header: queue_item.header,
-                        app_id: self.app_id.clone(),
-                    };
-
-                    let env = ExecutorEnv::builder()
-                        .write(&to_vec(&queue_item.proof)?)
-                        .unwrap()
-                        .write(&to_vec(&self.previous_adapter_proof)?)
-                        .unwrap()
-                        .write(&to_vec(&private_inputs)?)
-                        .unwrap()
-                        .write(&to_vec(&self.elf_id)?)
-                        .unwrap()
-                        .write(&to_vec(&self.vk)?)
-                        .unwrap()
-                        .build()
-                        .unwrap();
-
-                    let prover = default_prover();
-
-                    return prover.prove(env, &self.elf);
-                }
+                println!("Updated queue");
+                //Storing the queue in storage.
+                db_clone
+                    .lock()
+                    .await
+                    .store_last_known_queue(&queue)
+                    .unwrap();
             }
-        }
+        });
 
-        return Err(anyhow!("Failed to process queue"));
+        match self.process_queue().await {
+            Ok(_) => (),
+            Err(e) => println!("{:?}", e),
+        };
+
+        tokio::try_join!(avail_syncer_handle, relayer_handle).unwrap();
+
+        Ok(())
     }
 
-    pub async fn add_proof(&mut self, proof: RollupProof<PI, P>) {
+    pub async fn process_queue(&mut self) -> Result<Receipt, Error> {
+        loop {
+            println!("processing item");
+            let queue_item = {
+                let queue_lock = self.queue.lock().await;
+                let item = queue_lock.front().cloned();
+                item
+            };
+
+            if queue_item.is_none() {
+                println!("Empty items. Waiting for 2 seconds");
+                thread::sleep(Duration::from_secs(2));
+
+                continue; // Restart the loop
+            };
+            let queue_item = queue_item.unwrap();
+            println!("Processing item {:?}", queue_item.header.number);
+            if queue_item.blob.is_some() && queue_item.proof.is_none() {
+                println!("Proof not available for the blob yet. Checking in 10 seconds");
+                thread::sleep(Duration::from_secs(10));
+
+                continue; // Restart the loop
+            };
+
+            let receipt = match self.verify_and_generate_proof(&queue_item) {
+                Err(e) => {
+                    println!("{:?}", &e);
+
+                    return Err(e);
+                }
+                Ok(i) => i,
+            };
+            println!("Got rreceipt");
+            let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
+            self.queue.lock().await.pop_front();
+
+            self.db.lock().await.store_last_proof(&(
+                receipt.clone(),
+                adapter_pi.clone(),
+                queue_item.header.number,
+            ))?;
+            self.previous_adapter_proof = Some((
+                receipt.clone(),
+                adapter_pi.clone(),
+                queue_item.header.number,
+            ));
+            println!("Sotred everything..");
+        }
+    }
+
+    pub async fn add_proof(&mut self, proof: RollupProof<PI, P>) -> Result<(), Error> {
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -144,30 +199,31 @@ impl<PI: RollupPublicInputs + Clone + Serialize, P: Proof<PI> + Clone + Serializ
                         break;
                     }
                 }
-                None => return,
+                None => continue,
             }
             //Improvement will be to check if the proof is verifying.
         }
+
+        if updated_proof {
+            return Ok(());
+        }
+
+        Err(anyhow!("Blob not found for given proof"))
     }
 
     // function to generate proof against avail data when proof is received and verified from the rollup
-    pub async fn verify_and_generate_proof(
+    fn verify_and_generate_proof(
         &mut self,
-        queueItem: QueueItem<PI, P>,
+        queue_item: &QueueItem<PI, P>,
     ) -> Result<Receipt, Error> {
         let private_inputs = AdapterPrivateInputs {
-            header: queueItem.header,
+            header: queue_item.header.clone(),
             app_id: self.app_id.clone(),
         };
 
-        let proof = match queueItem.proof {
-            None => return Err(anyhow!("Proof is empty")),
-            Some(i) => i,
-        };
-
-        let prev_pi = match &self.previous_adapter_proof {
+        let prev_pi_and_receipt = match &self.previous_adapter_proof {
             None => {
-                if self.last_queried_block_number != self.starting_block_number {
+                if queue_item.header.number != self.starting_block_number {
                     return Err(anyhow!("Cannot find previous proof for recursion."));
                 }
 
@@ -176,16 +232,29 @@ impl<PI: RollupPublicInputs + Clone + Serialize, P: Proof<PI> + Clone + Serializ
             Some(i) => Some(i.clone()),
         };
 
-        let env = ExecutorEnv::builder()
-            .write(&to_vec(&proof)?)
+        let mut env_builder = ExecutorEnv::builder();
+
+        let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
+            None => None,
+            Some((receipt, pi, _)) => {
+                println!("Added assumption.");
+
+                env_builder.add_assumption(receipt);
+
+                Some(pi)
+            }
+        };
+
+        let env = env_builder
+            .write(&prev_pi)
             .unwrap()
-            .write(&to_vec(&prev_pi)?)
+            .write(&queue_item.proof)
             .unwrap()
-            .write(&to_vec(&private_inputs)?)
+            .write(&private_inputs)
             .unwrap()
-            .write(&to_vec(&self.elf_id)?)
+            .write(&self.elf_id)
             .unwrap()
-            .write(&to_vec(&self.vk)?)
+            .write(&self.vk)
             .unwrap()
             .build()
             .unwrap();

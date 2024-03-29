@@ -11,8 +11,8 @@ async fn health_check_handler() -> Result<impl Reply, Rejection> {
 }
 
 async fn handle_proof_handler<
-    PI: RollupPublicInputs + Clone + Serialize,
-    P: Proof<PI> + Clone + Serialize,
+    PI: RollupPublicInputs + Clone + Serialize + DeserializeOwned + Send,
+    P: Proof<PI> + Clone + Serialize + DeserializeOwned + Send,
 >(
     state: Arc<Mutex<AdapterState<PI, P>>>,
     proof: RollupProof<PI, P>,

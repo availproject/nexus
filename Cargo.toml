@@ -19,4 +19,4 @@ sp-runtime = { git = "https://github.com/availproject/substrate.git", branch = "
 sp-std = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 sp-core-hashing = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 # Remove below patch once rust version can be updated for zkvm
-# bumpalo = { git = "https://github.com/fitzgen/bumpalo", tag = "3.14.0" }
+bumpalo = { git = "https://github.com/fitzgen/bumpalo", tag = "3.14.0" }

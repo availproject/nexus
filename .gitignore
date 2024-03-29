@@ -4,4 +4,5 @@ target/
 **/submit_tx.json
 **/node_db
 **/runtime_db
+**/adapter_store
 Cargo.lock
