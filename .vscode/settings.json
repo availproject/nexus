@@ -2,6 +2,8 @@
   "rust-analyzer.linkedProjects": [
     "./demo_rollup/methods/guest/Cargo.toml",
     "./demo_rollup/host/Cargo.toml",
+    "./adapter_sdk/Cargo.toml",
+    "./relayer/Cargo.toml",
     "./nexus/host/Cargo.toml",
     "./nexus/prover/guest/Cargo.toml",
   ]

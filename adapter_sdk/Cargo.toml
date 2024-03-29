@@ -6,17 +6,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.36.0", optional = true}
-hex = "0.4"
+tokio = { version = "1.36.0", optional = true }
+hex = { version = "0.4", optional = true }
 tokio-stream = { version = "0.1.14", optional = true}
 reqwest = {version = "0.11.24", features = ["json"], optional = true}
-avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"], optional = true }
-henosis = { git = "https://github.com/Banana-Wallet/Henosis.git", rev = "2b693c6", optional = true }
-converter = { git = "https://github.com/Banana-Wallet/Henosis.git", rev = "2b693c6", optional = true }
-nexus-core = { path = "../core", default-features = false, features = ["zkvm"] }
-num-bigint = { version = "0.4.4", optional = true}
-ckb-types = { version = "0.114.0", optional = true}
+nexus-core = { path = "../core", default-features = false }
 serde = "1.0.196"
 serde_json = "1.0.113"
-risc0-zkvm = {version = "0.20", features = ["std"], default-features = false }
 anyhow = "1.0.81"
+warp = { version = "0.3", optional = true }
+risc0-zkvm = {version = "0.20", default-features = false, features = ["std"]}
+relayer = { path = "../relayer", optional = true}
+
+[features]
+default = ["native"]
+native = ["nexus-core/native", "risc0-zkvm/default", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp"]
+zkvm = ["nexus-core/zkvm"]

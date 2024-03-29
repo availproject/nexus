@@ -1,4 +1,4 @@
-use nexus_core::traits::{Proof, RollupPublicInputs};
+use adapter_sdk::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::H256;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ impl Proof<DemoRollupPublicInputs> for DemoProof {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Copy)]
 pub struct DemoRollupPublicInputs {
     pub prev_state_root: H256,
     pub post_state_root: H256,

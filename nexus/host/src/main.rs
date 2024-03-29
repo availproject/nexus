@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let cloned_relayer = shared_relayer.lock().await;
             println!("Trying to start");
             println!("started from our side bro");
-            cloned_relayer.start().await;
+            cloned_relayer.start(1).await;
         });
 
         let execution_engine = tokio::spawn(async move {
