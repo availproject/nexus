@@ -23,7 +23,7 @@ fn main() {
             elf: ADAPTER_ELF.to_vec(),
             adapter_elf_id: StatementDigest(ADAPTER_ID),
             vk: [0u8; 32],
-            rollup_start_height: 501643,
+            rollup_start_height: 606460,
         },
     );
     let rt = tokio::runtime::Runtime::new().unwrap();

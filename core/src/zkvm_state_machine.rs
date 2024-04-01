@@ -30,10 +30,7 @@ impl ZKVMStateMachine {
                     state_update
                         .pre_state
                         .iter()
-                        .map(|v| {
-                            println!("{:?}, {:?}", v.0, v.1);
-                            (v.0.as_h256(), v.1.to_h256())
-                        })
+                        .map(|v| (v.0.as_h256(), v.1.to_h256()))
                         .collect(),
                 ) {
                     Ok(true) => {}
@@ -60,7 +57,13 @@ impl ZKVMStateMachine {
                     &state_update.post_state_root,
                     result
                         .iter()
-                        .map(|v| (v.0.as_h256(), v.1.to_h256()))
+                        .map(|v| {
+                            println!(
+                                "Modified account after batch : {:?} -- AccountID: {:?}",
+                                v.1, v.0
+                            );
+                            (v.0.as_h256(), v.1.to_h256())
+                        })
                         .collect(),
                 ) {
                     Ok(true) => (),

@@ -15,15 +15,21 @@ impl Mempool {
         }
     }
 
-    pub async fn get_current_txs(&self) -> (Vec<TransactionV2>, usize) {
+    pub async fn get_current_txs(&self) -> (Vec<TransactionV2>, Option<usize>) {
         let tx_list = self.tx_list.lock().await;
 
-        (tx_list.clone(), tx_list.len())
+        (
+            tx_list.clone(),
+            match tx_list.len() {
+                0 => None,
+                i => Some(i),
+            },
+        )
     }
 
     pub async fn clear_upto_tx(&self, index: usize) -> () {
         let mut tx_list = self.tx_list.lock().await;
-
+        println!("Clearing tx list {index} {}", tx_list.len());
         // Clear transactions up to the specified index
         if index < tx_list.len() {
             tx_list.drain(0..=index);
@@ -37,5 +43,7 @@ impl Mempool {
         let mut tx_list = self.tx_list.lock().await;
 
         tx_list.push(tx);
+
+        println!("Added tx. Total txs for next batch : {}", tx_list.len());
     }
 }

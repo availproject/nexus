@@ -8,11 +8,12 @@ use parity_scale_codec::{Decode, Encode};
 use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
 use risc0_zkvm::sha::Digest as RiscZeroDigest;
 #[cfg(any(feature = "native"))]
-use risc0_zkvm::CompositeReceipt;
+use risc0_zkvm::InnerReceipt;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
+//TODO: Implement formatter for H256, to display as hex.
 pub use sparse_merkle_tree::H256;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
@@ -53,7 +54,7 @@ pub enum TxParamsV2 {
 pub struct TransactionV2 {
     pub signature: TxSignature,
     pub params: TxParamsV2,
-    pub proof: Option<CompositeReceipt>,
+    pub proof: Option<InnerReceipt>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

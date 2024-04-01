@@ -6,9 +6,13 @@ use crate::db::DB;
 use crate::traits::{Proof, RollupPublicInputs};
 use crate::types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
-use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
+use nexus_core::db::NodeDB;
+use nexus_core::types::{
+    AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
+    TxParamsV2, TxSignature, H256,
+};
 use relayer::Relayer;
-use risc0_zkvm::{default_prover, Receipt};
+use risc0_zkvm::{default_prover, InnerReceipt, Receipt};
 use risc0_zkvm::{
     serde::{from_slice, to_vec},
     sha::rust_crypto::Digest,
@@ -93,6 +97,35 @@ impl<
             None => self.starting_block_number,
         };
 
+        if self.previous_adapter_proof.is_none() {
+            let header_hash = relayer.get_header_hash(self.starting_block_number).await;
+            let tx = TransactionV2 {
+                signature: TxSignature([0u8; 64]),
+                params: TxParamsV2::InitAccount(InitAccount {
+                    app_id: AppAccountId::from(self.app_id.clone()),
+                    statement: self.elf_id.clone(),
+                    avail_start_hash: header_hash,
+                }),
+                proof: None,
+            };
+
+            let client = reqwest::Client::new();
+
+            let response = client
+                .post("http://127.0.0.1:7000/tx")
+                .json(&tx)
+                .send()
+                .await?;
+
+            // Check if the request was successful
+            if response.status().is_success() {
+                let body = response.text().await?;
+                println!("✅ Initiated rollup {}", body);
+            } else {
+                println!("❌ Failed to initiate rollup {}", response.status());
+            }
+        }
+
         let relayer_handle = tokio::spawn(async move {
             println!("Start height {}", start_height);
             //TODO: Should be able to start from last processed height.
@@ -101,6 +134,7 @@ impl<
 
         let queue_clone = self.queue.clone();
         let db_clone = self.db.clone();
+        let db_clone_2 = self.db.clone();
 
         let avail_syncer_handle = tokio::spawn(async move {
             let mut receiver = receiver.lock().await;
@@ -114,7 +148,6 @@ impl<
                 let mut queue = queue_clone.lock().await;
                 queue.push_back(new_queue_item);
 
-                println!("Updated queue");
                 //Storing the queue in storage.
                 db_clone
                     .lock()
@@ -124,19 +157,104 @@ impl<
             }
         });
 
+        let submission_handle = tokio::spawn(Self::manage_submissions(db_clone_2));
+
         match self.process_queue().await {
             Ok(_) => (),
-            Err(e) => println!("{:?}", e),
+            Err(e) => println!("Exiting because of error: {:?}", e),
         };
 
-        tokio::try_join!(avail_syncer_handle, relayer_handle).unwrap();
+        tokio::try_join!(avail_syncer_handle, relayer_handle, submission_handle)
+            .unwrap()
+            .2
+            .unwrap();
 
         Ok(())
     }
 
+    async fn manage_submissions(db: Arc<Mutex<DB<PI, P>>>) -> Result<Receipt, Error> {
+        loop {
+            thread::sleep(Duration::from_secs(2));
+
+            let latest_proof = {
+                let db_lock = db.lock().await;
+
+                let last_proof = match db_lock.get_last_proof()? {
+                    Some(i) => i,
+                    None => continue,
+                };
+
+                last_proof
+            };
+
+            println!(
+                "👨‍💻 Latest proof current for avail height : {:?}, state root: {:?}",
+                &latest_proof.2, &latest_proof.1.state_root
+            );
+
+            let response = reqwest::get("http://127.0.0.1:7000/range").await?;
+
+            // Check if the request was successful
+            if !response.status().is_success() {
+                println!(
+                    "⛔️ Request to nexus failed with status {}. Nexus must be down",
+                    response.status()
+                );
+
+                // Deserialize the response body into a Vec<H256>
+                continue;
+            }
+
+            let range: Vec<H256> = response.json().await?;
+
+            let mut is_in_range = false;
+
+            for h in range.iter() {
+                if h.clone() == latest_proof.1.header_hash {
+                    is_in_range = true;
+                }
+            }
+
+            if is_in_range {
+                println!("INside match");
+                let client = reqwest::Client::new();
+                let tx = TransactionV2 {
+                    signature: TxSignature([0u8; 64]),
+                    params: TxParamsV2::SubmitProof(SubmitProof {
+                        public_inputs: latest_proof.1.clone(),
+                    }),
+                    proof: Some(latest_proof.0.inner),
+                };
+
+                let response = client
+                    .post("http://127.0.0.1:7000/tx")
+                    .json(&tx)
+                    .send()
+                    .await?;
+
+                // Check if the request was successful
+                if response.status().is_success() {
+                    let body = response.text().await?;
+                    println!(
+                        "✅ Posted proof for avail height: {:?}, state root: {:?}",
+                        &latest_proof.2, &latest_proof.1.state_root
+                    );
+                } else {
+                    println!(
+                        "❌ Request failed with status: {}, for avail height: {:?}, state root: {:?}",
+                        response.status(),
+                        &latest_proof.2,
+                        &latest_proof.1.state_root
+                    );
+                }
+            } else {
+                println!("⏳ Not in range yet. Rollup at height: {}", latest_proof.2);
+            }
+        }
+    }
+
     pub async fn process_queue(&mut self) -> Result<Receipt, Error> {
         loop {
-            println!("processing item");
             let queue_item = {
                 let queue_lock = self.queue.lock().await;
                 let item = queue_lock.front().cloned();
@@ -144,15 +262,12 @@ impl<
             };
 
             if queue_item.is_none() {
-                println!("Empty items. Waiting for 2 seconds");
                 thread::sleep(Duration::from_secs(2));
 
                 continue; // Restart the loop
             };
             let queue_item = queue_item.unwrap();
-            println!("Processing item {:?}", queue_item.header.number);
             if queue_item.blob.is_some() && queue_item.proof.is_none() {
-                println!("Proof not available for the blob yet. Checking in 10 seconds");
                 thread::sleep(Duration::from_secs(10));
 
                 continue; // Restart the loop
@@ -160,13 +275,11 @@ impl<
 
             let receipt = match self.verify_and_generate_proof(&queue_item) {
                 Err(e) => {
-                    println!("{:?}", &e);
-
                     return Err(e);
                 }
                 Ok(i) => i,
             };
-            println!("Got rreceipt");
+
             let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
             self.queue.lock().await.pop_front();
 
@@ -180,7 +293,6 @@ impl<
                 adapter_pi.clone(),
                 queue_item.header.number,
             ));
-            println!("Sotred everything..");
         }
     }
 
@@ -237,8 +349,6 @@ impl<
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
             None => None,
             Some((receipt, pi, _)) => {
-                println!("Added assumption.");
-
                 env_builder.add_assumption(receipt);
 
                 Some(pi)

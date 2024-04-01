@@ -1,6 +1,7 @@
 pub mod types;
 use crate::types::Header;
 use avail_subxt::config::Header as HeaderTrait;
+use nexus_core::types::H256;
 use std::io::prelude::*;
 use std::thread;
 use std::{fs::File, sync::Arc};
@@ -28,6 +29,22 @@ impl Relayer {
 
     pub fn receiver(&mut self) -> Arc<Mutex<UnboundedReceiver<Header>>> {
         self.receiver.clone()
+    }
+
+    pub async fn get_header_hash(&self, height: u32) -> H256 {
+        let (subxt_client, _) =
+            avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
+                .await
+                .unwrap();
+
+        let hash = match subxt_client.rpc().block_hash(Some(height.into())).await {
+            Ok(i) => i,
+            Err(e) => {
+                panic!("Cannot initiate rollup")
+            }
+        };
+
+        H256::from(hash.unwrap().as_fixed_bytes().clone())
     }
 
     pub async fn start(&self, start_height: u32) -> () {
@@ -83,7 +100,6 @@ impl Relayer {
 
             let header = header.unwrap();
 
-            println!("Sending header: {:?}", header.number);
             if let Err(e) = self.sender.send(header) {
                 println!("Failed to send header: {}", e);
 

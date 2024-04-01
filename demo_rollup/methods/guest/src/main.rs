@@ -15,8 +15,6 @@ use risc0_zkvm::sha::Digest;
 risc0_zkvm::guest::entry!(main);
 
 fn main() {
-    let start = env::cycle_count();
-    eprintln!("Start cycle {}", start);
     let prev_adapter_public_inputs: Option<AdapterPublicInputs> = env::read();
     let proof: Option<RollupProof<DemoRollupPublicInputs, DemoProof>> = env::read();
     let private_inputs: AdapterPrivateInputs = env::read();
@@ -32,6 +30,5 @@ fn main() {
     )
     .unwrap();
 
-    eprintln!("Current cycle count: {}", env::cycle_count());
     env::commit(&result);
 }

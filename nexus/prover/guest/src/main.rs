@@ -13,8 +13,8 @@ use risc0_zkvm::guest::env;
 risc0_zkvm::guest::entry!(main);
 
 fn main() {
-    let start = env::cycle_count();
-    eprintln!("Start cycle {}", start);
+    // let start = env::cycle_count();
+    // eprintln!("Start cycle {}", start);
 
     let txs: Vec<TransactionZKVM> = env::read();
     let touched_states: StateUpdate = env::read();
@@ -26,8 +26,8 @@ fn main() {
         .execute_batch(&header, &mut header_store, &txs, touched_states)
         .expect("Should not have panicked.");
 
-    let after_stf = env::cycle_count();
-    eprintln!("after STF {}", after_stf);
+    // let after_stf = env::cycle_count();
+    // eprintln!("after STF {}", after_stf);
 
     env::commit(&zkvm_result);
 }

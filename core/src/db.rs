@@ -31,11 +31,7 @@ impl NodeDB {
         match self.db.get(serialized_key) {
             Err(e) => Err(anyhow!("{}", e.to_string())),
             Ok(None) => Ok(None),
-            Ok(Some(i)) => {
-                println!("got valluueeee");
-
-                Ok(Some(from_slice(&i)?))
-            }
+            Ok(Some(i)) => Ok(Some(from_slice(&i)?)),
         }
     }
 
