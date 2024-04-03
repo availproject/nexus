@@ -1,12 +1,14 @@
 use crate::traits::{Proof, RollupPublicInputs};
+use avail_core::DataProof;
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
-use nexus_core::types::{AppId, AvailHeader, StatementDigest};
+use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterPrivateInputs {
     pub header: AvailHeader,
     pub app_id: AppId,
+    pub blob: (H256, DataProof),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

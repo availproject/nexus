@@ -17,6 +17,9 @@ anyhow = "1.0.81"
 warp = { version = "0.3", optional = true }
 risc0-zkvm = {version = "0.20", default-features = false, features = ["std"]}
 relayer = { path = "../relayer", optional = true}
+avail-core = {  git = "https://github.com/availproject/avail-core", branch = "main" }
+binary-merkle-tree = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
+sp-core = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
 
 [features]
 default = ["native"]

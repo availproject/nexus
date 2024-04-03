@@ -17,5 +17,12 @@ relayer = { path = "../../relayer" }
 adapter_sdk = { path = "../../adapter_sdk" }
 demo_rollup_core = { path = "../core" }
 anyhow = "1.0.80"
-actix-web = "4.5.1"
 warp = "0.3.6"
+avail-core = {  git = "https://github.com/availproject/avail-core", branch = "main" }
+avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v2.0.0.0-rc4", features = ["std"]}
+
+[patches.crate-io]
+sp-core = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
+sp-io = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
+sp-runtime = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
+sp-std = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }

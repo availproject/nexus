@@ -6,6 +6,8 @@ use crate::db::DB;
 use crate::traits::{Proof, RollupPublicInputs};
 use crate::types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
+use avail_core::DataProof;
+
 use nexus_core::db::NodeDB;
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
@@ -24,15 +26,13 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::thread;
 use tokio::sync::Mutex;
-use tokio::time::{sleep, Duration};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct InclusionProof(pub Vec<u8>);
+use tokio::time::Duration;
+use warp::filters::method::head;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct QueueItem<I: RollupPublicInputs + Clone, P: Proof<I> + Clone> {
     proof: Option<RollupProof<I, P>>,
-    blob: Option<(H256, InclusionProof)>,
+    blob: Option<(H256, DataProof)>,
     header: AvailHeader,
 }
 
@@ -42,7 +42,7 @@ pub struct AdapterState<
     P: Proof<PI> + Clone + DeserializeOwned + Serialize + 'static,
 > {
     pub starting_block_number: u32,
-    pub queue: Arc<Mutex<VecDeque<QueueItem<PI, P>>>>,
+    pub(crate) queue: Arc<Mutex<VecDeque<QueueItem<PI, P>>>>,
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
     pub elf: Vec<u8>,
     pub elf_id: StatementDigest,
@@ -323,14 +323,40 @@ impl<
         Err(anyhow!("Blob not found for given proof"))
     }
 
+    pub async fn add_blob(
+        &mut self,
+        header: H256,
+        blob: Option<(H256, DataProof)>,
+    ) -> Result<(), Error> {
+        let mut queue = self.queue.lock().await;
+        if blob.is_none() {
+            return Err(anyhow!("Blob empty"));
+        }
+
+        for height in queue.iter_mut() {
+            if height.header.hash() == header && height.blob.is_none() {
+                height.blob = blob.clone();
+            }
+        }
+
+        Ok(())
+    }
+
     // function to generate proof against avail data when proof is received and verified from the rollup
     fn verify_and_generate_proof(
         &mut self,
         queue_item: &QueueItem<PI, P>,
     ) -> Result<Receipt, Error> {
+        if (queue_item.blob.is_none() || queue_item.proof.is_none()) {
+            return Err(anyhow!("Incomplete proof item inside queue"));
+        }
+
+        let (hash, blob) = queue_item.blob.as_ref().unwrap();
+
         let private_inputs = AdapterPrivateInputs {
             header: queue_item.header.clone(),
             app_id: self.app_id.clone(),
+            blob: (*hash, blob.clone()),
         };
 
         let prev_pi_and_receipt = match &self.previous_adapter_proof {
@@ -359,6 +385,8 @@ impl<
             .write(&prev_pi)
             .unwrap()
             .write(&queue_item.proof)
+            .unwrap()
+            .write(&queue_item.blob)
             .unwrap()
             .write(&private_inputs)
             .unwrap()

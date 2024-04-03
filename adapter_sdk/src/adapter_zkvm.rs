@@ -1,16 +1,16 @@
 use crate::traits::{Proof, RollupPublicInputs};
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
+// use avail_subxt::utils::H256;
+use binary_merkle_tree::verify_proof as verify_merkle_proof;
+use binary_merkle_tree::Leaf;
 use nexus_core::traits::Hasher;
-use nexus_core::types::{
-    AppAccountId, AvailHeader, Extension, ShaHasher, StatementDigest, V3Extension, H256,
-};
+use nexus_core::types::{AppAccountId, Extension, ShaHasher, StatementDigest, H256};
 use risc0_zkvm::{
     guest::env::{self, verify},
     serde::to_vec,
     sha::rust_crypto::Digest,
 };
-
 use serde::Serialize;
 
 /// Verifies a proof against a specified set of public inputs.
@@ -96,6 +96,22 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
 
     let hash: H256 = hasher.finish();
     let app_account_id: AppAccountId = AppAccountId::from(hash);
+
+    let blob = private_inputs.blob.clone();
+
+    let leaf: Leaf<H256> = Leaf::from(blob.0.as_fixed_slice());
+
+    // if verify_merkle_proof::<H256, Vec<H256>, Leaf<H256>>(
+    //     &blob.1.roots.data_root,
+    //     blob.1.proof,
+    //     blob.1.number_of_leaves as usize,
+    //     blob.1.leaf_index as usize,
+    //     leaf,
+    // ) {
+    //     return Err(anyhow::anyhow!(
+    //         "Invalid data inclusion proof againts the data root"
+    //     ));
+    // }
 
     let (proof, rollup_public_inputs) = match rollup_proof {
         Some(i) => (i.proof, i.public_inputs),
