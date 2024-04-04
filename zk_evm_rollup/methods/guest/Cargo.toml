@@ -1,0 +1,19 @@
+[package]
+name = "adapter"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+# If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
+risc0-zkvm = { version = "0.20", default-features = false, features = ["std"] }
+nexus-core = { path = "../../../core", default-features = false, features = ["zkvm"]}
+adapter_sdk = { path = "../../../adapter_sdk", default-features = false, features = ["zkvm"] }
+zk_evm_rollup_core = { path = "../../core" }
+ark-bn254 = "0.3.0"
+ark-ec = "0.3.0"
+ark-ff = "0.3.0"
+ark-poly = "0.3.0"
+num-bigint = "0.4.4"
+tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }

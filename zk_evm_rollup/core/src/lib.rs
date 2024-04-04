@@ -1,9 +1,17 @@
 use adapter_sdk::traits::{Proof, RollupPublicInputs};
 use nexus_core::types::H256;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct DemoProof{
+use ark_bn254::{g1, g1::Parameters, Bn254, FqParameters, Fr, FrParameters, G1Projective};
+use ark_ec::short_weierstrass_jacobian::GroupAffine;
+use ark_ec::*;
+use ark_ff::{Field, Fp256, Fp256Parameters, One, PrimeField, UniformRand, Zero};
+
+pub type G1Point = <Bn254 as PairingEngine>::G1Affine;
+pub type G2Point = <Bn254 as PairingEngine>::G2Affine;
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ZkEvmProof{
     // pub c1: G1Point,
     // pub c2: G1Point,
     // pub w1: G1Point,
@@ -31,27 +39,30 @@ pub struct DemoProof{
     pub w1: [u64; 32],
     pub w2: [u64; 32],
 
-
 }
 
-impl Proof<DemoRollupPublicInputs> for DemoProof {
+
+impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
     fn verify(
         &self,
         vk: &[u8; 32],
-        public_inputs: &DemoRollupPublicInputs,
+        public_inputs: &ZkEvmRollupPublicInputs,
     ) -> Result<(), anyhow::Error> {
+        eprintln!("ZkEvmProof::verify");
+        eprintln!("vk: {:?}", vk);
+        eprintln!("public_inputs: {:?}", public_inputs);
         Ok(())
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Copy)]
-pub struct DemoRollupPublicInputs {
+pub struct ZkEvmRollupPublicInputs {
     pub prev_state_root: H256,
     pub post_state_root: H256,
     pub blob_hash: H256,
 }
 
-impl RollupPublicInputs for DemoRollupPublicInputs {
+impl RollupPublicInputs for ZkEvmRollupPublicInputs {
     fn prev_state_root(&self) -> H256 {
         self.prev_state_root.clone()
     }

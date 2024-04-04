@@ -1,10 +1,10 @@
 [package]
-name = "host"
+name = "zk-evm-adapter-host"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-prover = { path = "../prover" }
+zk_evm_methods = { path = "../methods" }
 risc0-zkvm = { version = "0.20"}
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = "1.0"
@@ -14,6 +14,8 @@ tokio = "1.36.0"
 sp-runtime = "33.0.0"
 parity-scale-codec = { version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
 relayer = { path = "../../relayer" }
+adapter_sdk = { path = "../../adapter_sdk" }
+zk_evm_rollup_core = { path = "../core" }
 anyhow = "1.0.80"
+actix-web = "4.5.1"
 warp = "0.3.6"
-bincode = "1.3.3"

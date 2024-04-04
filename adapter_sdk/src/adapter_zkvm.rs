@@ -136,11 +136,13 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
         }
     };
 
+
     let prev_state_root: H256 = rollup_public_inputs.prev_state_root();
     let post_state_root: H256 = rollup_public_inputs.post_state_root();
 
     //TODO: Remove unwrap below.
     //TODO: Allow custom encoding here.
+    eprintln!("sending proof to zkvm");
     proof.verify(&vk, &rollup_public_inputs)?;
 
     let prev_public_input: AdapterPublicInputs = match prev_adapter_public_inputs {
