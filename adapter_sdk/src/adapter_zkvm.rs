@@ -1,9 +1,15 @@
 use crate::traits::{Proof, RollupPublicInputs};
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
+use sp_core::H256 as SPH256;
+
+use avail_core::{keccak256, Keccak256};
 // use avail_subxt::utils::H256;
+
+use avail_subxt::utils::H256 as AvailH256;
 use binary_merkle_tree::verify_proof as verify_merkle_proof;
 use binary_merkle_tree::Leaf;
+use binary_merkle_tree::MerkleProof;
 use nexus_core::traits::Hasher;
 use nexus_core::types::{AppAccountId, Extension, ShaHasher, StatementDigest, H256};
 use risc0_zkvm::{
@@ -99,19 +105,22 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
 
     let blob = private_inputs.blob.clone();
 
-    let leaf: Leaf<H256> = Leaf::from(blob.0.as_fixed_slice());
+    let leaf: Leaf<SPH256> = Leaf::from(blob.0.as_fixed_slice());
+    let root = SPH256::from(blob.1.roots.data_root.as_fixed_bytes());
 
-    // if verify_merkle_proof::<H256, Vec<H256>, Leaf<H256>>(
-    //     &blob.1.roots.data_root,
-    //     blob.1.proof,
-    //     blob.1.number_of_leaves as usize,
-    //     blob.1.leaf_index as usize,
-    //     leaf,
-    // ) {
-    //     return Err(anyhow::anyhow!(
-    //         "Invalid data inclusion proof againts the data root"
-    //     ));
-    // }
+    //let hash = Keccak256::from(blob.0.as_fixed_slice());
+
+    if verify_merkle_proof::<Keccak256, Vec<SPH256>, Leaf<SPH256>>(
+        &root,
+        blob.1.proof,
+        blob.1.number_of_leaves as usize,
+        blob.1.leaf_index as usize,
+        leaf,
+    ) {
+        return Err(anyhow::anyhow!(
+            "Invalid data inclusion proof againts the data root"
+        ));
+    }
 
     let (proof, rollup_public_inputs) = match rollup_proof {
         Some(i) => (i.proof, i.public_inputs),
