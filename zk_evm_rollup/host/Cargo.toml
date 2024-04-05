@@ -19,3 +19,10 @@ zk_evm_rollup_core = { path = "../core" }
 anyhow = "1.0.80"
 actix-web = "4.5.1"
 warp = "0.3.6"
+ark-bn254 = "0.3.0"
+ark-ec = "0.3.0"
+ark-ff = "0.3.0"
+ark-poly = "0.3.0"
+num-bigint = "0.4.4"
+tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
+
