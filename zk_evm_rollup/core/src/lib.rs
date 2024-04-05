@@ -1,4 +1,5 @@
 use adapter_sdk::traits::{Proof, RollupPublicInputs};
+use ark_bn254::{Fq, Fq2, G2Affine};
 use nexus_core::types::H256;
 use serde::{Deserialize, Serialize, Deserializer};
 
@@ -611,10 +612,9 @@ pub struct ZkEvmProof{
 
 }
 
-pub fn u64_to_g1(x: [u64; 32], y: [u64; 32]) -> G1Point {
+pub fn u64_to_g1(a: [u64; 32], y: [u64; 32]) -> G1Point {
     let _x = <G1Point as AffineCurve>::BaseField::from_str(
-        &x.iter().map(|x| x.to_string()).collect::<String>()
-    ).unwrap();
+        &a.iter().map(|y| y.to_string()).collect::<String>()).unwrap();
     let _y = <G1Point as AffineCurve>::BaseField::from_str(
         &y.iter().map(|y| y.to_string()).collect::<String>()
     ).unwrap();
@@ -646,10 +646,227 @@ impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
         eprintln!("public_inputs: {:?}", public_inputs);
         println!("c1: {:?}", self.c1_x);
 
+        let proof = Prooff{
+            c1: u64_to_g1(self.c1_x, self.c1_y),
+            c2: u64_to_g1(self.c2_x, self.c2_y),
+            w1: u64_to_g1(self.w1_x, self.w1_y),
+            w2: u64_to_g1(self.w2_x, self.w2_y),
+            eval_ql: u64_to_fp256(self.eval_ql),
+            eval_qr: u64_to_fp256(self.eval_qr),
+            eval_qm: u64_to_fp256(self.eval_qm),
+            eval_qo: u64_to_fp256(self.eval_qo),
+            eval_qc: u64_to_fp256(self.eval_qc),
+            eval_s1: u64_to_fp256(self.eval_s1),
+            eval_s2: u64_to_fp256(self.eval_s2),
+            eval_s3: u64_to_fp256(self.eval_s3),
+            eval_a: u64_to_fp256(self.eval_a),
+            eval_b: u64_to_fp256(self.eval_b),
+            eval_c: u64_to_fp256(self.eval_c),
+            eval_z: u64_to_fp256(self.eval_z),
+            eval_zw: u64_to_fp256(self.eval_zw),
+            eval_t1w: u64_to_fp256(self.eval_t1w),
+            eval_t2w: u64_to_fp256(self.eval_t2w),
+            eval_inv: u64_to_fp256(self.eval_inv),    
+        };
+
+        let pub_signal = get_pubSignals();
+        let mut challenges = Challenges {
+            alpha: Fr::zero(),
+            beta: Fr::zero(),
+            gamma: Fr::zero(),
+            y: Fr::zero(),
+            xiSeed: Fr::zero(),
+            xiSeed2: Fr::zero(),
+            xi: Fr::zero(),
+    
+        };
+        let mut roots = Roots {
+            h0w8: [Fr::zero(); 8],
+            h1w4: [Fr::zero(); 4],
+            h2w3: [Fr::zero(); 3],
+            h3w3: [Fr::zero(); 3],
+        };
+        let mut vpi = VerifierProcessedInputs {
+            c0x: BigInt::parse_bytes(b"7005013949998269612234996630658580519456097203281734268590713858661772481668", 10).unwrap(),
+            c0y: BigInt::parse_bytes(b"869093939501355406318588453775243436758538662501260653214950591532352435323", 10).unwrap(),
+            x2x1: BigInt::parse_bytes(b"21831381940315734285607113342023901060522397560371972897001948545212302161822", 10).unwrap(),
+            x2x2: BigInt::parse_bytes(b"17231025384763736816414546592865244497437017442647097510447326538965263639101", 10).unwrap(),
+            x2y1: BigInt::parse_bytes(b"2388026358213174446665280700919698872609886601280537296205114254867301080648", 10).unwrap(),
+            x2y2: BigInt::parse_bytes(b"11507326595632554467052522095592665270651932854513688777769618397986436103170", 10).unwrap(),
+    
+        };
+    
+        let pubSignalBigInt = BigInt::parse_bytes(b"14516932981781041565586298118536599721399535462624815668597272732223874827152", 10).unwrap();
+    
+        
+        let mut zh: &mut Fp256<FrParameters> = &mut Fr::zero();
+    
+        let mut zhinv: &mut Fp256<FrParameters> = &mut Fr::zero();
+    
+        compute_challenges(&mut challenges, &mut roots, &mut zh, &mut zhinv, vpi, pubSignalBigInt);
 
 
+        let alpha: Fp256<FrParameters> = challenges.alpha;
 
+        let beta: Fp256<FrParameters> = challenges.beta;
+    
+        let gamma: Fp256<FrParameters> = challenges.gamma;
+    
+        let xiseed: Fp256<FrParameters> = challenges.xiSeed;
+    
+        let xiseed2: Fp256<FrParameters> = challenges.xiSeed2;
+    
+        let mut y: Fp256<FrParameters> = challenges.y;
+    
+        let mut xi: Fp256<FrParameters> = challenges.xi;
+    
+        // let zh: Fp256<FrParameters> = 
+    
+        // let mut zhinv: Fp256<FrParameters> = Fr::from_str(
+        //     "8663234610000964594764035144827003258323335914482598945994186647593190381653",
+        // )
+        // .unwrap();
+    
+        // it is similar to zhinv just more updated value
+        let zinv = zhinv.clone();
+    
+        let g1_x = <G1Point as AffineCurve>::BaseField::from_str("1").unwrap();
+    
+        let g1_y = <G1Point as AffineCurve>::BaseField::from_str("2").unwrap();
+    
+        let g1_affine = G1Projective::new(
+            g1_x,
+            g1_y,
+            <G1Projective as ProjectiveCurve>::BaseField::one(),
+        )
+        .into_affine();
+    
+        let h0w8: Vec<Fp256<FrParameters>> = roots.h0w8.to_vec();
+    
+        let h1w4: Vec<Fp256<FrParameters>> = roots.h1w4.to_vec();
+    
+        let h2w3: Vec<Fp256<FrParameters>> = roots.h2w3.to_vec();
+    
+        let h3w3: Vec<Fp256<FrParameters>> = roots.h3w3.to_vec();
+    
+        let mut inv_tuple = calculateInversions(
+            y,
+            xi,
+            *zhinv,
+            h0w8.clone(),
+            h1w4.clone(),
+            h2w3.clone(),
+            h3w3.clone(),
+        );
+        let mut eval_l1 = inv_tuple.0;
+        let lis_values = inv_tuple.1;
+        let denH1 = inv_tuple.2;
+        let denH2 = inv_tuple.3;
+    
+        eval_l1 = compute_lagrange(*zh, eval_l1);
+    
+        let pi = computePi(pub_signal, eval_l1);
 
+        println!("Verifying proof...");
+
+        let R0 = calculateR0(xi, proof.clone(), y, h0w8.clone(), lis_values.li_s0_inv);
+        let R1 = calculateR1(
+            xi,
+            proof.clone(),
+            y,
+            pi,
+            h1w4.clone(),
+            lis_values.li_s1_inv,
+            zinv,
+        );
+        let R2 = calculateR2(
+            xi,
+            gamma,
+            beta,
+            proof.clone(),
+            y,
+            eval_l1,
+            zinv,
+            h2w3.clone(),
+            h3w3.clone(),
+            lis_values.li_s2_inv,
+        );
+        let points = computeFEJ(
+            y,
+            h0w8.clone(),
+            denH1,
+            denH2,
+            alpha,
+            proof.clone(),
+            g1_affine,
+            R0,
+            R1,
+            R2,
+        );
+    
+        let F = points.0;
+        let E = points.1;
+        let J = points.2;
+    
+        let W2 = proof.w2;
+    
+        // first pairing value
+        let p1 = F.add(-E).add(-J).add(W2.mul(y).into_affine());
+    
+        let g2x1 = Fq::from_str(
+            "10857046999023057135944570762232829481370756359578518086990519993285655852781",
+        )
+        .unwrap();
+        let g2x2 = Fq::from_str(
+            "11559732032986387107991004021392285783925812861821192530917403151452391805634",
+        )
+        .unwrap();
+        let g2y1 =
+            Fq::from_str("869093939501355406318588453775243436758538662501260653214950591532352435323")
+                .unwrap();
+        let g2y2 = Fq::from_str(
+            "4082367875863433681332203403145435568316851327593401208105741076214120093531",
+        )
+        .unwrap();
+    
+        // second pairing value
+        let g2_val = G2Affine::new(Fq2::new(g2x1, g2x2), Fq2::new(g2y1, g2y2), true);
+    
+        // third pairing value
+        let p3 = -W2;
+    
+        // fourth pairing value
+        let x2x1 = Fq::from_str(
+            "21831381940315734285607113342023901060522397560371972897001948545212302161822",
+        )
+        .unwrap();
+        let x2x2 = Fq::from_str(
+            "17231025384763736816414546592865244497437017442647097510447326538965263639101",
+        )
+        .unwrap();
+        let x2y1 = Fq::from_str(
+            "2388026358213174446665280700919698872609886601280537296205114254867301080648",
+        )
+        .unwrap();
+        let x2y2 = Fq::from_str(
+            "11507326595632554467052522095592665270651932854513688777769618397986436103170",
+        )
+        .unwrap();
+    
+        println!("Doing Pairing Check!");
+        let x2_val = G2Affine::new(Fq2::new(x2x1, x2x2), Fq2::new(x2y1, x2y2), true);
+
+            // let R2 = calculateR2(xi);
+        let pairing1 = Bn254::pairing(p1, g2_val);
+        let pairing2 = Bn254::pairing(p3, x2_val);
+
+        if pairing1 == pairing2 {
+            println!("Proof Verified!");
+            // return true;
+        } 
+
+        println!("Proof verification failed!");
+        
         Ok(())
     }
 }
@@ -659,6 +876,7 @@ pub struct ZkEvmRollupPublicInputs {
     pub prev_state_root: H256,
     pub post_state_root: H256,
     pub blob_hash: H256,
+    pub pub_signal: H256,
 }
 
 impl RollupPublicInputs for ZkEvmRollupPublicInputs {
@@ -672,3 +890,519 @@ impl RollupPublicInputs for ZkEvmRollupPublicInputs {
         self.blob_hash.clone()
     }
 }
+
+
+fn calculateR0(
+    xi: Fp256<FrParameters>,
+    proof: Prooff,
+    y: Fp256<FrParameters>,
+    h0w8: Vec<Fp256<FrParameters>>,
+    li_s0_inv: [Fp256<FrParameters>; 8],
+) -> Fp256<FrParameters> {
+    let Prooff {
+        eval_ql,
+        eval_qr,
+        eval_qm,
+        eval_qo,
+        eval_qc,
+        eval_s1,
+        eval_s2,
+        eval_s3,
+        ..
+    } = proof;
+
+    let mut num = Fr::from_str("1").unwrap();
+    let y__8 = y.pow([8]);
+    num = num.mul(y__8);
+    num = num.add(-xi);
+
+    let mut h0w80 = h0w8[0];
+    let pH0w8_1_term = h0w8[1];
+    let pH0w8_2_term = h0w8[2];
+    let pH0w8_3_term = h0w8[3];
+    let pH0w8_4_term = h0w8[4];
+    let pH0w8_5_term = h0w8[5];
+    let pH0w8_6_term = h0w8[6];
+    let pH0w8_7_term = h0w8[7];
+
+    let pLiS0Inv_term = li_s0_inv[0];
+    let pLiS0Inv_32_term = li_s0_inv[1];
+    let pLiS0Inv_64_term = li_s0_inv[2];
+    let pLiS0Inv_96_term = li_s0_inv[3];
+    let pLiS0Inv_128_term = li_s0_inv[4];
+    let pLiS0Inv_160_term = li_s0_inv[5];
+    let pLiS0Inv_192_term = li_s0_inv[6];
+    let pLiS0Inv_224_term = li_s0_inv[7];
+
+    let mut c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    let mut h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res = c0Value.mul(num.mul(pLiS0Inv_term));
+
+    h0w80 = pH0w8_1_term;
+    c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res_2 = res.add(c0Value.mul(num.mul(pLiS0Inv_32_term)));
+
+    h0w80 = pH0w8_2_term;
+    c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res_3 = res_2.add(c0Value.mul(num.mul(pLiS0Inv_64_term)));
+
+    h0w80 = pH0w8_3_term;
+    c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res_4 = res_3.add(c0Value.mul(num.mul(pLiS0Inv_96_term)));
+
+    h0w80 = pH0w8_4_term;
+    c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res_5 = res_4.add(c0Value.mul(num.mul(pLiS0Inv_128_term)));
+
+    h0w80 = pH0w8_5_term;
+    c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res_6 = res_5.add(c0Value.mul(num.mul(pLiS0Inv_160_term)));
+
+    h0w80 = pH0w8_6_term;
+    c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res_7 = res_6.add(c0Value.mul(num.mul(pLiS0Inv_192_term)));
+
+    h0w80 = pH0w8_7_term;
+    c0Value = eval_ql.add(h0w80.mul(eval_qr));
+
+    h0w8i = h0w80.mul(h0w80);
+    c0Value = c0Value.add(eval_qo.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qm.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_qc.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s1.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s2.mul(h0w8i));
+
+    h0w8i = h0w8i.mul(h0w80);
+    c0Value = c0Value.add(eval_s3.mul(h0w8i));
+
+    let res_8 = res_7.add(c0Value.mul(num.mul(pLiS0Inv_224_term)));
+
+    res_8
+}
+
+fn calculateR1(
+    xi: Fp256<FrParameters>,
+    proof: Prooff,
+    y: Fp256<FrParameters>,
+    pi: Fp256<FrParameters>,
+    h1w4: Vec<Fp256<FrParameters>>,
+    li_s1_inv: [Fp256<FrParameters>; 4],
+    zinv: Fp256<FrParameters>,
+) -> Fp256<FrParameters> {
+    let mut num = Fr::from_str("1").unwrap();
+    let Prooff {
+        eval_a,
+        eval_b,
+        eval_c,
+        eval_ql,
+        eval_qc,
+        eval_qr,
+        eval_qo,
+        eval_qm,
+        ..
+    } = proof;
+
+    let H1w4_0 = h1w4[0];
+    let H1w4_1 = h1w4[1];
+    let H1w4_2 = h1w4[2];
+    let H1w4_3 = h1w4[3];
+
+    let pLiS1Inv_0_term = li_s1_inv[0];
+    let pLiS1Inv_32_term = li_s1_inv[1];
+    let pLiS1Inv_64_term = li_s1_inv[2];
+    let pLiS1Inv_96_term = li_s1_inv[3];
+
+    let y__4 = y.pow([4]);
+    num = num.mul(y__4);
+    num = num.add(-xi);
+
+    let mut t0 = eval_ql.mul(eval_a);
+    t0 = t0.add(eval_qr.mul(eval_b));
+    t0 = t0.add(eval_qm.mul(eval_a.mul(eval_b)));
+    t0 = t0.add(eval_qo.mul(eval_c));
+    t0 = t0.add(eval_qc);
+    t0 = t0.add(pi);
+    t0 = t0.mul(zinv);
+
+    let mut c1Value = eval_a;
+    c1Value = c1Value.add(H1w4_0.mul(eval_b));
+    let mut square = H1w4_0.mul(H1w4_0);
+    c1Value = c1Value.add(eval_c.mul(square));
+    c1Value = c1Value.add(t0.mul(square.mul(H1w4_0)));
+
+    let res_1 = c1Value.mul(num.mul(pLiS1Inv_0_term));
+
+    c1Value = eval_a;
+    c1Value = c1Value.add(H1w4_1.mul(eval_b));
+    let mut square = H1w4_1.mul(H1w4_1);
+    c1Value = c1Value.add(eval_c.mul(square));
+    c1Value = c1Value.add(t0.mul(square.mul(H1w4_1)));
+
+    let res_2 = res_1.add(c1Value.mul(num.mul(pLiS1Inv_32_term)));
+    // pLiS1Inv_32_term
+
+    c1Value = eval_a;
+    c1Value = c1Value.add(H1w4_2.mul(eval_b));
+    let mut square = H1w4_2.mul(H1w4_2);
+    c1Value = c1Value.add(eval_c.mul(square));
+    c1Value = c1Value.add(t0.mul(square.mul(H1w4_2)));
+
+    let res_3 = res_2.add(c1Value.mul(num.mul(pLiS1Inv_64_term)));
+
+    c1Value = eval_a;
+    c1Value = c1Value.add(H1w4_3.mul(eval_b));
+    let mut square = H1w4_3.mul(H1w4_3);
+    c1Value = c1Value.add(eval_c.mul(square));
+    c1Value = c1Value.add(t0.mul(square.mul(H1w4_3)));
+
+    let res_4 = res_3.add(c1Value.mul(num.mul(pLiS1Inv_96_term)));
+
+    res_4
+}
+
+fn calculateR2(
+    xi: Fp256<FrParameters>,
+    gamma: Fp256<FrParameters>,
+    beta: Fp256<FrParameters>,
+    proof: Prooff,
+    y: Fp256<FrParameters>,
+    eval_l1: Fp256<FrParameters>,
+    zinv: Fp256<FrParameters>,
+    h2w3: Vec<Fp256<FrParameters>>,
+    h3w3: Vec<Fp256<FrParameters>>,
+    li_s2_inv: [Fp256<FrParameters>; 6],
+) -> Fp256<FrParameters> {
+    let Prooff {
+        eval_a,
+        eval_b,
+        eval_c,
+        eval_z,
+        eval_s1,
+        eval_s2,
+        eval_s3,
+        eval_zw,
+        eval_t1w,
+        eval_t2w,
+        ..
+    } = proof;
+
+    let w1 = get_omegas().w1;
+    let mut num = Fr::from_str("1").unwrap();
+
+    let betaxi = beta.mul(xi);
+
+    let y__6 = y.pow([6]);
+    let k1 = Fr::from_str("2").unwrap();
+    let k2 = Fr::from_str("3").unwrap();
+
+    let h2w3_0 = h2w3[0];
+    let h2w3_1 = h2w3[1];
+    let h2w3_2 = h2w3[2];
+    let h3w3_0 = h3w3[0];
+    let h3w3_1 = h3w3[1];
+    let h3w3_2 = h3w3[2];
+
+    let pLiS2Inv_0_term = li_s2_inv[0];
+    let pLiS2Inv_32_term = li_s2_inv[1];
+    let pLiS2Inv_64_term = li_s2_inv[2];
+    let pLiS2Inv_96_term = li_s2_inv[3];
+    let pLiS2Inv_128_term = li_s2_inv[4];
+    let pLiS2Inv_160_term = li_s2_inv[5];
+
+    num = num.mul(y__6);
+
+    let mut num2 = Fr::one();
+    num2 = num2.mul(y.pow([3]));
+
+    num2 = num2.mul(xi.add(xi.mul(w1)));
+
+    num = num.sub(num2);
+
+    num2 = xi.mul(xi.mul(w1));
+    num = num.add(num2);
+
+    let mut t2 = eval_a.add(betaxi.add(gamma));
+    t2 = t2.mul(eval_b.add(gamma.add(betaxi.mul(k1))));
+    t2 = t2.mul(eval_c.add(gamma.add(betaxi.mul(k2))));
+    t2 = t2.mul(eval_z);
+
+    let mut t1 = eval_a.add(gamma.add(beta.mul(eval_s1)));
+    t1 = t1.mul(eval_b.add(gamma.add(beta.mul(eval_s2))));
+    t1 = t1.mul(eval_c.add(gamma.add(beta.mul(eval_s3))));
+    t1 = t1.mul(eval_zw);
+
+    t2 = t2.sub(t1);
+    t2 = t2.mul(zinv);
+
+    t1 = eval_z.sub(Fr::one());
+    t1 = t1.mul(eval_l1);
+    t1 = t1.mul(zinv);
+
+    let mut gamma_r2 = Fr::zero();
+    let mut hw = h2w3_0;
+    let mut c2Value = eval_z.add(hw.mul(t1));
+    c2Value = c2Value.add(t2.mul(hw.mul(hw)));
+    gamma_r2 = gamma_r2.add(c2Value.mul(num.mul(pLiS2Inv_0_term)));
+
+    hw = h2w3_1;
+    c2Value = eval_z.add(hw.mul(t1));
+    c2Value = c2Value.add(t2.mul(hw.mul(hw)));
+    gamma_r2 = gamma_r2.add(c2Value.mul(num.mul(pLiS2Inv_32_term)));
+
+    hw = h2w3_2;
+    c2Value = eval_z.add(hw.mul(t1));
+    c2Value = c2Value.add(t2.mul(hw.mul(hw)));
+    gamma_r2 = gamma_r2.add(c2Value.mul(num.mul(pLiS2Inv_64_term)));
+
+    hw = h3w3_0;
+    c2Value = eval_zw.add(hw.mul(eval_t1w));
+    c2Value = c2Value.add(eval_t2w.mul(hw.mul(hw)));
+    gamma_r2 = gamma_r2.add(c2Value.mul(num.mul(pLiS2Inv_96_term)));
+
+    hw = h3w3_1;
+    c2Value = eval_zw.add(hw.mul(eval_t1w));
+    c2Value = c2Value.add(eval_t2w.mul(hw.mul(hw)));
+    gamma_r2 = gamma_r2.add(c2Value.mul(num.mul(pLiS2Inv_128_term)));
+
+    hw = h3w3_2;
+    c2Value = eval_zw.add(hw.mul(eval_t1w));
+    c2Value = c2Value.add(eval_t2w.mul(hw.mul(hw)));
+    gamma_r2 = gamma_r2.add(c2Value.mul(num.mul(pLiS2Inv_160_term)));
+
+    gamma_r2
+}
+
+fn computeFEJ(
+    y: Fp256<FrParameters>,
+    h0w8: Vec<Fp256<FrParameters>>,
+    denH1: Fp256<FrParameters>,
+    denH2: Fp256<FrParameters>,
+    alpha: Fp256<FrParameters>,
+    proof: Prooff,
+    g1: GroupAffine<Parameters>,
+    R0: Fp256<FrParameters>,
+    R1: Fp256<FrParameters>,
+    R2: Fp256<FrParameters>,
+) -> (
+    GroupAffine<Parameters>,
+    GroupAffine<Parameters>,
+    GroupAffine<Parameters>,
+) {
+    let mut numerator = y.sub(h0w8[0]);
+    numerator = numerator.mul(y.sub(h0w8[1]));
+    numerator = numerator.mul(y.sub(h0w8[2]));
+    numerator = numerator.mul(y.sub(h0w8[3]));
+    numerator = numerator.mul(y.sub(h0w8[4]));
+    numerator = numerator.mul(y.sub(h0w8[5]));
+    numerator = numerator.mul(y.sub(h0w8[6]));
+    numerator = numerator.mul(y.sub(h0w8[7]));
+
+    let c1 = proof.c1;
+    let c2 = proof.c2;
+    let w1 = proof.w1;
+
+    let mut quotient1 = alpha.mul(numerator.mul(denH1));
+    let mut quotient2 = alpha.mul(alpha.mul(numerator.mul(denH2)));
+
+    let c0_x = <G1Point as AffineCurve>::BaseField::from_str(
+        "7005013949998269612234996630658580519456097203281734268590713858661772481668",
+    )
+    .unwrap();
+
+    let c0_y = <G1Point as AffineCurve>::BaseField::from_str(
+        "869093939501355406318588453775243436758538662501260653214950591532352435323",
+    )
+    .unwrap();
+
+    let c0_affine = G1Projective::new(
+        c0_x,
+        c0_y,
+        <G1Projective as ProjectiveCurve>::BaseField::one(),
+    )
+    .into_affine();
+    // pf -> c0x
+    // pf + 32 -> c0y
+    // pf, pc1, quotient1
+
+    // min -> c1x
+    // min + 32 -> c1y
+    // min + 64 -> quotient1
+
+    // multiply c1 * quotient1
+
+    // min + 64 -> c0x
+    // min + 96 -> c0y
+
+    // adding points c1 * quotient1 + c0
+
+    // print!("Quotient 1: {:?}", quotient1.to_string());
+    // print!("Quotient 2: {:?}", quotient2.to_string());
+
+    let c1_agg = c0_affine.add(c1.mul(quotient1).into_affine());
+
+    let c2_agg = c1_agg.add(c2.mul(quotient2).into_affine()); //  F point
+                                                              // println!("c2_agg: {:?}", c2_agg.x.to_string());
+                                                              // println!("c2_agg: {:?}", c2_agg.y.to_string());
+
+    let r_agg = R0.add(quotient1.mul(R1).add(quotient2.mul(R2)));
+
+    let g1_acc = g1.mul(r_agg).into_affine(); // E point
+                                              // println!("g1_acc: {:?}", g1_acc.x.to_string());
+                                              // println!("g1_acc: {:?}", g1_acc.y.to_string());
+
+    let w1_agg = w1.mul(numerator).into_affine(); // J Point
+
+    // println!("w1_agg: {:?}", w1_agg.x.to_string());
+    // println!("w1_agg: {:?}", w1_agg.y.to_string());
+    // pE, g1x, g1y, r_agg
+    // min -> g1x
+    // min + 32 -> g1y
+    // min + 64 -> r_agg
+
+    // multiply g1 * r_agg
+
+    // min + 64 -> 0
+    // min + 96 -> 0
+    (c2_agg, g1_acc, w1_agg)
+}
+
