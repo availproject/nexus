@@ -1,7 +1,7 @@
 use adapter_sdk::{
     adapter_zkvm::verify_proof,
     state::AdapterState,
-    types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs},
+    types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof},
 };
 // use demo_rollup_core::{DemoProof, DemoRollupPublicInputs};
 use zk_evm_rollup_core::{ZkEvmProof, ZkEvmRollupPublicInputs};
@@ -28,17 +28,48 @@ fn main() {
         },
     );
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(adapter.run());
-
-
     
-    let proof: ZkEvmProof = ZkEvmProof{
-        c1: [0u64; 32],
-        c2: [0u64; 32],
-        w1: [0u64; 32],
-        w2: [0u64; 32],
+    // rt.block_on(adapter.run());
+
+    let proof_: ZkEvmProof = ZkEvmProof{
+        c1_x: [0u64; 32],
+        c1_y: [0u64; 32],
+        c2_x: [0u64; 32],
+        c2_y: [0u64; 32],
+        w1_x: [0u64; 32],
+        w1_y: [0u64; 32],
+        w2_x: [0u64; 32],
+        w2_y: [0u64; 32],
+        eval_ql: [0u64; 32],
+        eval_qr: [0u64; 32],
+        eval_qm: [0u64; 32],
+        eval_qo: [0u64; 32],
+        eval_qc: [0u64; 32],
+        eval_s1: [0u64; 32],
+        eval_s2: [0u64; 32],
+        eval_s3: [0u64; 32],
+        eval_a: [0u64; 32],
+        eval_b: [0u64; 32],
+        eval_c: [0u64; 32],
+        eval_z: [0u64; 32],
+        eval_zw: [0u64; 32],
+        eval_t1w: [0u64; 32],
+        eval_t2w: [0u64; 32],
+        eval_inv: [0u64; 32],
+
     };
 
+    let proof = Some(RollupProof {
+        proof: proof_,
+        public_inputs: ZkEvmRollupPublicInputs {
+            prev_state_root: [0u8; 32].into(),
+            post_state_root: [0u8; 32].into(),
+            blob_hash: [0u8; 32].into(),
+        },
+    });
+
+
+// proof: Option<RollupProof<ZkEvmRollupPublicInputs, ZkEvmProof>>
 
     // let rollup_pi: DemoRollupPublicInputs = DemoRollupPublicInputs {
     //     prev_state_root: H256::zero(),
