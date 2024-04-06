@@ -3,8 +3,10 @@
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
 use crate::db::DB;
-use crate::traits::{Proof, RollupPublicInputs};
-use crate::types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+use crate::traits::Proof;
+use crate::types::{
+    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
+};
 use anyhow::{anyhow, Error};
 use nexus_core::db::NodeDB;
 use nexus_core::types::{
@@ -30,32 +32,25 @@ use tokio::time::{sleep, Duration};
 struct InclusionProof(pub Vec<u8>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct QueueItem<I: RollupPublicInputs + Clone, P: Proof<I> + Clone> {
-    proof: Option<RollupProof<I, P>>,
+pub(crate) struct QueueItem<P: Proof + Clone> {
+    proof: Option<RollupProof<P>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
 }
 
 // usage : create an object for this struct and use as a global dependency
-pub struct AdapterState<
-    PI: RollupPublicInputs + Clone + DeserializeOwned + Serialize + 'static,
-    P: Proof<PI> + Clone + DeserializeOwned + Serialize + 'static,
-> {
+pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
     pub starting_block_number: u32,
-    pub queue: Arc<Mutex<VecDeque<QueueItem<PI, P>>>>,
+    pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
     pub elf: Vec<u8>,
     pub elf_id: StatementDigest,
     pub vk: [u8; 32],
     pub app_id: AppId,
-    pub db: Arc<Mutex<DB<PI, P>>>,
+    pub db: Arc<Mutex<DB<P>>>,
 }
 
-impl<
-        PI: RollupPublicInputs + Clone + DeserializeOwned + Serialize + Send,
-        P: Proof<PI> + Clone + DeserializeOwned + Serialize + Send,
-    > AdapterState<PI, P>
-{
+impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     pub fn new(storage_path: String, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
 
@@ -172,7 +167,7 @@ impl<
         Ok(())
     }
 
-    async fn manage_submissions(db: Arc<Mutex<DB<PI, P>>>) -> Result<Receipt, Error> {
+    async fn manage_submissions(db: Arc<Mutex<DB<P>>>) -> Result<Receipt, Error> {
         loop {
             thread::sleep(Duration::from_secs(2));
 
@@ -296,7 +291,7 @@ impl<
         }
     }
 
-    pub async fn add_proof(&mut self, proof: RollupProof<PI, P>) -> Result<(), Error> {
+    pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -305,7 +300,7 @@ impl<
             match height.blob.clone() {
                 Some(value) => {
                     //If found, then set updated_proof to true and then reset the proof field from None to the given proof.
-                    if value.0 == proof.public_inputs.blob_hash() {
+                    if value.0 == proof.public_inputs.blob_hash {
                         updated_proof = true;
                         height.proof = Some(proof);
                         break;
@@ -324,10 +319,7 @@ impl<
     }
 
     // function to generate proof against avail data when proof is received and verified from the rollup
-    fn verify_and_generate_proof(
-        &mut self,
-        queue_item: &QueueItem<PI, P>,
-    ) -> Result<Receipt, Error> {
+    fn verify_and_generate_proof(&mut self, queue_item: &QueueItem<P>) -> Result<Receipt, Error> {
         let private_inputs = AdapterPrivateInputs {
             header: queue_item.header.clone(),
             app_id: self.app_id.clone(),
