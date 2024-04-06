@@ -633,6 +633,10 @@ pub fn u64_to_fp256(x: [u64; 32]) -> Fp256<FrParameters> {
     _x
 }
 
+pub fn get_bignint_from_h256(h256: H256) -> BigInt {
+    // Create a BigInt from the byte array
+    BigInt::from_bytes_le(num_bigint::Sign::Plus, h256.as_fixed_slice())
+}
 
 impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
     fn verify(
@@ -687,17 +691,18 @@ impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
             h3w3: [Fr::zero(); 3],
         };
         let mut vpi = VerifierProcessedInputs {
-            c0x: BigInt::parse_bytes(b"7005013949998269612234996630658580519456097203281734268590713858661772481668", 10).unwrap(),
-            c0y: BigInt::parse_bytes(b"869093939501355406318588453775243436758538662501260653214950591532352435323", 10).unwrap(),
-            x2x1: BigInt::parse_bytes(b"21831381940315734285607113342023901060522397560371972897001948545212302161822", 10).unwrap(),
-            x2x2: BigInt::parse_bytes(b"17231025384763736816414546592865244497437017442647097510447326538965263639101", 10).unwrap(),
-            x2y1: BigInt::parse_bytes(b"2388026358213174446665280700919698872609886601280537296205114254867301080648", 10).unwrap(),
-            x2y2: BigInt::parse_bytes(b"11507326595632554467052522095592665270651932854513688777769618397986436103170", 10).unwrap(),
-    
+            c0x: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[0]),
+            c0y: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[1]),
+            x2x1: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[2]),
+            x2x2: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[3]),
+            x2y1: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[4]),
+            x2y2: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[5]),
         };
+        println!("vk loaded");
+        println!("c0x: {:?}", vpi.c0x);
     
-        let pubSignalBigInt = BigInt::parse_bytes(b"14516932981781041565586298118536599721399535462624815668597272732223874827152", 10).unwrap();
-    
+        let pubSignalBigInt = get_bignint_from_h256(public_inputs.pub_signal);
+        // BigInt::parse_bytes(b"14516932981781041565586298118536599721399535462624815668597272732223874827152", 10).unwrap();
         
         let mut zh: &mut Fp256<FrParameters> = &mut Fr::zero();
     
@@ -876,7 +881,7 @@ pub struct ZkEvmRollupPublicInputs {
     pub prev_state_root: H256,
     pub post_state_root: H256,
     pub blob_hash: H256,
-    // pub pub_signal: H256,
+    pub pub_signal: H256,
 }
 
 impl RollupPublicInputs for ZkEvmRollupPublicInputs {

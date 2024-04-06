@@ -58,6 +58,16 @@ pub fn get_u8_arr_from_str(num_str: &str) -> [u8; 32] {
     arr
 }
 
+pub fn get_u8_arr_from_fr(fr: Fp256<FrParameters>) -> [u8; 32] {
+    let bytes = get_bigint_from_fr(fr).to_bytes_le().1;
+
+    // Convert the bytes to a fixed size array
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(&bytes);
+
+    arr
+}
+
 fn main() {
     let mut adapter: AdapterState<ZkEvmRollupPublicInputs, ZkEvmProof> = AdapterState::new(
         String::from("adapter_store"),
@@ -107,6 +117,7 @@ fn main() {
             prev_state_root: [0u8; 32].into(),
             post_state_root: [0u8; 32].into(),
             blob_hash: [0u8; 32].into(),
+            pub_signal: get_u8_arr_from_fr(Fr::from_str("14516932981781041565586298118536599721399535462624815668597272732223874827152").unwrap()).into()
         },
     });
 
