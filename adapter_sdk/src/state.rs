@@ -390,7 +390,7 @@ impl<
         receipt
     }
 
-    pub async fn add_blob(&mut self, header: H256, blob: &[u8]) -> Result<(), Error> {
+    pub async fn store_blob(&mut self, header: H256, blob: &[u8]) -> Result<(), Error> {
         let client = Self::establish_a_connection().await?;
 
         let mnemonic: String;
