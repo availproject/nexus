@@ -4,8 +4,7 @@ use adapter_sdk::{
     types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs},
 };
 use anyhow::{anyhow, Error};
-use avail_core::data_proof::ProofResponse;
-use avail_subxt::{rpc::KateRpcClient, utils::H256, AvailClient};
+
 use demo_rollup_core::{DemoProof, DemoRollupPublicInputs};
 use methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::types::{AppId, StatementDigest};
@@ -26,21 +25,4 @@ fn main() {
     );
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(adapter.run());
-}
-
-async fn get_inclusion_proof(block_hash: H256) -> Result<ProofResponse, Error> {
-    println!("Started client.");
-    let client = establish_a_connection().await?;
-
-    let actual_proof = client
-        .rpc_methods()
-        .query_data_proof(APP_ID, block_hash)
-        .await?;
-    Ok((actual_proof))
-}
-
-async fn establish_a_connection() -> Result<AvailClient, Error> {
-    let ws = String::from("ws://127.0.0.1:9944");
-    let client = AvailClient::new(ws).await?;
-    Ok(client)
 }
