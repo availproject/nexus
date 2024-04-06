@@ -10,8 +10,8 @@ use anyhow::{anyhow, Context, Error};
 use avail_core::{data_proof::ProofResponse, AppId as AvailAppID, DataProof};
 use avail_subxt::AvailConfig;
 use avail_subxt::{
-    api, api::data_availability::calls::types::SubmitData, rpc::KateRpcClient, submit::submit_data,
-    AvailClient, BoundedVec,
+    api, api::data_availability::calls::types::SubmitData, rpc::KateRpcClient, AvailClient,
+    BoundedVec,
 };
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
@@ -19,10 +19,7 @@ use nexus_core::types::{
 };
 use relayer::Relayer;
 use risc0_zkvm::{default_prover, Receipt};
-use risc0_zkvm::{
-    serde::{from_slice, to_vec},
-    ExecutorEnv,
-};
+use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sp_core::H256 as AvailH256;
 use std::{collections::VecDeque, env, sync::Arc, thread};
@@ -396,9 +393,13 @@ impl<
     pub async fn add_blob(&mut self, header: H256, blob: &[u8]) -> Result<(), Error> {
         let client = Self::establish_a_connection().await?;
 
-        // TODO: move to env variable
-        let mnemonic = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
-        let sender = PairT::from_string_with_seed(mnemonic, None).unwrap();
+        let mnemonic: String;
+
+        match env::var("MNEMONIC") {
+            Ok(value) => mnemonic = value,
+            Err(e) => panic!("Couldn't read : {}", e),
+        }
+        let sender = PairT::from_string_with_seed(mnemonic.as_str(), None).unwrap();
         let signer = PairSigner::<AvailConfig, Pair>::new(sender.0);
 
         println!("Data submitted...");
@@ -407,7 +408,6 @@ impl<
         let call = api::tx().data_availability().submit_data(data);
         let (block_hash, transaction_index) = self.send_tx(call, &signer, &client).await?;
 
-        // TODO:
         let inclusion_proof = self
             .get_inclusion_proof(&client, transaction_index, block_hash)
             .await;
