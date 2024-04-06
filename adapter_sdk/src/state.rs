@@ -8,18 +8,13 @@ use crate::types::{
     AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
 };
 use anyhow::{anyhow, Error};
-use nexus_core::db::NodeDB;
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
     TxParamsV2, TxSignature, H256,
 };
 use relayer::Relayer;
-use risc0_zkvm::{default_prover, InnerReceipt, Receipt};
-use risc0_zkvm::{
-    serde::{from_slice, to_vec},
-    sha::rust_crypto::Digest,
-    ExecutorEnv,
-};
+use risc0_zkvm::{default_prover, Receipt};
+use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -248,7 +243,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         }
     }
 
-    pub async fn process_queue(&mut self) -> Result<Receipt, Error> {
+    async fn process_queue(&mut self) -> Result<Receipt, Error> {
         loop {
             let queue_item = {
                 let queue_lock = self.queue.lock().await;
