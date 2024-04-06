@@ -584,35 +584,35 @@ pub struct ZkEvmProof{
     // pub eval_t2w: Fp256<FrParameters>,
     // pub eval_inv: Fp256<FrParameters>,
 
-    pub c1_x: [u64; 32],
-    pub c1_y: [u64; 32],
-    pub c2_x: [u64; 32],
-    pub c2_y: [u64; 32],
-    pub w1_x: [u64; 32],
-    pub w1_y: [u64; 32],
-    pub w2_x: [u64; 32],
-    pub w2_y: [u64; 32],
+    pub c1_x: [u8; 32],
+    pub c1_y: [u8; 32],
+    pub c2_x: [u8; 32],
+    pub c2_y: [u8; 32],
+    pub w1_x: [u8; 32],
+    pub w1_y: [u8; 32],
+    pub w2_x: [u8; 32],
+    pub w2_y: [u8; 32],
 
-    pub eval_ql: [u64; 32],
-    pub eval_qr: [u64; 32],
-    pub eval_qm: [u64; 32],
-    pub eval_qo: [u64; 32],
-    pub eval_qc: [u64; 32],
-    pub eval_s1: [u64; 32],
-    pub eval_s2: [u64; 32],
-    pub eval_s3: [u64; 32],
-    pub eval_a: [u64; 32],
-    pub eval_b: [u64; 32],
-    pub eval_c: [u64; 32],
-    pub eval_z: [u64; 32],
-    pub eval_zw: [u64; 32],
-    pub eval_t1w: [u64; 32],
-    pub eval_t2w: [u64; 32],
-    pub eval_inv: [u64; 32],
+    pub eval_ql: [u8; 32],
+    pub eval_qr: [u8; 32],
+    pub eval_qm: [u8; 32],
+    pub eval_qo: [u8; 32],
+    pub eval_qc: [u8; 32],
+    pub eval_s1: [u8; 32],
+    pub eval_s2: [u8; 32],
+    pub eval_s3: [u8; 32],
+    pub eval_a: [u8; 32],
+    pub eval_b: [u8; 32],
+    pub eval_c: [u8; 32],
+    pub eval_z: [u8; 32],
+    pub eval_zw: [u8; 32],
+    pub eval_t1w: [u8; 32],
+    pub eval_t2w: [u8; 32],
+    pub eval_inv: [u8; 32],
 
 }
 
-pub fn u64_to_g1(a: [u64; 32], y: [u64; 32]) -> G1Point {
+pub fn u8_to_g1(a: [u8; 32], y: [u8; 32]) -> G1Point {
     let _x = <G1Point as AffineCurve>::BaseField::from_str(
         &a.iter().map(|y| y.to_string()).collect::<String>()).unwrap();
     let _y = <G1Point as AffineCurve>::BaseField::from_str(
@@ -626,7 +626,7 @@ pub fn u64_to_g1(a: [u64; 32], y: [u64; 32]) -> G1Point {
     .into_affine()
 }
 
-pub fn u64_to_fp256(x: [u64; 32]) -> Fp256<FrParameters> {
+pub fn u8_to_fp256(x: [u8; 32]) -> Fp256<FrParameters> {
     let _x = Fr::from_str(
         &x.iter().map(|x| x.to_string()).collect::<String>()
     ).unwrap();
@@ -651,26 +651,26 @@ impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
         println!("c1: {:?}", self.c1_x);
 
         let proof = Prooff{
-            c1: u64_to_g1(self.c1_x, self.c1_y),
-            c2: u64_to_g1(self.c2_x, self.c2_y),
-            w1: u64_to_g1(self.w1_x, self.w1_y),
-            w2: u64_to_g1(self.w2_x, self.w2_y),
-            eval_ql: u64_to_fp256(self.eval_ql),
-            eval_qr: u64_to_fp256(self.eval_qr),
-            eval_qm: u64_to_fp256(self.eval_qm),
-            eval_qo: u64_to_fp256(self.eval_qo),
-            eval_qc: u64_to_fp256(self.eval_qc),
-            eval_s1: u64_to_fp256(self.eval_s1),
-            eval_s2: u64_to_fp256(self.eval_s2),
-            eval_s3: u64_to_fp256(self.eval_s3),
-            eval_a: u64_to_fp256(self.eval_a),
-            eval_b: u64_to_fp256(self.eval_b),
-            eval_c: u64_to_fp256(self.eval_c),
-            eval_z: u64_to_fp256(self.eval_z),
-            eval_zw: u64_to_fp256(self.eval_zw),
-            eval_t1w: u64_to_fp256(self.eval_t1w),
-            eval_t2w: u64_to_fp256(self.eval_t2w),
-            eval_inv: u64_to_fp256(self.eval_inv),    
+            c1: u8_to_g1(self.c1_x, self.c1_y),
+            c2: u8_to_g1(self.c2_x, self.c2_y),
+            w1: u8_to_g1(self.w1_x, self.w1_y),
+            w2: u8_to_g1(self.w2_x, self.w2_y),
+            eval_ql: u8_to_fp256(self.eval_ql),
+            eval_qr: u8_to_fp256(self.eval_qr),
+            eval_qm: u8_to_fp256(self.eval_qm),
+            eval_qo: u8_to_fp256(self.eval_qo),
+            eval_qc: u8_to_fp256(self.eval_qc),
+            eval_s1: u8_to_fp256(self.eval_s1),
+            eval_s2: u8_to_fp256(self.eval_s2),
+            eval_s3: u8_to_fp256(self.eval_s3),
+            eval_a: u8_to_fp256(self.eval_a),
+            eval_b: u8_to_fp256(self.eval_b),
+            eval_c: u8_to_fp256(self.eval_c),
+            eval_z: u8_to_fp256(self.eval_z),
+            eval_zw: u8_to_fp256(self.eval_zw),
+            eval_t1w: u8_to_fp256(self.eval_t1w),
+            eval_t2w: u8_to_fp256(self.eval_t2w),
+            eval_inv: u8_to_fp256(self.eval_inv),    
         };
 
         let pub_signal = get_pubSignals();
