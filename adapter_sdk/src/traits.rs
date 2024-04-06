@@ -1,3 +1,4 @@
+use crate::types::RollupPublicInputs;
 use anyhow::Error;
 use nexus_core::types::H256;
 
@@ -13,8 +14,8 @@ pub trait Proof<PI> {
     fn verify(&self, vk: &[[u8; 32]; 6], public_inputs: &PI) -> Result<(), Error>;
 }
 
-pub trait RollupPublicInputs {
-    fn prev_state_root(&self) -> H256;
-    fn post_state_root(&self) -> H256;
-    fn blob_hash(&self) -> H256;
-}
+// pub trait RollupPublicInputs {
+//     fn prev_state_root(&self) -> H256;
+//     fn post_state_root(&self) -> H256;
+//     fn blob_hash(&self) -> H256;
+// }

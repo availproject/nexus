@@ -1,5 +1,5 @@
 use crate::state::QueueItem;
-use crate::traits::{Proof, RollupPublicInputs};
+use crate::traits::Proof;
 use crate::types::AdapterPublicInputs;
 use anyhow::Error;
 use nexus_core::db::NodeDB;
@@ -9,19 +9,15 @@ use serde::Serialize;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
-pub struct DB<PI, P>(NodeDB, PhantomData<PI>, PhantomData<P>);
+pub struct DB<P>(NodeDB, PhantomData<P>);
 
-impl<
-        PI: RollupPublicInputs + Clone + DeserializeOwned + Serialize,
-        P: Proof<PI> + Clone + DeserializeOwned + Serialize,
-    > DB<PI, P>
-{
+impl<P: Proof + Clone + DeserializeOwned + Serialize> DB<P> {
     pub fn from_path(path: String) -> Self {
-        Self(NodeDB::from_path(path), PhantomData, PhantomData)
+        Self(NodeDB::from_path(path), PhantomData)
     }
 
-    pub(crate) fn get_last_known_queue(&self) -> Result<VecDeque<QueueItem<PI, P>>, Error> {
-        let result = self.0.get::<Vec<QueueItem<PI, P>>>(b"blob_queue")?;
+    pub(crate) fn get_last_known_queue(&self) -> Result<VecDeque<QueueItem<P>>, Error> {
+        let result = self.0.get::<Vec<QueueItem<P>>>(b"blob_queue")?;
 
         Ok(match result {
             Some(i) => VecDeque::from_iter(i.into_iter()),
@@ -31,9 +27,9 @@ impl<
 
     pub(crate) fn store_last_known_queue(
         &self,
-        queue: &VecDeque<QueueItem<PI, P>>,
+        queue: &VecDeque<QueueItem<P>>,
     ) -> Result<(), Error> {
-        let vec: Vec<QueueItem<PI, P>> = queue.into_iter().map(|f| f.clone()).collect();
+        let vec: Vec<QueueItem<P>> = queue.into_iter().map(|f| f.clone()).collect();
 
         self.0.put(b"blob_queue", &vec)
     }
