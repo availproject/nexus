@@ -3,6 +3,7 @@ use adapter_sdk::{
     state::AdapterState,
     types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof},
 };
+use websocket::client::r#async;
 // use demo_rollup_core::{DemoProof, DemoRollupPublicInputs};
 use zk_evm_rollup_core::{ZkEvmProof, ZkEvmRollupPublicInputs, ZkEvmVerificationKey};
 use zk_evm_methods::{ADAPTER_ELF, ADAPTER_ID};
@@ -27,14 +28,23 @@ use ark_ff::{
     UniformRand, Zero,
 };
 
-use std::fmt::{format, Debug, DebugMap, Display};
-use std::hash::Hash;
-use std::marker::PhantomData;
-use std::ops::{Add, Mul, Neg, Sub};
-use std::str::FromStr;
-use std::vec;
+// use ethabi::{ParamType, Token};
+use ethers::contract::{abigen, Contract};
+use ethers::prelude::*;
+use ethers::utils::hex;
+use zk_evm_adapter_host::fetcher::fetch_proof_and_pub_signal;
 use num_bigint::*;
-use num_bigint::BigUint;
+use ethers::types::H256 as EthH256;
+
+use queues::*;
+use sha256::digest;
+use std::convert::{self, TryFrom};
+use std::str::FromStr;
+use std::sync::Arc;
+use std::{thread::sleep, time};
+use tokio;
+use tokio::runtime::Runtime;
+use tokio::task;
 
 
 pub fn get_bigint_from_fr(fr: Fp256<FrParameters>) -> BigInt {
@@ -70,7 +80,7 @@ pub fn get_u8_arr_from_fr(fr: Fp256<FrParameters>) -> [u8; 32] {
 
     arr
 }
-
+// #[tokio::main]
 fn main() {
     let mut adapter: AdapterState<ZkEvmRollupPublicInputs, ZkEvmProof> = AdapterState::new(
         String::from("adapter_store"),
@@ -84,40 +94,161 @@ fn main() {
     );
     let rt = tokio::runtime::Runtime::new().unwrap();
 
-    let proof_: ZkEvmProof = ZkEvmProof{
-        c1_x: get_u8_arr_from_str("12195165594784431822497303968938621279445690754376121387655513728730220550454"),
-        c1_y: get_u8_arr_from_str("19482351300768228183728567743975524187837254971200066453308487514712354412818"),
-        c2_x: get_u8_arr_from_str("270049702185508019342640204324826241417613526941291105097079886683911146886"),
-        c2_y: get_u8_arr_from_str("8044577183782099118358991257374623532841698893838076750142877485824795072127"),
-        w1_x: get_u8_arr_from_str("18899554350581376849619715242908819289791150067233598694602356239698407061017"),
-        w1_y: get_u8_arr_from_str("868483199604273061042760252576862685842931472081080113229115026384087738503"),
-        w2_x: get_u8_arr_from_str("15400234196629481957150851143665757067987965100904384175896686561307554593394"),
-        w2_y: get_u8_arr_from_str("1972554287366869807517068788787992038621302618305780153544292964897315682091"),
-        eval_ql: get_u8_arr_from_str("13012702442141574024514112866712813523553321876510290446303561347565844930654"),
-        eval_qr: get_u8_arr_from_str("6363613431504422665441435540021253583148414748729550612486380209002057984394"),
-        eval_qm: get_u8_arr_from_str("16057866832337652851142304414708366836077577338023656646690877057031251541947"),
-        eval_qo: get_u8_arr_from_str("12177497208173170035464583425607209406245985123797536695060336171641250404407"),
-        eval_qc: get_u8_arr_from_str("1606928575748882874942488864331180511279674792603033713048693169239812670017"),
-        eval_s1: get_u8_arr_from_str("12502690277925689095499239281542937835831064619179570213662273016815222024218"),
-        eval_s2: get_u8_arr_from_str("21714950310348017755786780913378098925832975432250486683702036755613488957178"),
-        eval_s3: get_u8_arr_from_str("7373645520955771058170141217317033724805640797155623483741097103589211150628"),
-        eval_a: get_u8_arr_from_str("10624974841759884514517518996672059640247361745924203600968035963539096078745"),
-        eval_b: get_u8_arr_from_str("12590031312322329503809710776715067780944838760473156014126576247831324341903"),
-        eval_c: get_u8_arr_from_str("17676078410435205056317710999346173532618821076911845052950090109177062725036"),
-        eval_z: get_u8_arr_from_str("13810130824095164415807955516712763121131180676617650812233616232528698737619"),
-        eval_zw: get_u8_arr_from_str("9567903658565551430748252507556148460902008866092926659415720362326593620836"),
-        eval_t1w: get_u8_arr_from_str("17398514793767712415669438995039049448391479578008786242788501594157890722459"),
-        eval_t2w: get_u8_arr_from_str("11804645688707233673914574834599506530652461017683048951953032091830492459803"),
-        eval_inv: get_u8_arr_from_str("6378827379501409574366452872421073840754012879130221505294134572417254316105"),
+
+    let POLYGON_ZKEVM_PROXY: Address = "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2"
+        .parse()
+        .expect("Invalid contract address");
+
+    let provider = rt.block_on(async {
+        let provider = Provider::<Ws>::connect(
+            "wss://eth-mainnet.ws.alchemyapi.io/v2/nrzrNIfp7oG61YHAmoPAICuibjwqeHmN",
+        )
+        .await
+        .unwrap();
+        provider
+    });
+
+    let http_provider = Provider::<Http>::try_from(
+        "https://eth-mainnet.ws.alchemyapi.io/v2/nrzrNIfp7oG61YHAmoPAICuibjwqeHmN",
+    )
+    .unwrap();
+
+    let mut proof_queues: Queue<ZkEvmProof> = queue![];
+
+    let filter = Filter::new().address(vec![POLYGON_ZKEVM_PROXY]);
+
+    let mut logs = rt.block_on(async {
+        let log = provider.subscribe_logs(&filter).await.unwrap();
+        log
+    });
+
+    println!("Henosis Proof Aggregator Listening for Proofs!!");
+
+    let sample_hash =
+        EthH256::from_str("0xed0c28abb022be570305ae3cd454c5c3bb027ede55cfdefe6744bc1b5af90d8a").unwrap();
+    let txn_hash = sample_hash;
+    // let get_txn_handle = tokio::spawn(http_provider.clone().get_transaction(sample_hash));
+
+    // let tx: Transaction = get_txn_handle.await.unwrap().unwrap().unwrap();
+    let tx: Transaction = rt.block_on(async {
+        let tx: Transaction = http_provider
+            .get_transaction(txn_hash)
+            .await
+            .unwrap()
+            .unwrap();
+        tx
+    });
+
+    let mut proof_fetched: ZkEvmProof = ZkEvmProof {
+        c1_x: [0u8; 32],
+        c1_y: [0u8; 32],
+        c2_x: [0u8; 32],
+        c2_y: [0u8; 32],
+        w1_x: [0u8; 32],
+        w1_y: [0u8; 32],
+        w2_x: [0u8; 32],
+        w2_y: [0u8; 32],
+        eval_ql: [0u8; 32],
+        eval_qr: [0u8; 32],
+        eval_qm: [0u8; 32],
+        eval_qo: [0u8; 32],
+        eval_qc: [0u8; 32],
+        eval_s1: [0u8; 32],
+        eval_s2: [0u8; 32],
+        eval_s3: [0u8; 32],
+        eval_a: [0u8; 32],
+        eval_b: [0u8; 32],
+        eval_c: [0u8; 32],
+        eval_z: [0u8; 32],
+        eval_zw: [0u8; 32],
+        eval_t1w: [0u8; 32],
+        eval_t2w: [0u8; 32],
+        eval_inv: [0u8; 32],
     };
 
+    let mut pubSig_fetched: H256 = [0u8; 32].into();
+
+    if tx.to.unwrap() == POLYGON_ZKEVM_PROXY {
+
+        let _proof = rt.block_on(async {
+            let proof = fetch_proof_and_pub_signal(txn_hash).await;
+            proof
+        });
+
+        println!("Proof: {:?}", _proof);
+        
+        // let _ = proof_queues.add(ProofValue {
+        //     proof: _proof.0,
+        //     pub_signal: _proof.1,
+        // });
+        println!("Transaction: {:?}", tx);
+
+        proof_fetched = ZkEvmProof{
+            c1_x: get_u8_arr_from_str(_proof.0[0].as_str()),
+            c1_y: get_u8_arr_from_str(_proof.0[1].as_str()),
+            c2_x: get_u8_arr_from_str(_proof.0[2].as_str()),
+            c2_y: get_u8_arr_from_str(_proof.0[3].as_str()),
+            w1_x: get_u8_arr_from_str(_proof.0[4].as_str()),
+            w1_y: get_u8_arr_from_str(_proof.0[5].as_str()),
+            w2_x: get_u8_arr_from_str(_proof.0[6].as_str()),
+            w2_y: get_u8_arr_from_str(_proof.0[7].as_str()),
+            eval_ql: get_u8_arr_from_str(_proof.0[8].as_str()),
+            eval_qr: get_u8_arr_from_str(_proof.0[9].as_str()),
+            eval_qm: get_u8_arr_from_str(_proof.0[10].as_str()),
+            eval_qo: get_u8_arr_from_str(_proof.0[11].as_str()),
+            eval_qc: get_u8_arr_from_str(_proof.0[12].as_str()),
+            eval_s1: get_u8_arr_from_str(_proof.0[13].as_str()),
+            eval_s2: get_u8_arr_from_str(_proof.0[14].as_str()),
+            eval_s3: get_u8_arr_from_str(_proof.0[15].as_str()),
+            eval_a: get_u8_arr_from_str(_proof.0[16].as_str()),
+            eval_b: get_u8_arr_from_str(_proof.0[17].as_str()),
+            eval_c: get_u8_arr_from_str(_proof.0[18].as_str()),
+            eval_z: get_u8_arr_from_str(_proof.0[19].as_str()),
+            eval_zw: get_u8_arr_from_str(_proof.0[20].as_str()),
+            eval_t1w: get_u8_arr_from_str(_proof.0[21].as_str()),
+            eval_t2w: get_u8_arr_from_str(_proof.0[22].as_str()),
+            eval_inv: get_u8_arr_from_str(_proof.0[23].as_str()),
+        };
+
+        pubSig_fetched = get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
+    }
+
+
+
+    // let proof_: ZkEvmProof = ZkEvmProof{
+    //     c1_x: get_u8_arr_from_str("12195165594784431822497303968938621279445690754376121387655513728730220550454"),
+    //     c1_y: get_u8_arr_from_str("19482351300768228183728567743975524187837254971200066453308487514712354412818"),
+    //     c2_x: get_u8_arr_from_str("270049702185508019342640204324826241417613526941291105097079886683911146886"),
+    //     c2_y: get_u8_arr_from_str("8044577183782099118358991257374623532841698893838076750142877485824795072127"),
+    //     w1_x: get_u8_arr_from_str("18899554350581376849619715242908819289791150067233598694602356239698407061017"),
+    //     w1_y: get_u8_arr_from_str("868483199604273061042760252576862685842931472081080113229115026384087738503"),
+    //     w2_x: get_u8_arr_from_str("15400234196629481957150851143665757067987965100904384175896686561307554593394"),
+    //     w2_y: get_u8_arr_from_str("1972554287366869807517068788787992038621302618305780153544292964897315682091"),
+    //     eval_ql: get_u8_arr_from_str("13012702442141574024514112866712813523553321876510290446303561347565844930654"),
+    //     eval_qr: get_u8_arr_from_str("6363613431504422665441435540021253583148414748729550612486380209002057984394"),
+    //     eval_qm: get_u8_arr_from_str("16057866832337652851142304414708366836077577338023656646690877057031251541947"),
+    //     eval_qo: get_u8_arr_from_str("12177497208173170035464583425607209406245985123797536695060336171641250404407"),
+    //     eval_qc: get_u8_arr_from_str("1606928575748882874942488864331180511279674792603033713048693169239812670017"),
+    //     eval_s1: get_u8_arr_from_str("12502690277925689095499239281542937835831064619179570213662273016815222024218"),
+    //     eval_s2: get_u8_arr_from_str("21714950310348017755786780913378098925832975432250486683702036755613488957178"),
+    //     eval_s3: get_u8_arr_from_str("7373645520955771058170141217317033724805640797155623483741097103589211150628"),
+    //     eval_a: get_u8_arr_from_str("10624974841759884514517518996672059640247361745924203600968035963539096078745"),
+    //     eval_b: get_u8_arr_from_str("12590031312322329503809710776715067780944838760473156014126576247831324341903"),
+    //     eval_c: get_u8_arr_from_str("17676078410435205056317710999346173532618821076911845052950090109177062725036"),
+    //     eval_z: get_u8_arr_from_str("13810130824095164415807955516712763121131180676617650812233616232528698737619"),
+    //     eval_zw: get_u8_arr_from_str("9567903658565551430748252507556148460902008866092926659415720362326593620836"),
+    //     eval_t1w: get_u8_arr_from_str("17398514793767712415669438995039049448391479578008786242788501594157890722459"),
+    //     eval_t2w: get_u8_arr_from_str("11804645688707233673914574834599506530652461017683048951953032091830492459803"),
+    //     eval_inv: get_u8_arr_from_str("6378827379501409574366452872421073840754012879130221505294134572417254316105"),
+    // };
+
     let proof = Some(RollupProof {
-        proof: proof_,
+        proof: proof_fetched,
         public_inputs: ZkEvmRollupPublicInputs {
             prev_state_root: [0u8; 32].into(),
             post_state_root: [0u8; 32].into(),
             blob_hash: [0u8; 32].into(),
-            pub_signal: get_u8_arr_from_fr(Fr::from_str("14516932981781041565586298118536599721399535462624815668597272732223874827152").unwrap()).into()
+            pub_signal: pubSig_fetched
         },
     });
 
