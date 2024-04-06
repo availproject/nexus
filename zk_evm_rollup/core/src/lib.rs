@@ -637,7 +637,7 @@ pub fn u64_to_fp256(x: [u64; 32]) -> Fp256<FrParameters> {
 impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
     fn verify(
         &self,
-        vk: &[u8; 32],
+        vk: &[[u8; 32]; 6],
         public_inputs: &ZkEvmRollupPublicInputs,
     ) -> Result<(), anyhow::Error> {
         println!("Here in ZkEvmProof::verify");
@@ -876,7 +876,7 @@ pub struct ZkEvmRollupPublicInputs {
     pub prev_state_root: H256,
     pub post_state_root: H256,
     pub blob_hash: H256,
-    pub pub_signal: H256,
+    // pub pub_signal: H256,
 }
 
 impl RollupPublicInputs for ZkEvmRollupPublicInputs {
@@ -889,6 +889,17 @@ impl RollupPublicInputs for ZkEvmRollupPublicInputs {
     fn blob_hash(&self) -> H256 {
         self.blob_hash.clone()
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ZkEvmVerificationKey{
+        pub c0x: BigInt,
+        pub c0y: BigInt,
+        pub x2x1: BigInt,
+        pub x2x2: BigInt,
+        pub x2y1: BigInt,
+        pub x2y2: BigInt,
+    
 }
 
 

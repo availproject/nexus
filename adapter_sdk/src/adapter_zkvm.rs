@@ -75,7 +75,7 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
     prev_adapter_public_inputs: Option<AdapterPublicInputs>,
     private_inputs: AdapterPrivateInputs,
     img_id: StatementDigest,
-    vk: [u8; 32],
+    vk:[[u8; 32]; 6] ,
 ) -> Result<AdapterPublicInputs, Error> {
     /*  Things adapter must check,
     1. Check if first proof or not, for first proof, proof should be at start height - ✅

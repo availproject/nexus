@@ -10,7 +10,7 @@ use nexus_core::types::H256;
 // }
 
 pub trait Proof<PI> {
-    fn verify(&self, vk: &[u8; 32], public_inputs: &PI) -> Result<(), Error>;
+    fn verify(&self, vk: &[[u8; 32]; 6], public_inputs: &PI) -> Result<(), Error>;
 }
 
 pub trait RollupPublicInputs {

@@ -30,7 +30,7 @@ fn main() {
     let proof: Option<RollupProof<ZkEvmRollupPublicInputs, ZkEvmProof>> = env::read();
     let private_inputs: AdapterPrivateInputs = env::read();
     let img_id: StatementDigest = env::read();
-    let vk: [u8; 32] = env::read();
+    let vk: [[u8; 32]; 6] = env::read();
 
     println!("here in guest main");
     let result = verify_proof(

@@ -4,7 +4,7 @@ use adapter_sdk::{
     types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof},
 };
 // use demo_rollup_core::{DemoProof, DemoRollupPublicInputs};
-use zk_evm_rollup_core::{ZkEvmProof, ZkEvmRollupPublicInputs};
+use zk_evm_rollup_core::{ZkEvmProof, ZkEvmRollupPublicInputs, ZkEvmVerificationKey};
 use zk_evm_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, Header, StatementDigest, SubmitProof, TransactionV2,
@@ -15,6 +15,48 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
+
+use ark_bn254::{
+    g1, g1::Parameters, Bn254, Fq, FqParameters, Fr, FrParameters, G1Projective, G2Projective,
+};
+use ark_bn254::{g2, Fq2, Fq2Parameters, G2Affine};
+use ark_ec::short_weierstrass_jacobian::GroupAffine;
+use ark_ec::*;
+use ark_ff::{
+    field_new, Field, Fp256, Fp256Parameters, Fp2ParamsWrapper, One, PrimeField, QuadExtField,
+    UniformRand, Zero,
+};
+
+use std::fmt::{format, Debug, DebugMap, Display};
+use std::hash::Hash;
+use std::marker::PhantomData;
+use std::ops::{Add, Mul, Neg, Sub};
+use std::str::FromStr;
+use std::vec;
+use num_bigint::*;
+use num_bigint::BigUint;
+
+
+pub fn get_bigint_from_fr(fr: Fp256<FrParameters>) -> BigInt {
+    let mut st = fr.to_string();
+    let temp = &st[8..8 + 64];
+    BigInt::parse_bytes(temp.as_bytes(), 16).unwrap()
+}
+
+
+pub fn get_u8_arr_from_str(num_str: &str) -> [u8; 32] {
+    //convert bigint to [u8; 32]
+    let bigint = BigInt::parse_bytes(num_str.as_bytes(), 10).unwrap();
+
+    // Get the bytes from the BigInt
+    let bytes = bigint.to_bytes_le().1;
+
+    // Convert the bytes to a fixed size array
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(&bytes);
+
+    arr
+}
 
 fn main() {
     let mut adapter: AdapterState<ZkEvmRollupPublicInputs, ZkEvmProof> = AdapterState::new(
@@ -98,6 +140,17 @@ fn main() {
         header: current_header.clone(),
         app_id: AppId(0),
     };
+    println!("priv innputs prepared");
+
+    let vk: [[u8; 32]; 6] = [
+        get_u8_arr_from_str("7005013949998269612234996630658580519456097203281734268590713858661772481668"),
+        get_u8_arr_from_str("869093939501355406318588453775243436758538662501260653214950591532352435323"),
+        get_u8_arr_from_str("21831381940315734285607113342023901060522397560371972897001948545212302161822"),
+        get_u8_arr_from_str("17231025384763736816414546592865244497437017442647097510447326538965263639101"),
+        get_u8_arr_from_str("2388026358213174446665280700919698872609886601280537296205114254867301080648"),
+        get_u8_arr_from_str("11507326595632554467052522095592665270651932854513688777769618397986436103170"),
+    ];
+    println!("vk prepared");
 
     let env = ExecutorEnv::builder()
         .write(&prev_adapter_public_inputs)
@@ -108,7 +161,7 @@ fn main() {
         .unwrap()
         .write(&ADAPTER_ID)
         .unwrap()
-        .write(&[0u8; 32])
+        .write(&vk)
         .unwrap()
         .build()
         .unwrap();
