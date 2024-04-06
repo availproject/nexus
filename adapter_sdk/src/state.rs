@@ -5,32 +5,37 @@
 use crate::db::DB;
 use crate::traits::{Proof, RollupPublicInputs};
 use crate::types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
-use anyhow::{anyhow, Error};
-use avail_core::data_proof::{self, ProofResponse};
-use avail_core::{AppId as AvailAppID, DataProof};
-use avail_subxt::{rpc::KateRpcClient, submit::submit_data, tx, AvailClient};
+use anyhow::{anyhow, Context, Error};
+
+use avail_core::{data_proof::ProofResponse, AppId as AvailAppID, DataProof};
+use avail_subxt::AvailConfig;
+use avail_subxt::{
+    api, api::data_availability::calls::types::SubmitData, rpc::KateRpcClient, submit::submit_data,
+    AvailClient, BoundedVec,
+};
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
     TxParamsV2, TxSignature, H256,
 };
 use relayer::Relayer;
-use risc0_zkvm::{default_prover, InnerReceipt, Receipt};
+use risc0_zkvm::{default_prover, Receipt};
 use risc0_zkvm::{
     serde::{from_slice, to_vec},
-    sha::rust_crypto::Digest,
     ExecutorEnv,
 };
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sp_core::H256 as AvailH256;
-use std::collections::VecDeque;
-use std::sync::Arc;
-use std::thread;
+use std::{collections::VecDeque, env, sync::Arc, thread};
+
+use subxt::{
+    ext::sp_core::sr25519::Pair,
+    ext::sp_core::Pair as PairT,
+    tx::{PairSigner, Payload},
+};
 
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use tokio::sync::Mutex;
 use tokio::time::Duration;
-use warp::filters::method::head;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct QueueItem<I: RollupPublicInputs + Clone, P: Proof<I> + Clone> {
@@ -331,7 +336,7 @@ impl<
         &mut self,
         queue_item: &QueueItem<PI, P>,
     ) -> Result<Receipt, Error> {
-        if (queue_item.blob.is_none() || queue_item.proof.is_none()) {
+        if queue_item.blob.is_none() || queue_item.proof.is_none() {
             return Err(anyhow!("Incomplete proof item inside queue"));
         }
 
@@ -389,22 +394,23 @@ impl<
     }
 
     pub async fn add_blob(&mut self, header: H256, blob: &[u8]) -> Result<(), Error> {
-        println!("Started avail client.");
         let client = Self::establish_a_connection().await?;
 
         // TODO: move to env variable
-        let phrase = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
-        let mnemonic = Mnemonic::parse(phrase).unwrap();
-        let keypair = Keypair::from_phrase(&mnemonic, None).unwrap();
+        let mnemonic = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
+        let sender = PairT::from_string_with_seed(mnemonic, None).unwrap();
+        let signer = PairSigner::<AvailConfig, Pair>::new(sender.0);
 
         println!("Data submitted...");
-        let block_hash = tx::in_finalized(
-            submit_data(&client, &keypair, blob, AvailAppID(self.app_id.0)).await?,
-        )
-        .await?
-        .block_hash();
 
-        let inclusion_proof = self.get_inclusion_proof(&client, block_hash).await;
+        let data = BoundedVec(blob.into());
+        let call = api::tx().data_availability().submit_data(data);
+        let (block_hash, transaction_index) = self.send_tx(call, &signer, &client).await?;
+
+        // TODO:
+        let inclusion_proof = self
+            .get_inclusion_proof(&client, transaction_index, block_hash)
+            .await;
         let blob_hash = inclusion_proof.as_ref().unwrap().data_proof.leaf.clone();
         let data_proof = inclusion_proof.unwrap().data_proof;
 
@@ -420,17 +426,53 @@ impl<
         Ok(())
     }
 
+    async fn send_tx(
+        &self,
+        tx: Payload<SubmitData>,
+        signer: &PairSigner<AvailConfig, Pair>,
+        client: &AvailClient,
+    ) -> Result<(AvailH256, u32), Error> {
+        let nonce = client
+            .legacy_rpc()
+            .system_account_next_index(signer.account_id())
+            .await?;
+
+        let e_event = client
+            .tx()
+            .create_signed_with_nonce(
+                &tx,
+                signer,
+                nonce,
+                avail_subxt::primitives::new_params_from_app_id(AvailAppID(self.app_id.0)),
+            )?
+            .submit_and_watch()
+            .await
+            .context("Submission failed")
+            .unwrap()
+            .wait_for_finalized_success()
+            .await
+            .context("Waiting for success failed")
+            .unwrap();
+        let block_hash = e_event.block_hash();
+        let extrinsic_hash = e_event.extrinsic_index();
+        Ok((block_hash, extrinsic_hash))
+    }
+
     async fn get_inclusion_proof(
         &self,
         client: &AvailClient,
+        transaction_index: u32,
         block_hash: AvailH256,
     ) -> Result<ProofResponse, Error> {
-        let actual_proof = client.rpc_methods().query_data_proof(1, block_hash).await?;
-        Ok((actual_proof))
+        let actual_proof = client
+            .rpc_methods()
+            .query_data_proof(transaction_index, block_hash)
+            .await?;
+        Ok(actual_proof)
     }
 
     pub async fn establish_a_connection() -> Result<AvailClient, Error> {
-        let ws = String::from("ws://127.0.0.1:9944");
+        let ws = String::from("ws://127.0.0.1:9944"); // TODO: update
         let client = AvailClient::new(ws).await?;
         Ok(client)
     }
