@@ -94,7 +94,15 @@ fn main() {
     );
     let rt = tokio::runtime::Runtime::new().unwrap();
 
+    // rt.block_on(adapter.run());
+    rt.spawn(async move {
+        // Asynchronous computation to be executed concurrently
+        let mut adapter = adapter.lock().await;
+        adapter.run().await.unwrap(); // Assuming run returns a Result
+    });
 
+
+    // let rt = tokio::runtime::Runtime::new().unwrap();
     let POLYGON_ZKEVM_PROXY: Address = "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2"
         .parse()
         .expect("Invalid contract address");
