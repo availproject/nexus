@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
+use std::sync::{Arc, Mutex};
 
 use ark_bn254::{
     g1, g1::Parameters, Bn254, Fq, FqParameters, Fr, FrParameters, G1Projective, G2Projective,
@@ -40,8 +41,8 @@ use queues::*;
 use sha256::digest;
 use std::convert::{self, TryFrom};
 use std::str::FromStr;
-use std::sync::Arc;
-use std::{thread::sleep, time};
+// use std::sync::Arc;
+use std::{thread::sleep, time, thread};
 use tokio;
 use tokio::runtime::Runtime;
 use tokio::task;
@@ -92,15 +93,31 @@ fn main() {
             rollup_start_height: 606460,
         },
     );
+
     let rt = tokio::runtime::Runtime::new().unwrap();
+    // let adapter = Arc::new(Mutex::new(adapter));
+    let locked_adapter = Arc::new(Mutex::new(adapter));
+    let adapter_clone = locked_adapter.clone();
 
     // rt.block_on(adapter.run());
-    rt.spawn(async move {
-        // Asynchronous computation to be executed concurrently
-        let mut adapter = adapter.lock().await;
-        adapter.run().await.unwrap(); // Assuming run returns a Result
-    });
+    thread::spawn(move || {
+        let rt = Runtime::new().expect("Failed to create a runtime");
 
+        rt.block_on(async {
+            let mut adapter = adapter_clone.lock().unwrap();
+            adapter.run().await;
+        });
+    });
+    // rt.spawn(async move {
+    //     // Asynchronous computation to be executed concurrently
+    //     let mut adapter = adapter.lock().await;
+    //     adapter.run().await.unwrap(); // Assuming run returns a Result
+    // });
+
+    // let adapter_service = tokio::spawn(async move {
+    //     adapter.run().await;
+    // });
+    
 
     // let rt = tokio::runtime::Runtime::new().unwrap();
     let POLYGON_ZKEVM_PROXY: Address = "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2"
@@ -219,6 +236,7 @@ fn main() {
             eval_inv: get_u8_arr_from_str(_proof.0[23].as_str()),
             pub_signal: get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
         };
+
         println!("pub signal send {:?}",_proof.1.to_string());
         // pubSig_fetched = get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
     }
@@ -257,7 +275,10 @@ fn main() {
             post_state_root: [0u8; 32].into(),
             blob_hash: [0u8; 32].into(),
         },
-    });
+    }).unwrap();
+
+    // let mut adapter = locked_adapter.lock().unwrap();
+    // adapter.add_proof(proof.clone());
 
 
 // proof: Option<RollupProof<ZkEvmRollupPublicInputs, ZkEvmProof>>
