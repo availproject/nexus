@@ -1,4 +1,4 @@
-use crate::traits::{Proof, RollupPublicInputs};
+use crate::traits::Proof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
 use nexus_core::traits::Hasher;
@@ -70,8 +70,8 @@ use serde::Serialize;
 ///
 /// Ensure that the types `Proof`, `RollupPublicInputs`, `AdapterPublicInputs`, `AdapterPrivateInputs`, `Error`, and `Digest` are properly defined and implemented.
 
-pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
-    rollup_proof: Option<RollupProof<PI, P>>,
+pub fn verify_proof<P: Proof>(
+    rollup_proof: Option<RollupProof<P>>,
     prev_adapter_public_inputs: Option<AdapterPublicInputs>,
     private_inputs: AdapterPrivateInputs,
     img_id: StatementDigest,
@@ -136,8 +136,8 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
         }
     };
 
-    let prev_state_root: H256 = rollup_public_inputs.prev_state_root();
-    let post_state_root: H256 = rollup_public_inputs.post_state_root();
+    let prev_state_root: H256 = rollup_public_inputs.prev_state_root;
+    let post_state_root: H256 = rollup_public_inputs.post_state_root;
 
     //TODO: Remove unwrap below.
     //TODO: Allow custom encoding here.
@@ -182,7 +182,7 @@ pub fn verify_proof<PI: RollupPublicInputs, P: Proof<PI>>(
 
     Ok(AdapterPublicInputs {
         header_hash: current_avail_hash,
-        state_root: rollup_public_inputs.post_state_root(),
+        state_root: rollup_public_inputs.post_state_root,
         avail_start_hash: prev_public_input.avail_start_hash,
         app_id: app_account_id,
         img_id: img_id.clone(),
