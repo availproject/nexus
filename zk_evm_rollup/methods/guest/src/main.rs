@@ -27,7 +27,7 @@ risc0_zkvm::guest::entry!(main);
 
 fn main() {
     let prev_adapter_public_inputs: Option<AdapterPublicInputs> = env::read();
-    let proof: Option<RollupProof<ZkEvmRollupPublicInputs, ZkEvmProof>> = env::read();
+    let proof: Option<RollupProof<ZkEvmProof>> = env::read();
     let private_inputs: AdapterPrivateInputs = env::read();
     let img_id: StatementDigest = env::read();
     let vk: [[u8; 32]; 6] = env::read();

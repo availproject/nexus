@@ -1,7 +1,7 @@
 use adapter_sdk::{
     adapter_zkvm::verify_proof,
     state::AdapterState,
-    types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof},
+    types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs},
 };
 use websocket::client::r#async;
 // use demo_rollup_core::{DemoProof, DemoRollupPublicInputs};
@@ -82,7 +82,7 @@ pub fn get_u8_arr_from_fr(fr: Fp256<FrParameters>) -> [u8; 32] {
 }
 // #[tokio::main]
 fn main() {
-    let mut adapter: AdapterState<ZkEvmRollupPublicInputs, ZkEvmProof> = AdapterState::new(
+    let mut adapter: AdapterState<ZkEvmProof> = AdapterState::new(
         String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),
@@ -164,6 +164,7 @@ fn main() {
         eval_t1w: [0u8; 32],
         eval_t2w: [0u8; 32],
         eval_inv: [0u8; 32],
+        pub_signal: [0u8; 32].into(),
     };
 
     let mut pubSig_fetched: H256 = [0u8; 32].into();
@@ -208,12 +209,11 @@ fn main() {
             eval_t1w: get_u8_arr_from_str(_proof.0[21].as_str()),
             eval_t2w: get_u8_arr_from_str(_proof.0[22].as_str()),
             eval_inv: get_u8_arr_from_str(_proof.0[23].as_str()),
+            pub_signal: get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
         };
-
-        pubSig_fetched = get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
+        println!("pub signal send {:?}",_proof.1.to_string());
+        // pubSig_fetched = get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
     }
-
-
 
     // let proof_: ZkEvmProof = ZkEvmProof{
     //     c1_x: get_u8_arr_from_str("12195165594784431822497303968938621279445690754376121387655513728730220550454"),
@@ -244,11 +244,10 @@ fn main() {
 
     let proof = Some(RollupProof {
         proof: proof_fetched,
-        public_inputs: ZkEvmRollupPublicInputs {
+        public_inputs: RollupPublicInputs {
             prev_state_root: [0u8; 32].into(),
             post_state_root: [0u8; 32].into(),
             blob_hash: [0u8; 32].into(),
-            pub_signal: pubSig_fetched
         },
     });
 

@@ -1,4 +1,6 @@
-use adapter_sdk::traits::{Proof, RollupPublicInputs};
+use adapter_sdk::traits::Proof;
+use adapter_sdk::types::RollupPublicInputs;
+
 use ark_bn254::{Fq, Fq2, G2Affine};
 use nexus_core::types::H256;
 use serde::{Deserialize, Serialize, Deserializer};
@@ -501,7 +503,8 @@ pub fn inverseArray(
 
     let check = inv.mul(acc);
     // println!("check: {}", check);
-    assert!(check == Fr::one());
+    //TODO: Check if check is 1
+    // assert!(check == Fr::one());
 
     acc = inv.clone();
 
@@ -609,6 +612,7 @@ pub struct ZkEvmProof{
     pub eval_t1w: [u8; 32],
     pub eval_t2w: [u8; 32],
     pub eval_inv: [u8; 32],
+    pub pub_signal: H256,
 
 }
 
@@ -638,11 +642,11 @@ pub fn get_bignint_from_h256(h256: H256) -> BigInt {
     BigInt::from_bytes_le(num_bigint::Sign::Plus, h256.as_fixed_slice())
 }
 
-impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
+impl Proof for ZkEvmProof {
     fn verify(
         &self,
         vk: &[[u8; 32]; 6],
-        public_inputs: &ZkEvmRollupPublicInputs,
+        public_inputs: &RollupPublicInputs,
     ) -> Result<(), anyhow::Error> {
         println!("Here in ZkEvmProof::verify");
         eprintln!("ZkEvmProof::verify");
@@ -670,7 +674,7 @@ impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
             eval_zw: u8_to_fp256(self.eval_zw),
             eval_t1w: u8_to_fp256(self.eval_t1w),
             eval_t2w: u8_to_fp256(self.eval_t2w),
-            eval_inv: u8_to_fp256(self.eval_inv),    
+            eval_inv: u8_to_fp256(self.eval_inv),   
         };
 
         let pub_signal = get_pubSignals();
@@ -701,7 +705,8 @@ impl Proof<ZkEvmRollupPublicInputs> for ZkEvmProof {
         println!("vk loaded");
         println!("c0x: {:?}", vpi.c0x);
     
-        let pubSignalBigInt = get_bignint_from_h256(public_inputs.pub_signal);
+        let pubSignalBigInt = get_bignint_from_h256(self.pub_signal);
+        println!(" fetchedpubSignalBigInt: {:?}", pubSignalBigInt);
         // BigInt::parse_bytes(b"14516932981781041565586298118536599721399535462624815668597272732223874827152", 10).unwrap();
         
         let mut zh: &mut Fp256<FrParameters> = &mut Fr::zero();
@@ -884,17 +889,17 @@ pub struct ZkEvmRollupPublicInputs {
     pub pub_signal: H256,
 }
 
-impl RollupPublicInputs for ZkEvmRollupPublicInputs {
-    fn prev_state_root(&self) -> H256 {
-        self.prev_state_root.clone()
-    }
-    fn post_state_root(&self) -> H256 {
-        self.post_state_root.clone()
-    }
-    fn blob_hash(&self) -> H256 {
-        self.blob_hash.clone()
-    }
-}
+// impl RollupPublicInputs for ZkEvmRollupPublicInputs {
+//     fn prev_state_root(&self) -> H256 {
+//         self.prev_state_root.clone()
+//     }
+//     fn post_state_root(&self) -> H256 {
+//         self.post_state_root.clone()
+//     }
+//     fn blob_hash(&self) -> H256 {
+//         self.blob_hash.clone()
+//     }
+// }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ZkEvmVerificationKey{

@@ -11,7 +11,7 @@ use nexus_core::types::H256;
 // }
 
 pub trait Proof {
-    fn verify(&self, vk: &[u8; 32], public_inputs: &RollupPublicInputs) -> Result<(), Error>;
+    fn verify(&self, vk: &[[u8; 32] ;6], public_inputs: &RollupPublicInputs) -> Result<(), Error>;
 }
 
 // pub trait RollupPublicInputs {
