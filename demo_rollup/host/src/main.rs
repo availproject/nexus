@@ -1,19 +1,10 @@
-use adapter_sdk::{
-    adapter_zkvm::verify_proof,
-    state::AdapterState,
-    types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs},
-};
-use anyhow::{anyhow, Error};
-
-use demo_rollup_core::{DemoProof, DemoRollupPublicInputs};
+use adapter_sdk::{state::AdapterState, types::AdapterConfig};
+use demo_rollup_core::DemoProof;
 use methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::types::{AppId, StatementDigest};
-use risc0_zkvm::{default_prover, ExecutorEnv, InnerReceipt};
-
-const APP_ID: AppId = AppId(1);
 
 fn main() {
-    let mut adapter: AdapterState<DemoRollupPublicInputs, DemoProof> = AdapterState::new(
+    let mut adapter: AdapterState<DemoProof> = AdapterState::new(
         String::from("adapter_store"),
         AdapterConfig {
             app_id: APP_ID,
@@ -24,5 +15,6 @@ fn main() {
         },
     );
     let rt = tokio::runtime::Runtime::new().unwrap();
+
     rt.block_on(adapter.run());
 }

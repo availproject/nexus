@@ -1,4 +1,4 @@
-use crate::traits::{Proof, RollupPublicInputs};
+use crate::traits::Proof;
 use avail_core::DataProof;
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
 use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
@@ -12,13 +12,16 @@ pub struct AdapterPrivateInputs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RollupProof<PI, P>
-where
-    PI: RollupPublicInputs,
-    P: Proof<PI>,
-{
+pub struct RollupPublicInputs {
+    pub prev_state_root: H256,
+    pub post_state_root: H256,
+    pub blob_hash: H256,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RollupProof<P: Proof> {
     pub proof: P,
-    pub public_inputs: PI,
+    pub public_inputs: RollupPublicInputs,
 }
 
 pub struct AdapterConfig {
