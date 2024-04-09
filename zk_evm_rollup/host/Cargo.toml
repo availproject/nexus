@@ -27,7 +27,6 @@ num-bigint = "0.4.4"
 tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
 ethers = { version = "2.0.13", features = ["ws" ] }
 queues = "1.1.0"
-tokio-tungstenite = { version = "0.17", features = ["native-tls"] }
 websocket = "0.27.0"
 sha256 = "1.5.0"
 ethabi = "18.0.0"

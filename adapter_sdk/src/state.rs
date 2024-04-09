@@ -34,6 +34,7 @@ pub(crate) struct QueueItem<P: Proof + Clone> {
 }
 
 // usage : create an object for this struct and use as a global dependency
+#[derive(Clone)]
 pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
@@ -287,6 +288,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     }
 
     pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
+        println!("Adding proof to queue");
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
