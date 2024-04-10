@@ -103,14 +103,10 @@ fn main() {
         cloned_adapter.run().await;
     });
 
-    rt.block_on(async move{
-        tokio::time::sleep(Duration::from_secs(3)).await;
-    });
-
     // let rt = tokio::runtime::Runtime::new().unwrap();
     let POLYGON_ZKEVM_PROXY: Address = "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2"
-        .parse()
-        .expect("Invalid contract address");
+    .parse()
+    .expect("Invalid contract address");
 
     let provider = rt.block_on(async {
         let provider = Provider::<Ws>::connect(
@@ -126,8 +122,6 @@ fn main() {
     )
     .unwrap();
 
-    let mut proof_queues: Queue<ZkEvmProof> = queue![];
-
     let filter = Filter::new().address(vec![POLYGON_ZKEVM_PROXY]);
 
     let mut logs = rt.block_on(async {
@@ -135,109 +129,118 @@ fn main() {
         log
     });
 
-    println!("Henosis Proof Aggregator Listening for Proofs!!");
+    while let Some(mut txn_hash) = rt.block_on(async {
+        let hash = logs.next().await.unwrap().transaction_hash;
+        hash
+    }) {
+        // Code inside the while loop
+    
+        
 
-    let sample_hash =
-        EthH256::from_str("0xed0c28abb022be570305ae3cd454c5c3bb027ede55cfdefe6744bc1b5af90d8a").unwrap();
-    let txn_hash = sample_hash;
-    // let get_txn_handle = tokio::spawn(http_provider.clone().get_transaction(sample_hash));
+        println!("Henosis Proof Aggregator Listening for Proofs!!");
 
-    // let tx: Transaction = get_txn_handle.await.unwrap().unwrap().unwrap();
-    let tx: Transaction = rt.block_on(async {
-        let tx: Transaction = http_provider
-            .get_transaction(txn_hash)
-            .await
-            .unwrap()
-            .unwrap();
-        tx
-    });
+        // let sample_hash =
+        //     EthH256::from_str("0xed0c28abb022be570305ae3cd454c5c3bb027ede55cfdefe6744bc1b5af90d8a").unwrap();
+        // let txn_hash = sample_hash;
+        // let get_txn_handle = tokio::spawn(http_provider.clone().get_transaction(sample_hash));
 
-    let mut proof_fetched: ZkEvmProof = ZkEvmProof {
-        c1_x: [0u8; 32],
-        c1_y: [0u8; 32],
-        c2_x: [0u8; 32],
-        c2_y: [0u8; 32],
-        w1_x: [0u8; 32],
-        w1_y: [0u8; 32],
-        w2_x: [0u8; 32],
-        w2_y: [0u8; 32],
-        eval_ql: [0u8; 32],
-        eval_qr: [0u8; 32],
-        eval_qm: [0u8; 32],
-        eval_qo: [0u8; 32],
-        eval_qc: [0u8; 32],
-        eval_s1: [0u8; 32],
-        eval_s2: [0u8; 32],
-        eval_s3: [0u8; 32],
-        eval_a: [0u8; 32],
-        eval_b: [0u8; 32],
-        eval_c: [0u8; 32],
-        eval_z: [0u8; 32],
-        eval_zw: [0u8; 32],
-        eval_t1w: [0u8; 32],
-        eval_t2w: [0u8; 32],
-        eval_inv: [0u8; 32],
-        pub_signal: [0u8; 32].into(),
-    };
-
-    let mut pubSig_fetched: H256 = [0u8; 32].into();
-
-    if tx.to.unwrap() == POLYGON_ZKEVM_PROXY {
-
-        let _proof = rt.block_on(async {
-            let proof = fetch_proof_and_pub_signal(txn_hash).await;
-            proof
+        // let tx: Transaction = get_txn_handle.await.unwrap().unwrap().unwrap();
+        let tx: Transaction = rt.block_on(async {
+            let tx: Transaction = http_provider
+                .get_transaction(txn_hash)
+                .await
+                .unwrap()
+                .unwrap();
+            tx
         });
 
-        println!("Proof: {:?}", _proof);
-        
-        // let _ = proof_queues.add(ProofValue {
-        //     proof: _proof.0,
-        //     pub_signal: _proof.1,
-        // });
-        println!("Transaction: {:?}", tx);
-
-        proof_fetched = ZkEvmProof{
-            c1_x: get_u8_arr_from_str(_proof.0[0].as_str()),
-            c1_y: get_u8_arr_from_str(_proof.0[1].as_str()),
-            c2_x: get_u8_arr_from_str(_proof.0[2].as_str()),
-            c2_y: get_u8_arr_from_str(_proof.0[3].as_str()),
-            w1_x: get_u8_arr_from_str(_proof.0[4].as_str()),
-            w1_y: get_u8_arr_from_str(_proof.0[5].as_str()),
-            w2_x: get_u8_arr_from_str(_proof.0[6].as_str()),
-            w2_y: get_u8_arr_from_str(_proof.0[7].as_str()),
-            eval_ql: get_u8_arr_from_str(_proof.0[8].as_str()),
-            eval_qr: get_u8_arr_from_str(_proof.0[9].as_str()),
-            eval_qm: get_u8_arr_from_str(_proof.0[10].as_str()),
-            eval_qo: get_u8_arr_from_str(_proof.0[11].as_str()),
-            eval_qc: get_u8_arr_from_str(_proof.0[12].as_str()),
-            eval_s1: get_u8_arr_from_str(_proof.0[13].as_str()),
-            eval_s2: get_u8_arr_from_str(_proof.0[14].as_str()),
-            eval_s3: get_u8_arr_from_str(_proof.0[15].as_str()),
-            eval_a: get_u8_arr_from_str(_proof.0[16].as_str()),
-            eval_b: get_u8_arr_from_str(_proof.0[17].as_str()),
-            eval_c: get_u8_arr_from_str(_proof.0[18].as_str()),
-            eval_z: get_u8_arr_from_str(_proof.0[19].as_str()),
-            eval_zw: get_u8_arr_from_str(_proof.0[20].as_str()),
-            eval_t1w: get_u8_arr_from_str(_proof.0[21].as_str()),
-            eval_t2w: get_u8_arr_from_str(_proof.0[22].as_str()),
-            eval_inv: get_u8_arr_from_str(_proof.0[23].as_str()),
-            pub_signal: get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
+        let mut proof_fetched: ZkEvmProof = ZkEvmProof {
+            c1_x: [0u8; 32],
+            c1_y: [0u8; 32],
+            c2_x: [0u8; 32],
+            c2_y: [0u8; 32],
+            w1_x: [0u8; 32],
+            w1_y: [0u8; 32],
+            w2_x: [0u8; 32],
+            w2_y: [0u8; 32],
+            eval_ql: [0u8; 32],
+            eval_qr: [0u8; 32],
+            eval_qm: [0u8; 32],
+            eval_qo: [0u8; 32],
+            eval_qc: [0u8; 32],
+            eval_s1: [0u8; 32],
+            eval_s2: [0u8; 32],
+            eval_s3: [0u8; 32],
+            eval_a: [0u8; 32],
+            eval_b: [0u8; 32],
+            eval_c: [0u8; 32],
+            eval_z: [0u8; 32],
+            eval_zw: [0u8; 32],
+            eval_t1w: [0u8; 32],
+            eval_t2w: [0u8; 32],
+            eval_inv: [0u8; 32],
+            pub_signal: [0u8; 32].into(),
         };
 
-        println!("pub signal send {:?}",_proof.1.to_string());
-        // pubSig_fetched = get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
-    }
+        let mut pubSig_fetched: H256 = [0u8; 32].into();
 
-    let proof = Some(RollupProof {
-        proof: proof_fetched,
-        public_inputs: RollupPublicInputs {
-            prev_state_root: [0u8; 32].into(),
-            post_state_root: [0u8; 32].into(),
-            blob_hash: [2u8; 32].into(),
-        },
-    }).unwrap();
-    rt.block_on(adapter.add_proof(proof.clone()));
+        if tx.to.unwrap() == POLYGON_ZKEVM_PROXY {
+
+            let _proof = rt.block_on(async {
+                let proof = fetch_proof_and_pub_signal(txn_hash).await;
+                proof
+            });
+
+            // println!("Proof: {:?}", _proof);
+            
+            // let _ = proof_queues.add(ProofValue {
+            //     proof: _proof.0,
+            //     pub_signal: _proof.1,
+            // });
+            // println!("Transaction: {:?}", tx);
+
+            proof_fetched = ZkEvmProof{
+                c1_x: get_u8_arr_from_str(_proof.0[0].as_str()),
+                c1_y: get_u8_arr_from_str(_proof.0[1].as_str()),
+                c2_x: get_u8_arr_from_str(_proof.0[2].as_str()),
+                c2_y: get_u8_arr_from_str(_proof.0[3].as_str()),
+                w1_x: get_u8_arr_from_str(_proof.0[4].as_str()),
+                w1_y: get_u8_arr_from_str(_proof.0[5].as_str()),
+                w2_x: get_u8_arr_from_str(_proof.0[6].as_str()),
+                w2_y: get_u8_arr_from_str(_proof.0[7].as_str()),
+                eval_ql: get_u8_arr_from_str(_proof.0[8].as_str()),
+                eval_qr: get_u8_arr_from_str(_proof.0[9].as_str()),
+                eval_qm: get_u8_arr_from_str(_proof.0[10].as_str()),
+                eval_qo: get_u8_arr_from_str(_proof.0[11].as_str()),
+                eval_qc: get_u8_arr_from_str(_proof.0[12].as_str()),
+                eval_s1: get_u8_arr_from_str(_proof.0[13].as_str()),
+                eval_s2: get_u8_arr_from_str(_proof.0[14].as_str()),
+                eval_s3: get_u8_arr_from_str(_proof.0[15].as_str()),
+                eval_a: get_u8_arr_from_str(_proof.0[16].as_str()),
+                eval_b: get_u8_arr_from_str(_proof.0[17].as_str()),
+                eval_c: get_u8_arr_from_str(_proof.0[18].as_str()),
+                eval_z: get_u8_arr_from_str(_proof.0[19].as_str()),
+                eval_zw: get_u8_arr_from_str(_proof.0[20].as_str()),
+                eval_t1w: get_u8_arr_from_str(_proof.0[21].as_str()),
+                eval_t2w: get_u8_arr_from_str(_proof.0[22].as_str()),
+                eval_inv: get_u8_arr_from_str(_proof.0[23].as_str()),
+                pub_signal: get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
+            };
+
+            println!("pub signal send {:?}",_proof.1.to_string());
+            // pubSig_fetched = get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
+        }
+
+        let proof = Some(RollupProof {
+            proof: proof_fetched,
+            public_inputs: RollupPublicInputs {
+                prev_state_root: [0u8; 32].into(),
+                post_state_root: [0u8; 32].into(),
+                blob_hash: [2u8; 32].into(),
+            },
+        }).unwrap();
+        rt.block_on(adapter.add_proof(proof.clone()));
+    }
 
     rt.block_on( async move {
         th.await.unwrap();

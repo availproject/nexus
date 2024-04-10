@@ -129,13 +129,15 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
         let avail_syncer_handle = tokio::spawn(async move {
             let mut receiver = receiver.lock().await;
-
+            println!("Started avail syncer");
             while let Some(header) = receiver.recv().await {
+                println!("Received header: {:?}", header);
                 let new_queue_item = QueueItem {
                     proof: None,
                     blob: Some(([2u8; 32].into(), InclusionProof([1u8; 32].to_vec()))),
                     header: AvailHeader::from(&header),
                 };
+                // print
                 let mut queue = queue_clone.lock().await;
                 queue.push_back(new_queue_item);
 
@@ -251,8 +253,12 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                 let item = queue_lock.front().cloned();
                 item
             };
+            println!("self queue length: {:?}", self.queue.lock().await.len());
+            // println!("Queue item: {:?}", queue_item.clone().unwrap().);
+            println!("{:?}",queue_item.clone().is_none());
 
             if queue_item.is_none() {
+                println!("No item in queue");
                 thread::sleep(Duration::from_secs(2));
 
                 continue; // Restart the loop
@@ -289,6 +295,8 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
     pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
         println!("in add_proof");
+
+        println!("proof blob hash: {:?}", proof.public_inputs.blob_hash);
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -296,6 +304,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             //Check if blob hash matches the blob hash in PI,
             match height.blob.clone() {
                 Some(value) => {
+                    println!("value.0: {:?}", value.0);
                     //If found, then set updated_proof to true and then reset the proof field from None to the given proof.
                     if value.0 == proof.public_inputs.blob_hash {
                         println!("Found blob for proof Adding proof to queue");
@@ -362,6 +371,8 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let prover = default_prover();
 
         let receipt = prover.prove(env, &self.elf);
+
+        println!("proooooof generated");
 
         receipt
     }

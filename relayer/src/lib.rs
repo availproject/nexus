@@ -51,8 +51,8 @@ impl Relayer {
         println!("Started client.");
         let (subxt_client, _) =
             avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
-                .await
-                .unwrap();
+                .await.unwrap();
+        println!("subxt client built {:?}", subxt_client);
         println!("Built client");
 
         let mut next_height = start_height;
