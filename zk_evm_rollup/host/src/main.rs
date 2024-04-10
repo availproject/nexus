@@ -17,6 +17,8 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
 
 use ark_bn254::{
     g1, g1::Parameters, Bn254, Fq, FqParameters, Fr, FrParameters, G1Projective, G2Projective,
@@ -99,6 +101,10 @@ fn main() {
    
     let th: tokio::task::JoinHandle<()> = rt.spawn(async move {
         cloned_adapter.run().await;
+    });
+
+    rt.block_on(async move{
+        tokio::time::sleep(Duration::from_secs(3)).await;
     });
 
     // let rt = tokio::runtime::Runtime::new().unwrap();
@@ -228,7 +234,7 @@ fn main() {
         public_inputs: RollupPublicInputs {
             prev_state_root: [0u8; 32].into(),
             post_state_root: [0u8; 32].into(),
-            blob_hash: [0u8; 32].into(),
+            blob_hash: [2u8; 32].into(),
         },
     }).unwrap();
     rt.block_on(adapter.add_proof(proof.clone()));

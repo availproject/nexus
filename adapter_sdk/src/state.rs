@@ -133,7 +133,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             while let Some(header) = receiver.recv().await {
                 let new_queue_item = QueueItem {
                     proof: None,
-                    blob: None,
+                    blob: Some(([2u8; 32].into(), InclusionProof([1u8; 32].to_vec()))),
                     header: AvailHeader::from(&header),
                 };
                 let mut queue = queue_clone.lock().await;
@@ -288,7 +288,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     }
 
     pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
-        println!("Adding proof to queue");
+        println!("in add_proof");
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -298,6 +298,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                 Some(value) => {
                     //If found, then set updated_proof to true and then reset the proof field from None to the given proof.
                     if value.0 == proof.public_inputs.blob_hash {
+                        println!("Found blob for proof Adding proof to queue");
                         updated_proof = true;
                         height.proof = Some(proof);
                         break;
