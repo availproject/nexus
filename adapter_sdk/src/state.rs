@@ -29,6 +29,8 @@ struct InclusionProof(pub Vec<u8>);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct QueueItem<P: Proof + Clone> {
     proof: Option<RollupProof<P>>,
+pub(crate) struct QueueItem<P: Proof + Clone> {
+    proof: Option<RollupProof<P>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
 }
@@ -44,8 +46,10 @@ pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'stati
     pub vk: [u8; 32],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
+    pub db: Arc<Mutex<DB<P>>>,
 }
 
+impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     pub fn new(storage_path: String, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
@@ -294,9 +298,6 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     }
 
     pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
-        println!("in add_proof");
-
-        println!("proof blob hash: {:?}", proof.public_inputs.blob_hash);
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -307,7 +308,6 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                     println!("value.0: {:?}", value.0);
                     //If found, then set updated_proof to true and then reset the proof field from None to the given proof.
                     if value.0 == proof.public_inputs.blob_hash {
-                        println!("Found blob for proof Adding proof to queue");
                         updated_proof = true;
                         height.proof = Some(proof);
                         break;
