@@ -29,15 +29,13 @@ struct InclusionProof(pub Vec<u8>);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct QueueItem<P: Proof + Clone> {
     proof: Option<RollupProof<P>>,
-pub(crate) struct QueueItem<P: Proof + Clone> {
-    proof: Option<RollupProof<P>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
 }
 
 // usage : create an object for this struct and use as a global dependency
 #[derive(Clone)]
-pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
+pub struct AdapterState <P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
@@ -46,10 +44,8 @@ pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'stati
     pub vk: [u8; 32],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
-    pub db: Arc<Mutex<DB<P>>>,
 }
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     pub fn new(storage_path: String, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
