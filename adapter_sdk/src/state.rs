@@ -41,7 +41,7 @@ pub struct AdapterState <P: Proof + Clone + DeserializeOwned + Serialize + 'stat
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
     pub elf: Vec<u8>,
     pub elf_id: StatementDigest,
-    pub vk: [u8; 32],
+    pub vk: [[u8; 32]; 6],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
 }

@@ -565,28 +565,7 @@ pub fn inverseArray(
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ZkEvmProof{
-    // pub c1: G1Point,
-    // pub c2: G1Point,
-    // pub w1: G1Point,
-    // pub w2: G1Point,
-
-    // pub eval_ql: Fp256<FrParameters>,
-    // pub eval_qr: Fp256<FrParameters>,
-    // pub eval_qm: Fp256<FrParameters>,
-    // pub eval_qo: Fp256<FrParameters>,
-    // pub eval_qc: Fp256<FrParameters>,
-    // pub eval_s1: Fp256<FrParameters>,
-    // pub eval_s2: Fp256<FrParameters>,
-    // pub eval_s3: Fp256<FrParameters>,
-    // pub eval_a: Fp256<FrParameters>,
-    // pub eval_b: Fp256<FrParameters>,
-    // pub eval_c: Fp256<FrParameters>,
-    // pub eval_z: Fp256<FrParameters>,
-    // pub eval_zw: Fp256<FrParameters>,
-    // pub eval_t1w: Fp256<FrParameters>,
-    // pub eval_t2w: Fp256<FrParameters>,
-    // pub eval_inv: Fp256<FrParameters>,
-
+    
     pub c1_x: [u8; 32],
     pub c1_y: [u8; 32],
     pub c2_x: [u8; 32],
@@ -614,6 +593,38 @@ pub struct ZkEvmProof{
     pub eval_inv: [u8; 32],
     pub pub_signal: H256,
 
+}
+
+impl ZkEvmProof {
+    pub fn default() -> Self {
+        Self {
+            c1_x: [0u8; 32],
+            c1_y: [0u8; 32],
+            c2_x: [0u8; 32],
+            c2_y: [0u8; 32],
+            w1_x: [0u8; 32],
+            w1_y: [0u8; 32],
+            w2_x: [0u8; 32],
+            w2_y: [0u8; 32],
+            eval_ql: [0u8; 32],
+            eval_qr: [0u8; 32],
+            eval_qm: [0u8; 32],
+            eval_qo: [0u8; 32],
+            eval_qc: [0u8; 32],
+            eval_s1: [0u8; 32],
+            eval_s2: [0u8; 32],
+            eval_s3: [0u8; 32],
+            eval_a: [0u8; 32],
+            eval_b: [0u8; 32],
+            eval_c: [0u8; 32],
+            eval_z: [0u8; 32],
+            eval_zw: [0u8; 32],
+            eval_t1w: [0u8; 32],
+            eval_t2w: [0u8; 32],
+            eval_inv: [0u8; 32],
+            pub_signal: H256::zero(),
+        }
+    }
 }
 
 pub fn u8_to_g1(a: [u8; 32], y: [u8; 32]) -> G1Point {

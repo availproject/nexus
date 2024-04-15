@@ -35,7 +35,7 @@ use ark_ff::{
 use ethers::contract::{abigen, Contract};
 use ethers::prelude::*;
 use ethers::utils::hex;
-use zk_evm_adapter_host::fetcher::fetch_proof_and_pub_signal;
+use zk_evm_adapter_host::fetcher::{fetch_proof_and_pub_signal, get_vk_fflonk};
 use num_bigint::*;
 use ethers::types::H256 as EthH256;
 
@@ -49,40 +49,8 @@ use tokio;
 use tokio::runtime::Runtime;
 use tokio::task;
 
+use zk_evm_adapter_host::utils::*;
 
-pub fn get_bigint_from_fr(fr: Fp256<FrParameters>) -> BigInt {
-    let mut st = fr.to_string();
-    let temp = &st[8..8 + 64];
-    BigInt::parse_bytes(temp.as_bytes(), 16).unwrap()
-}
-
-
-pub fn get_u8_arr_from_str(num_str: &str) -> [u8; 32] {
-    //convert bigint to [u8; 32]
-    let bigint = BigInt::parse_bytes(num_str.as_bytes(), 10).unwrap();
-
-    // Get the bytes from the BigInt
-    let bytes = bigint.to_bytes_le().1;
-
-    // Convert the bytes to a fixed size array
-    let mut arr = [0u8; 32];
-    
-    let num_bytes = bytes.len().min(32);
-    arr[..num_bytes].copy_from_slice(&bytes[..num_bytes]);
-    // arr.copy_from_slice(&bytes);
-
-    arr
-}
-
-pub fn get_u8_arr_from_fr(fr: Fp256<FrParameters>) -> [u8; 32] {
-    let bytes = get_bigint_from_fr(fr).to_bytes_le().1;
-
-    // Convert the bytes to a fixed size array
-    let mut arr = [0u8; 32];
-    arr.copy_from_slice(&bytes);
-
-    arr
-}
 // #[tokio::main]
 fn main() {
     let mut adapter: AdapterState<ZkEvmProof> = AdapterState::new(
@@ -91,7 +59,7 @@ fn main() {
             app_id: AppId(100),
             elf: ADAPTER_ELF.to_vec(),
             adapter_elf_id: StatementDigest(ADAPTER_ID),
-            vk: [0u8; 32],
+            vk: get_vk_fflonk(),
             rollup_start_height: 606460,
         },
     );
@@ -133,18 +101,7 @@ fn main() {
         let hash = logs.next().await.unwrap().transaction_hash;
         hash
     }) {
-        // Code inside the while loop
-    
         
-
-        println!("Henosis Proof Aggregator Listening for Proofs!!");
-
-        // let sample_hash =
-        //     EthH256::from_str("0xed0c28abb022be570305ae3cd454c5c3bb027ede55cfdefe6744bc1b5af90d8a").unwrap();
-        // let txn_hash = sample_hash;
-        // let get_txn_handle = tokio::spawn(http_provider.clone().get_transaction(sample_hash));
-
-        // let tx: Transaction = get_txn_handle.await.unwrap().unwrap().unwrap();
         let tx: Transaction = rt.block_on(async {
             let tx: Transaction = http_provider
                 .get_transaction(txn_hash)
@@ -154,33 +111,7 @@ fn main() {
             tx
         });
 
-        let mut proof_fetched: ZkEvmProof = ZkEvmProof {
-            c1_x: [0u8; 32],
-            c1_y: [0u8; 32],
-            c2_x: [0u8; 32],
-            c2_y: [0u8; 32],
-            w1_x: [0u8; 32],
-            w1_y: [0u8; 32],
-            w2_x: [0u8; 32],
-            w2_y: [0u8; 32],
-            eval_ql: [0u8; 32],
-            eval_qr: [0u8; 32],
-            eval_qm: [0u8; 32],
-            eval_qo: [0u8; 32],
-            eval_qc: [0u8; 32],
-            eval_s1: [0u8; 32],
-            eval_s2: [0u8; 32],
-            eval_s3: [0u8; 32],
-            eval_a: [0u8; 32],
-            eval_b: [0u8; 32],
-            eval_c: [0u8; 32],
-            eval_z: [0u8; 32],
-            eval_zw: [0u8; 32],
-            eval_t1w: [0u8; 32],
-            eval_t2w: [0u8; 32],
-            eval_inv: [0u8; 32],
-            pub_signal: [0u8; 32].into(),
-        };
+        let mut proof_fetched: ZkEvmProof = ZkEvmProof::default();
 
         let mut pubSig_fetched: H256 = [0u8; 32].into();
 
@@ -190,14 +121,6 @@ fn main() {
                 let proof = fetch_proof_and_pub_signal(txn_hash).await;
                 proof
             });
-
-            // println!("Proof: {:?}", _proof);
-            
-            // let _ = proof_queues.add(ProofValue {
-            //     proof: _proof.0,
-            //     pub_signal: _proof.1,
-            // });
-            // println!("Transaction: {:?}", tx);
 
             proof_fetched = ZkEvmProof{
                 c1_x: get_u8_arr_from_str(_proof.0[0].as_str()),
@@ -236,6 +159,7 @@ fn main() {
             public_inputs: RollupPublicInputs {
                 prev_state_root: [0u8; 32].into(),
                 post_state_root: [0u8; 32].into(),
+                //TODO: Change this to the actual blob hash
                 blob_hash: [2u8; 32].into(),
             },
         }).unwrap();
@@ -248,65 +172,4 @@ fn main() {
     );
 
 
-
-    // let submit_tx: TransactionV2 = TransactionV2 {
-    //     params: TxParamsV2::SubmitProof(SubmitProof {
-    //         public_inputs: new_adapter_pi,
-    //     }),
-    //     signature: TxSignature([0u8; 64]),
-    //     proof: Some(proof),
-    // };
-
-    // let json_data = serde_json::to_string_pretty(&submit_tx).expect("Serialization failed");
-
-    // // Write to file
-    // std::fs::write("submit_tx.json", json_data).expect("Failed to write to file");
-
-    // // let new_rollup_pi: DemoRollupPublicInputs = DemoRollupPublicInputs {
-    // //     prev_state_root: H256::from([1u8; 32]),
-    // //     post_state_root: H256::from([2u8; 32]),
-    // //     blob_hash: H256::zero(),
-    // // };
-    // // let new_header = AvailHeader {
-    // //     parent_hash: current_header.hash(),
-    // //     number: current_header.number + 1,
-    // //     state_root: current_header.state_root,
-    // //     extrinsics_root: current_header.extrinsics_root,
-    // //     digest: current_header.digest,
-    // //     extension: current_header.extension,
-    // // };
-
-    // // let new_private_inputs = AdapterPrivateInputs {
-    // //     header: new_header.clone(),
-    // //     avail_start_hash: private_inputs.avail_start_hash.clone(),
-    // //     app_id: AppAccountId::from(AppId(0)),
-    // // };
-
-    // // let env = ExecutorEnv::builder()
-    // //     .add_assumption(receipt)
-    // //     .write(&proof)
-    // //     .unwrap()
-    // //     .write(&new_rollup_pi)
-    // //     .unwrap()
-    // //     .write(&Some(new_adapter_pi))
-    // //     .unwrap()
-    // //     .write(&ADAPTER_ID)
-    // //     .unwrap()
-    // //     .write(&new_private_inputs)
-    // //     .unwrap()
-    // //     .write(&[0u8; 32])
-    // //     .unwrap()
-    // //     .build()
-    // //     .unwrap();
-
-    // // // Measure time taken for the second proof
-    // // let start_time_second_proof = Instant::now();
-    // // let receipt_2 = default_prover().prove(env, ADAPTER_ELF).unwrap();
-    // // let end_time_second_proof = Instant::now();
-    // // let time_taken_second_proof = end_time_second_proof.duration_since(start_time_second_proof);
-    // // println!("Time taken for second proof: {:?}", time_taken_second_proof);
-
-    // // let latest_adapter_pi: AdapterPublicInputs = receipt_2.journal.decode().unwrap();
-
-    // // println!("Second proof {:?}", latest_adapter_pi);
 }
