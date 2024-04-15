@@ -26,6 +26,6 @@ pub struct AdapterConfig {
     pub app_id: AppId,
     pub elf: Vec<u8>,
     pub adapter_elf_id: StatementDigest,
-    pub vk: [u8; 32],
+    pub vk: [[u8; 32]; 6],
     pub rollup_start_height: u32,
 }

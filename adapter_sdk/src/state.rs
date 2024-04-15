@@ -9,8 +9,7 @@ use crate::types::{
 };
 use anyhow::{anyhow, Error};
 use nexus_core::types::{
-    AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
-    TxParamsV2, TxSignature, H256,
+    AppAccountId, AppId, AvailHeader, DataLookup, Digest, Extension, InitAccount, KateCommitment, StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, V3Extension, H256
 };
 use relayer::Relayer;
 use risc0_zkvm::{default_prover, Receipt};
@@ -22,6 +21,8 @@ use std::sync::Arc;
 use std::thread;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
+
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InclusionProof(pub Vec<u8>);
@@ -41,7 +42,7 @@ pub struct AdapterState <P: Proof + Clone + DeserializeOwned + Serialize + 'stat
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
     pub elf: Vec<u8>,
     pub elf_id: StatementDigest,
-    pub vk: [u8; 32],
+    pub vk: [[u8; 32]; 6],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
 }
@@ -81,86 +82,86 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
         //On every new header,
         //Check if the block is empty for the stored app ID.
-        let mut relayer = Relayer::new();
-        let receiver = relayer.receiver();
-        let start_height = match &self.previous_adapter_proof {
-            Some(i) => i.2,
-            None => self.starting_block_number,
-        };
+        // let mut relayer = Relayer::new();
+        // let receiver = relayer.receiver();
+        // let start_height = match &self.previous_adapter_proof {
+        //     Some(i) => i.2,
+        //     None => self.starting_block_number,
+        // };
 
-        if self.previous_adapter_proof.is_none() {
-            let header_hash = relayer.get_header_hash(self.starting_block_number).await;
-            let tx = TransactionV2 {
-                signature: TxSignature([0u8; 64]),
-                params: TxParamsV2::InitAccount(InitAccount {
-                    app_id: AppAccountId::from(self.app_id.clone()),
-                    statement: self.elf_id.clone(),
-                    avail_start_hash: header_hash,
-                }),
-                proof: None,
-            };
+        // if self.previous_adapter_proof.is_none() {
+        //     let header_hash = relayer.get_header_hash(self.starting_block_number).await;
+        //     let tx = TransactionV2 {
+        //         signature: TxSignature([0u8; 64]),
+        //         params: TxParamsV2::InitAccount(InitAccount {
+        //             app_id: AppAccountId::from(self.app_id.clone()),
+        //             statement: self.elf_id.clone(),
+        //             avail_start_hash: header_hash,
+        //         }),
+        //         proof: None,
+        //     };
 
-            let client = reqwest::Client::new();
+        //     let client = reqwest::Client::new();
 
-            let response = client
-                .post("http://127.0.0.1:7000/tx")
-                .json(&tx)
-                .send()
-                .await?;
+        //     let response = client
+        //         .post("http://127.0.0.1:7000/tx")
+        //         .json(&tx)
+        //         .send()
+        //         .await?;
 
-            // Check if the request was successful
-            if response.status().is_success() {
-                let body = response.text().await?;
-                println!("✅ Initiated rollup {}", body);
-            } else {
-                println!("❌ Failed to initiate rollup {}", response.status());
-            }
-        }
+        //     // Check if the request was successful
+        //     if response.status().is_success() {
+        //         let body = response.text().await?;
+        //         println!("✅ Initiated rollup {}", body);
+        //     } else {
+        //         println!("❌ Failed to initiate rollup {}", response.status());
+        //     }
+        // }
 
-        let relayer_handle = tokio::spawn(async move {
-            println!("Start height {}", start_height);
-            //TODO: Should be able to start from last processed height.
-            relayer.start(start_height).await;
-        });
+        // let relayer_handle = tokio::spawn(async move {
+        //     println!("Start height {}", start_height);
+        //     //TODO: Should be able to start from last processed height.
+        //     relayer.start(start_height).await;
+        // });
 
         let queue_clone = self.queue.clone();
         let db_clone = self.db.clone();
         let db_clone_2 = self.db.clone();
 
-        let avail_syncer_handle = tokio::spawn(async move {
-            let mut receiver = receiver.lock().await;
-            println!("Started avail syncer");
-            while let Some(header) = receiver.recv().await {
-                println!("Received header: {:?}", header);
-                let new_queue_item = QueueItem {
-                    proof: None,
-                    blob: Some(([2u8; 32].into(), InclusionProof([1u8; 32].to_vec()))),
-                    header: AvailHeader::from(&header),
-                };
-                // print
-                let mut queue = queue_clone.lock().await;
-                queue.push_back(new_queue_item);
+        // let avail_syncer_handle = tokio::spawn(async move {
+        //     let mut receiver = receiver.lock().await;
+        //     println!("Started avail syncer");
+        //     while let Some(header) = receiver.recv().await {
+        //         println!("Received header: {:?}", header);
+        //         let new_queue_item = QueueItem {
+        //             proof: None,
+        //             blob: Some(([2u8; 32].into(), InclusionProof([1u8; 32].to_vec()))),
+        //             header: AvailHeader::from(&header),
+        //         };
+        //         // print
+        //         let mut queue = queue_clone.lock().await;
+        //         queue.push_back(new_queue_item);
 
-                //Storing the queue in storage.
-                db_clone
-                    .lock()
-                    .await
-                    .store_last_known_queue(&queue)
-                    .unwrap();
-            }
-        });
+        //         //Storing the queue in storage.
+        //         db_clone
+        //             .lock()
+        //             .await
+        //             .store_last_known_queue(&queue)
+        //             .unwrap();
+        //     }
+        // });
 
         let submission_handle = tokio::spawn(Self::manage_submissions(db_clone_2));
 
+        println!("going to process queue");
         match self.process_queue().await {
             Ok(_) => (),
             Err(e) => println!("Exiting because of error: {:?}", e),
         };
 
-        tokio::try_join!(avail_syncer_handle, relayer_handle, submission_handle)
-            .unwrap()
-            .2
+        tokio::try_join!(submission_handle)
             .unwrap();
+            
 
         Ok(())
     }
@@ -294,25 +295,48 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     }
 
     pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
+        println!("In Adding proof to queue");
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
         for height in queue.iter_mut() {
             //Check if blob hash matches the blob hash in PI,
-            match height.blob.clone() {
-                Some(value) => {
-                    println!("value.0: {:?}", value.0);
+            // match height.blob.clone() {
+            //     Some(value) => {
+                    // println!("value.0: {:?}", value.0);
                     //If found, then set updated_proof to true and then reset the proof field from None to the given proof.
-                    if value.0 == proof.public_inputs.blob_hash {
-                        updated_proof = true;
-                        height.proof = Some(proof);
-                        break;
-                    }
-                }
-                None => continue,
-            }
+                    //TODO
+                    // if value.0 == proof.public_inputs.blob_hash {
+                        // updated_proof = true;
+                        // height.proof = Some(proof);
+                        // break;
+                    // }
+            //     }
+            //     None => continue,
+            // }
             //Improvement will be to check if the proof is verifying.
         }
+        queue.push_back(QueueItem {
+            proof: Some(proof),
+            blob: None,
+            header: AvailHeader {
+                parent_hash: H256::zero(),
+                number: 0, // Provide default value for number field
+                state_root: H256::zero(),
+                extrinsics_root: H256::zero(),
+                digest: Digest::default(),
+                extension: Extension::V3(V3Extension { 
+                    app_lookup: DataLookup {
+                        size: 0u32,
+                        index: vec![]
+                    }, commitment: KateCommitment{
+                        rows: 0u16,
+                        cols: 0u16,
+                        commitment: vec![],
+                        data_root: H256::zero()
+                    }}),
+            },
+        });
 
         if updated_proof {
             return Ok(());
@@ -330,9 +354,9 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
         let prev_pi_and_receipt = match &self.previous_adapter_proof {
             None => {
-                if queue_item.header.number != self.starting_block_number {
-                    return Err(anyhow!("Cannot find previous proof for recursion."));
-                }
+                // if queue_item.header.number != self.starting_block_number {
+                //     return Err(anyhow!("Cannot find previous proof for recursion."));
+                // }
 
                 None
             }

@@ -20,9 +20,6 @@ pub type G2Point = <Bn254 as PairingEngine>::G2Affine;
 use tiny_keccak::{Hasher, Keccak};
 use num_bigint::{BigInt, BigUint};
 
-
-
-
 pub struct LISValues {
     pub li_s0_inv: [Fp256<FrParameters>; 8],
     pub li_s1_inv: [Fp256<FrParameters>; 4],
@@ -565,28 +562,6 @@ pub fn inverseArray(
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ZkEvmProof{
-    // pub c1: G1Point,
-    // pub c2: G1Point,
-    // pub w1: G1Point,
-    // pub w2: G1Point,
-
-    // pub eval_ql: Fp256<FrParameters>,
-    // pub eval_qr: Fp256<FrParameters>,
-    // pub eval_qm: Fp256<FrParameters>,
-    // pub eval_qo: Fp256<FrParameters>,
-    // pub eval_qc: Fp256<FrParameters>,
-    // pub eval_s1: Fp256<FrParameters>,
-    // pub eval_s2: Fp256<FrParameters>,
-    // pub eval_s3: Fp256<FrParameters>,
-    // pub eval_a: Fp256<FrParameters>,
-    // pub eval_b: Fp256<FrParameters>,
-    // pub eval_c: Fp256<FrParameters>,
-    // pub eval_z: Fp256<FrParameters>,
-    // pub eval_zw: Fp256<FrParameters>,
-    // pub eval_t1w: Fp256<FrParameters>,
-    // pub eval_t2w: Fp256<FrParameters>,
-    // pub eval_inv: Fp256<FrParameters>,
-
     pub c1_x: [u8; 32],
     pub c1_y: [u8; 32],
     pub c2_x: [u8; 32],
@@ -840,8 +815,9 @@ impl Proof for ZkEvmProof {
         .unwrap();
     
         // second pairing value
-        let g2_val = G2Affine::new(Fq2::new(g2x1, g2x2), Fq2::new(g2y1, g2y2), true);
+        // let g2_val = G2Affine::new(Fq2::new(g2x1, g2x2), Fq2::new(g2y1, g2y2), true);
     
+        let g2_val = get_g2_pairing();
         // third pairing value
         let p3 = -W2;
     

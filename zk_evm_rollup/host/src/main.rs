@@ -85,13 +85,22 @@ pub fn get_u8_arr_from_fr(fr: Fp256<FrParameters>) -> [u8; 32] {
 }
 // #[tokio::main]
 fn main() {
+    let vk: [[u8; 32]; 6] = [
+        get_u8_arr_from_str("7005013949998269612234996630658580519456097203281734268590713858661772481668"),
+        get_u8_arr_from_str("869093939501355406318588453775243436758538662501260653214950591532352435323"),
+        get_u8_arr_from_str("21831381940315734285607113342023901060522397560371972897001948545212302161822"),
+        get_u8_arr_from_str("17231025384763736816414546592865244497437017442647097510447326538965263639101"),
+        get_u8_arr_from_str("2388026358213174446665280700919698872609886601280537296205114254867301080648"),
+        get_u8_arr_from_str("11507326595632554467052522095592665270651932854513688777769618397986436103170"),
+    ];
+    println!("vk prepared");
     let mut adapter: AdapterState<ZkEvmProof> = AdapterState::new(
         String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),
             elf: ADAPTER_ELF.to_vec(),
             adapter_elf_id: StatementDigest(ADAPTER_ID),
-            vk: [0u8; 32],
+            vk: vk,
             rollup_start_height: 606460,
         },
     );
@@ -129,10 +138,18 @@ fn main() {
         log
     });
 
-    while let Some(mut txn_hash) = rt.block_on(async {
-        let hash = logs.next().await.unwrap().transaction_hash;
-        hash
-    }) {
+    // while let Some(mut txn_hash) = rt.block_on(async {
+    //     let hash = logs.next().await.unwrap().transaction_hash;
+    //     hash
+    // }) 
+    
+    // loop
+    
+    {
+        let sample_hash =
+            EthH256::from_str("0xed0c28abb022be570305ae3cd454c5c3bb027ede55cfdefe6744bc1b5af90d8a")
+                .unwrap();
+        let txn_hash = sample_hash;
         // Code inside the while loop
     
         
