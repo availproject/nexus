@@ -266,13 +266,7 @@ pub fn computePi(
     eval_l1: Fp256<FrParameters>,
 ) -> Fp256<FrParameters> {
     let pi = Fr::from_str("0").unwrap();
-
-    let q = Fr::from_str(
-        "21888242871839275222246405745257275088548364400416034343698204186575808495617",
-    )
-    .unwrap();
-
-    q.add(pi.sub(eval_l1.mul(pubSignals)))
+    get_q().add(pi.sub(eval_l1.mul(pubSignals)))
 }
 
 pub fn calculateInversions(
@@ -361,22 +355,15 @@ pub fn computeLiS0(
 
     let mut li_s0_inv: [Fp256<FrParameters>; 8] = [Fr::zero(); 8];
 
-    let q = Fr::from_str(
-        "21888242871839275222246405745257275088548364400416034343698204186575808495617",
-    )
-    .unwrap();
-
     for i in 0..8 {
         let coeff = ((i * 7) % 8);
         den2 = h0w8[0 + coeff];
         // println!("den2: {}", den2);
-        den3 = y.add(q.sub(h0w8[0 + (i)]));
+        den3 = y.add(get_q().sub(h0w8[0 + (i)]));
         // println!("den3: {}", den3);
 
         li_s0_inv[i] = den1.mul(den2).mul(den3);
 
-        // println!("li_s0_inv: {}", li_s0_inv[i]);
-        // println!();
     }
     // println!("li_s0_inv: {}", li_s0_inv[7]);
 
@@ -393,11 +380,6 @@ pub fn computeLiS1(
 
     den1 = den1.mul(Fr::from_str("4").unwrap());
 
-    let q = Fr::from_str(
-        "21888242871839275222246405745257275088548364400416034343698204186575808495617",
-    )
-    .unwrap();
-
     let mut den2;
     let mut den3;
 
@@ -406,7 +388,7 @@ pub fn computeLiS1(
     for i in 0..4 {
         let coeff = ((i * 3) % 4);
         den2 = h1w4[0 + coeff];
-        den3 = y.add(q.sub(h1w4[0 + (i)]));
+        den3 = y.add(get_q().sub(h1w4[0 + (i)]));
         li_s1_inv[i] = den1.mul(den2).mul(den3);
     }
 
@@ -420,14 +402,8 @@ pub fn computeLiS2(
     h2w3: Vec<Fp256<FrParameters>>,
     h3w3: Vec<Fp256<FrParameters>>,
 ) -> [Fp256<FrParameters>; 6] {
-    let q = Fr::from_str(
-        "21888242871839275222246405745257275088548364400416034343698204186575808495617",
-    )
-    .unwrap();
-
-    // let den1 := mulmod(mulmod(3,mload(add(pMem, pH2w3_0)),q), addmod(mload(add(pMem, pXi)) ,mod(sub(q, mulmod(mload(add(pMem, pXi)), w1 ,q)), q), q), q)
     let omegas = get_omegas();
-    let mut den1 = (Fr::from_str("3").unwrap().mul(h2w3[0])).mul(xi.add(q.sub(xi.mul(omegas.w1))));
+    let mut den1 = (Fr::from_str("3").unwrap().mul(h2w3[0])).mul(xi.add(get_q().sub(xi.mul(omegas.w1))));
 
     let mut den2;
     let mut den3;
@@ -437,16 +413,16 @@ pub fn computeLiS2(
     for i in 0..3 {
         let coeff = ((i * 2) % 3);
         den2 = h2w3[0 + coeff];
-        den3 = y.add(q.sub(h2w3[0 + (i)]));
+        den3 = y.add(get_q().sub(h2w3[0 + (i)]));
         li_s2_inv[i] = den1.mul(den2).mul(den3);
     }
 
-    den1 = (Fr::from_str("3").unwrap().mul(h3w3[0])).mul(xi.mul(omegas.w1).add(q.sub(xi)));
+    den1 = (Fr::from_str("3").unwrap().mul(h3w3[0])).mul(xi.mul(omegas.w1).add(get_q().sub(xi)));
 
     for i in 0..3 {
         let coeff = ((i * 2) % 3);
         den2 = h3w3[0 + coeff];
-        den3 = y.add(q.sub(h3w3[0 + (i)]));
+        den3 = y.add(get_q().sub(h3w3[0 + (i)]));
         li_s2_inv[i + 3] = den1.mul(den2).mul(den3);
     }
 
@@ -659,12 +635,6 @@ impl Proof for ZkEvmProof {
         vk: &[[u8; 32]; 6],
         public_inputs: &RollupPublicInputs,
     ) -> Result<(), anyhow::Error> {
-        println!("Here in ZkEvmProof::verify");
-        eprintln!("ZkEvmProof::verify");
-        eprintln!("vk: {:?}", vk);
-        eprintln!("public_inputs: {:?}", public_inputs);
-        println!("c1: {:?}", self.c1_x);
-
         let proof = Prooff{
             c1: u8_to_g1(self.c1_x, self.c1_y),
             c2: u8_to_g1(self.c2_x, self.c2_y),
@@ -713,19 +683,14 @@ impl Proof for ZkEvmProof {
             x2y1: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[4]),
             x2y2: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[5]),
         };
-        println!("vk loaded");
-        println!("c0x: {:?}", vpi.c0x);
     
         let pubSignalBigInt = get_bignint_from_h256(self.pub_signal);
-        println!(" fetchedpubSignalBigInt: {:?}", pubSignalBigInt);
-        // BigInt::parse_bytes(b"14516932981781041565586298118536599721399535462624815668597272732223874827152", 10).unwrap();
         
         let mut zh: &mut Fp256<FrParameters> = &mut Fr::zero();
     
         let mut zhinv: &mut Fp256<FrParameters> = &mut Fr::zero();
     
         compute_challenges(&mut challenges, &mut roots, &mut zh, &mut zhinv, vpi, pubSignalBigInt);
-
 
         let alpha: Fp256<FrParameters> = challenges.alpha;
 
@@ -740,15 +705,7 @@ impl Proof for ZkEvmProof {
         let mut y: Fp256<FrParameters> = challenges.y;
     
         let mut xi: Fp256<FrParameters> = challenges.xi;
-    
-        // let zh: Fp256<FrParameters> = 
-    
-        // let mut zhinv: Fp256<FrParameters> = Fr::from_str(
-        //     "8663234610000964594764035144827003258323335914482598945994186647593190381653",
-        // )
-        // .unwrap();
-    
-        // it is similar to zhinv just more updated value
+
         let zinv = zhinv.clone();
     
         let g1_x = <G1Point as AffineCurve>::BaseField::from_str("1").unwrap();
@@ -834,48 +791,14 @@ impl Proof for ZkEvmProof {
         // first pairing value
         let p1 = F.add(-E).add(-J).add(W2.mul(y).into_affine());
     
-        let g2x1 = Fq::from_str(
-            "10857046999023057135944570762232829481370756359578518086990519993285655852781",
-        )
-        .unwrap();
-        let g2x2 = Fq::from_str(
-            "11559732032986387107991004021392285783925812861821192530917403151452391805634",
-        )
-        .unwrap();
-        let g2y1 =
-            Fq::from_str("869093939501355406318588453775243436758538662501260653214950591532352435323")
-                .unwrap();
-        let g2y2 = Fq::from_str(
-            "4082367875863433681332203403145435568316851327593401208105741076214120093531",
-        )
-        .unwrap();
-    
         // second pairing value
-        let g2_val = G2Affine::new(Fq2::new(g2x1, g2x2), Fq2::new(g2y1, g2y2), true);
+        let g2_val = get_g2_pairing();
     
         // third pairing value
         let p3 = -W2;
-    
-        // fourth pairing value
-        let x2x1 = Fq::from_str(
-            "21831381940315734285607113342023901060522397560371972897001948545212302161822",
-        )
-        .unwrap();
-        let x2x2 = Fq::from_str(
-            "17231025384763736816414546592865244497437017442647097510447326538965263639101",
-        )
-        .unwrap();
-        let x2y1 = Fq::from_str(
-            "2388026358213174446665280700919698872609886601280537296205114254867301080648",
-        )
-        .unwrap();
-        let x2y2 = Fq::from_str(
-            "11507326595632554467052522095592665270651932854513688777769618397986436103170",
-        )
-        .unwrap();
-    
+
         println!("Doing Pairing Check!");
-        let x2_val = G2Affine::new(Fq2::new(x2x1, x2x2), Fq2::new(x2y1, x2y2), true);
+        let x2_val = get_g2_fourth_pairing();
 
             // let R2 = calculateR2(xi);
         let pairing1 = Bn254::pairing(p1, g2_val);
@@ -885,9 +808,9 @@ impl Proof for ZkEvmProof {
             println!("Proof Verified!");
             // return true;
         } 
-
-        println!("Proof verification failed!");
-        
+        else{
+            println!("Proof verification failed!");
+        }
         Ok(())
     }
 }

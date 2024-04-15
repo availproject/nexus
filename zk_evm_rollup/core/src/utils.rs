@@ -1,3 +1,4 @@
+use ark_bn254::{Fq, Fq2, G2Affine};
 use ark_bn254::{g1, g1::Parameters, Bn254, FqParameters, Fr, FrParameters, G1Projective};
 use ark_ec::short_weierstrass_jacobian::GroupAffine;
 use ark_ec::*;
@@ -385,3 +386,54 @@ pub fn padd_bytes32(input: Vec<u8>) -> Vec<u8> {
     padding
 }
 
+
+pub fn get_g2_pairing() -> G2Affine{
+    let g2x1 = Fq::from_str(
+        "10857046999023057135944570762232829481370756359578518086990519993285655852781",
+    )
+    .unwrap();
+    let g2x2 = Fq::from_str(
+        "11559732032986387107991004021392285783925812861821192530917403151452391805634",
+    )
+    .unwrap();
+    let g2y1 =
+        Fq::from_str("869093939501355406318588453775243436758538662501260653214950591532352435323")
+            .unwrap();
+    let g2y2 = Fq::from_str(
+        "4082367875863433681332203403145435568316851327593401208105741076214120093531",
+    )
+    .unwrap();
+
+    // second pairing value
+    G2Affine::new(Fq2::new(g2x1, g2x2), Fq2::new(g2y1, g2y2), true)
+
+}
+
+pub fn get_g2_fourth_pairing() -> G2Affine{
+    let x2x1 = Fq::from_str(
+        "21831381940315734285607113342023901060522397560371972897001948545212302161822",
+    )
+    .unwrap();
+    let x2x2 = Fq::from_str(
+        "17231025384763736816414546592865244497437017442647097510447326538965263639101",
+    )
+    .unwrap();
+    let x2y1 = Fq::from_str(
+        "2388026358213174446665280700919698872609886601280537296205114254867301080648",
+    )
+    .unwrap();
+    let x2y2 = Fq::from_str(
+        "11507326595632554467052522095592665270651932854513688777769618397986436103170",
+    )
+    .unwrap();
+
+    G2Affine::new(Fq2::new(x2x1, x2x2), Fq2::new(x2y1, x2y2), true)
+
+}
+
+pub fn get_q() -> Fp256<FrParameters>{
+    Fr::from_str(
+        "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+    )
+    .unwrap()
+}
