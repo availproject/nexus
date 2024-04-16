@@ -11,7 +11,6 @@ use crate::types::{
 use anyhow::{anyhow, Context, Error};
 
 use avail_core::{data_proof::ProofResponse, AppId as AvailAppID, DataProof};
-use avail_subxt::api::preimage::calls::types::request_preimage::Hash;
 use avail_subxt::AvailConfig;
 use avail_subxt::{
     api, api::data_availability::calls::types::SubmitData, rpc::KateRpcClient, AvailClient,
@@ -29,7 +28,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sp_core::H256 as AvailH256;
 use std::{collections::VecDeque, env, sync::Arc, thread};
 use tokio::sync::Mutex;
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 use subxt::{
     ext::sp_core::sr25519::Pair,
@@ -45,6 +44,7 @@ pub(crate) struct QueueItem<P: Proof + Clone> {
 }
 
 // usage : create an object for this struct and use as a global dependency
+#[derive(Clone)]
 pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
@@ -140,14 +140,17 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let db_clone = self.db.clone();
         let db_clone_2 = self.db.clone();
 
+        let mut this = self.clone();
+
         let avail_syncer_handle = tokio::spawn(async move {
             let mut receiver = receiver.lock().await;
 
             while let Some(header) = receiver.recv().await {
+                let avail_header = AvailHeader::from(&header);
                 let new_queue_item = QueueItem {
                     proof: None,
                     blob: None,
-                    header: AvailHeader::from(&header),
+                    header: avail_header.clone(),
                 };
                 let mut queue = queue_clone.lock().await;
                 queue.push_back(new_queue_item);
@@ -158,6 +161,8 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                     .await
                     .store_last_known_queue(&queue)
                     .unwrap();
+
+                this.store_inclusion_proof(avail_header.hash()).await;
             }
         });
 
@@ -405,9 +410,9 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let (block_hash, transaction_index) = self.send_tx(call, &signer, &client).await?;
 
         let hash_db = self.hash_db.lock().await;
-        hash_db.put(
-            block_hash,
-            InclusionData::new(block_hash, transaction_index),
+        let _ = hash_db.put(
+            H256::from(block_hash.to_fixed_bytes()),
+            InclusionData::new(H256::from(block_hash.to_fixed_bytes()), transaction_index),
         );
 
         drop(hash_db);
@@ -415,7 +420,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         Ok(())
     }
 
-    async fn store_inclusion_proof(&mut self, block_hash: AvailH256) -> Result<(), Error> {
+    async fn store_inclusion_proof(&mut self, block_hash: H256) -> Result<(), Error> {
         let client = Self::establish_a_connection().await?;
         let hash_db = self.hash_db.lock().await;
         let db_entry = hash_db.get(block_hash);
@@ -425,7 +430,11 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             .map_err(|_| anyhow!("No such entry exists."))?;
 
         let inclusion_proof = self
-            .get_inclusion_proof(&client, transaction_index, block_hash)
+            .get_inclusion_proof(
+                &client,
+                transaction_index,
+                AvailH256::from(block_hash.as_fixed_slice()),
+            )
             .await;
         let blob_hash = inclusion_proof.as_ref().unwrap().data_proof.leaf.clone();
         let data_proof = inclusion_proof.unwrap().data_proof;
@@ -433,7 +442,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let mut queue = self.queue.lock().await;
 
         for height in queue.iter_mut() {
-            if height.header.hash() == H256::from(block_hash.to_fixed_bytes()) {
+            if height.header.hash() == block_hash {
                 height.blob = Some((H256::from(blob_hash.to_fixed_bytes()), data_proof));
                 break;
             }

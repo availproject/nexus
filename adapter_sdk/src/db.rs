@@ -3,10 +3,10 @@ use crate::traits::Proof;
 use crate::types::AdapterPublicInputs;
 use anyhow::{anyhow, Context, Error};
 use nexus_core::db::NodeDB;
+use nexus_core::types::H256;
 use risc0_zkvm::Receipt;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sp_core::H256;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
@@ -74,12 +74,13 @@ impl HashDB {
     }
 
     pub(crate) fn put(&self, key: H256, value: InclusionData) -> Result<(), Error> {
-        self.0.put(key.as_bytes(), &value);
+        self.0.put(key.as_fixed_slice(), &value);
         Ok(())
     }
 
     pub(crate) fn get(&self, key: H256) -> Result<InclusionData, Error> {
-        let inclusion_proof: Result<Option<InclusionData>, Error> = self.0.get(key.as_bytes());
+        let inclusion_proof: Result<Option<InclusionData>, Error> =
+            self.0.get(key.as_fixed_slice());
         match inclusion_proof {
             Ok(value) => Ok(value.unwrap()),
             Err(err) => Err(anyhow!("No entry")),
