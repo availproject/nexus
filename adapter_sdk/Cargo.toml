@@ -23,6 +23,7 @@ sp-core = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "pol
 avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v2.0.0.0-rc4", features = ["std"]}
 subxt-signer = "0.34"
 subxt = {version = "0.34.0", features = ["substrate-compat"]}
+mockito = "1.4.0"
 
 [features]
 default = ["native"]

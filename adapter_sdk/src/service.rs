@@ -10,7 +10,6 @@ use warp::{http::StatusCode, reject::Rejection, reply::Reply, Filter};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct BlobDataRequest {
-    header: String,
     blob: Vec<u8>,
 }
 
@@ -34,9 +33,8 @@ async fn handle_blob_handler<P: Proof + Clone + Serialize + DeserializeOwned + S
     request: BlobDataRequest,
 ) -> Result<impl Reply, Rejection> {
     let mut locked_state = state.lock().await;
-    let header = get_h256_header(request.header.as_bytes()).unwrap();
     let blob = &request.blob[..];
-    locked_state.store_blob(header, blob).await;
+    locked_state.store_blob(blob).await;
     Ok(warp::reply::with_status(
         "Data Blob with inclusion proof received",
         StatusCode::OK,
@@ -70,19 +68,4 @@ pub async fn server<P: Proof + Send + Clone + Sync + 'static + DeserializeOwned 
 
     // Start the server
     warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
-}
-
-fn get_h256_header(byte_slice: &[u8]) -> Result<H256, Error> {
-    if byte_slice.len() == 32 {
-        let byte_array: Result<[u8; 32], _> = byte_slice.try_into();
-        match byte_array {
-            Ok(array) => {
-                let h256_value = nexus_core::types::H256::from(array);
-                return Ok(h256_value);
-            }
-            Err(e) => Err(anyhow!("Invalid parsing")),
-        }
-    } else {
-        Err(anyhow!("Couldn't parse byte slice to [u8;32]"))
-    }
 }

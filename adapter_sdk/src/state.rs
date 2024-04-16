@@ -2,13 +2,16 @@
 // track the last queried block of the rollup
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
-use crate::db::DB;
+use crate::db::{HashDB, InclusionData, DB};
 
 use crate::traits::Proof;
-use crate::types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+use crate::types::{
+    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
+};
 use anyhow::{anyhow, Context, Error};
 
 use avail_core::{data_proof::ProofResponse, AppId as AvailAppID, DataProof};
+use avail_subxt::api::preimage::calls::types::request_preimage::Hash;
 use avail_subxt::AvailConfig;
 use avail_subxt::{
     api, api::data_availability::calls::types::SubmitData, rpc::KateRpcClient, AvailClient,
@@ -51,11 +54,13 @@ pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'stati
     pub vk: [u8; 32],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
+    pub hash_db: Arc<Mutex<HashDB>>,
 }
 
 impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     pub fn new(storage_path: String, config: AdapterConfig) -> Self {
-        let db = DB::from_path(storage_path);
+        let db = DB::from_path(storage_path.clone());
+        let hash_db = HashDB::from_path(storage_path.clone());
 
         AdapterState {
             starting_block_number: config.rollup_start_height,
@@ -66,6 +71,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             vk: config.vk,
             app_id: config.app_id,
             db: Arc::new(Mutex::new(db)),
+            hash_db: Arc::new(Mutex::new(hash_db)),
         }
     }
 
@@ -214,7 +220,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             }
 
             if is_in_range {
-                println!("INside match");
+                println!("Inside match");
                 let client = reqwest::Client::new();
                 let tx = TransactionV2 {
                     signature: TxSignature([0u8; 64]),
@@ -332,7 +338,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let private_inputs = AdapterPrivateInputs {
             header: queue_item.header.clone(),
             app_id: self.app_id.clone(),
-            blob: (*hash, blob.clone()),
+            blob: (hash.clone(), blob.clone()),
         };
 
         let prev_pi_and_receipt = match &self.previous_adapter_proof {
@@ -380,7 +386,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         receipt
     }
 
-    pub async fn store_blob(&mut self, header: H256, blob: &[u8]) -> Result<(), Error> {
+    pub async fn store_blob(&mut self, blob: &[u8]) -> Result<(), Error> {
         let client = Self::establish_a_connection().await?;
 
         let mnemonic: String;
@@ -398,6 +404,26 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let call = api::tx().data_availability().submit_data(data);
         let (block_hash, transaction_index) = self.send_tx(call, &signer, &client).await?;
 
+        let hash_db = self.hash_db.lock().await;
+        hash_db.put(
+            block_hash,
+            InclusionData::new(block_hash, transaction_index),
+        );
+
+        drop(hash_db);
+
+        Ok(())
+    }
+
+    async fn store_inclusion_proof(&mut self, block_hash: AvailH256) -> Result<(), Error> {
+        let client = Self::establish_a_connection().await?;
+        let hash_db = self.hash_db.lock().await;
+        let db_entry = hash_db.get(block_hash);
+
+        let transaction_index = db_entry
+            .map(|value| value.transaction_index)
+            .map_err(|_| anyhow!("No such entry exists."))?;
+
         let inclusion_proof = self
             .get_inclusion_proof(&client, transaction_index, block_hash)
             .await;
@@ -407,7 +433,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let mut queue = self.queue.lock().await;
 
         for height in queue.iter_mut() {
-            if height.header.hash() == header {
+            if height.header.hash() == H256::from(block_hash.to_fixed_bytes()) {
                 height.blob = Some((H256::from(blob_hash.to_fixed_bytes()), data_proof));
                 break;
             }
@@ -462,7 +488,12 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     }
 
     pub async fn establish_a_connection() -> Result<AvailClient, Error> {
-        let ws = String::from("ws://127.0.0.1:9944"); // TODO: update
+        let rpc: String;
+        match env::var("RPC_URL") {
+            Ok(value) => rpc = value,
+            Err(e) => panic!("Couldn't read : {}", e),
+        }
+        let ws = String::from(rpc);
         let client = AvailClient::new(ws).await?;
         Ok(client)
     }
