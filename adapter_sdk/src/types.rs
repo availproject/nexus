@@ -1,4 +1,4 @@
-use crate::traits::Proof;
+use crate::traits::{Proof, VerificationKey};
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
 use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
 use serde::{Deserialize, Serialize};
@@ -22,10 +22,10 @@ pub struct RollupProof<P: Proof> {
     pub public_inputs: RollupPublicInputs,
 }
 
-pub struct AdapterConfig {
+pub struct AdapterConfig<V: VerificationKey> {
     pub app_id: AppId,
     pub elf: Vec<u8>,
     pub adapter_elf_id: StatementDigest,
-    pub vk: [[u8; 32]; 6],
+    pub vk: V,
     pub rollup_start_height: u32,
 }

@@ -14,6 +14,9 @@ pub trait Proof {
     fn verify(&self, vk: &[[u8; 32] ;6], public_inputs: &RollupPublicInputs) -> Result<(), Error>;
 }
 
+pub trait VerificationKey {
+    fn temp(&self) -> Result<(), Error>;
+}
 // pub trait RollupPublicInputs {
 //     fn prev_state_root(&self) -> H256;
 //     fn post_state_root(&self) -> H256;

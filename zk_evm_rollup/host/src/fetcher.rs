@@ -6,6 +6,7 @@ use ethers::utils::hex;
 use num_bigint::*;
 use queues::*;
 use sha256::digest;
+use zk_evm_rollup_core::ZkEvmVerificationKey;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -221,7 +222,7 @@ pub async fn fetch_proof_and_pub_signal(
     )
 }
 
-pub fn get_vk_fflonk() -> [[u8; 32]; 6] {
+pub fn get_vk_fflonk() -> ZkEvmVerificationKey {
     let vk: [[u8; 32]; 6] = [
         get_u8_arr_from_str("7005013949998269612234996630658580519456097203281734268590713858661772481668"),
         get_u8_arr_from_str("869093939501355406318588453775243436758538662501260653214950591532352435323"),
@@ -230,5 +231,7 @@ pub fn get_vk_fflonk() -> [[u8; 32]; 6] {
         get_u8_arr_from_str("2388026358213174446665280700919698872609886601280537296205114254867301080648"),
         get_u8_arr_from_str("11507326595632554467052522095592665270651932854513688777769618397986436103170"),
     ];
-    vk
+    ZkEvmVerificationKey{
+        vk
+    }
 }

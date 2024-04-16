@@ -1,4 +1,4 @@
-use adapter_sdk::traits::Proof;
+use adapter_sdk::traits::{Proof, VerificationKey};
 use adapter_sdk::types::RollupPublicInputs;
 
 use ark_bn254::{Fq, Fq2, G2Affine};
@@ -538,6 +538,17 @@ pub fn inverseArray(
     // println!("local_zh_inv: {}", local_zh_inv);
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct ZkEvmVerificationKey {
+    pub vk: [[u8; 32]; 6],
+
+}
+
+impl VerificationKey for ZkEvmVerificationKey {
+    fn temp(&self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ZkEvmProof{
@@ -835,16 +846,7 @@ pub struct ZkEvmRollupPublicInputs {
 //     }
 // }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ZkEvmVerificationKey{
-        pub c0x: BigInt,
-        pub c0y: BigInt,
-        pub x2x1: BigInt,
-        pub x2x2: BigInt,
-        pub x2y1: BigInt,
-        pub x2y2: BigInt,
-    
-}
+
 
 
 fn calculateR0(

@@ -53,7 +53,7 @@ use zk_evm_adapter_host::utils::*;
 
 // #[tokio::main]
 fn main() {
-    let mut adapter: AdapterState<ZkEvmProof> = AdapterState::new(
+    let mut adapter: AdapterState<ZkEvmProof, ZkEvmVerificationKey> = AdapterState::new(
         String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),

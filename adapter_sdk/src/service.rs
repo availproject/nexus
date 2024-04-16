@@ -1,4 +1,4 @@
-use crate::traits::Proof;
+use crate::traits::{Proof, VerificationKey};
 use crate::{state::AdapterState, types::RollupProof};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -10,8 +10,9 @@ async fn health_check_handler() -> Result<impl Reply, Rejection> {
     Ok(warp::reply::with_status("OK", StatusCode::OK))
 }
 
-async fn handle_proof_handler<P: Proof + Clone + Serialize + DeserializeOwned + Send>(
-    state: Arc<Mutex<AdapterState<P>>>,
+async fn handle_proof_handler<P: Proof + Clone + Serialize + DeserializeOwned + Send,
+                            V: VerificationKey + Clone + Serialize + DeserializeOwned + Send>(
+    state: Arc<Mutex<AdapterState<P, V>>>,
     proof: RollupProof<P>,
 ) -> Result<impl Reply, Rejection> {
     let mut locked_state = state.lock().await;
@@ -21,8 +22,9 @@ async fn handle_proof_handler<P: Proof + Clone + Serialize + DeserializeOwned + 
     Ok(warp::reply::with_status("Proof received", StatusCode::OK))
 }
 
-pub async fn server<P: Proof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize>(
-    state: Arc<Mutex<AdapterState<P>>>,
+pub async fn server<P: Proof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize,
+V: VerificationKey + Send + Clone + Sync + 'static + DeserializeOwned + Serialize>(
+    state: Arc<Mutex<AdapterState<P, V>>>,
 ) {
     // Health check route
     let health_check_route = warp::get()

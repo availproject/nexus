@@ -3,7 +3,7 @@
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
 use crate::db::DB;
-use crate::traits::Proof;
+use crate::traits::{Proof, VerificationKey};
 use crate::types::{
     AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
 };
@@ -35,19 +35,21 @@ pub(crate) struct QueueItem<P: Proof + Clone> {
 
 // usage : create an object for this struct and use as a global dependency
 #[derive(Clone)]
-pub struct AdapterState <P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
+pub struct AdapterState <P: Proof + Clone + DeserializeOwned + Serialize + 'static, 
+                        V: VerificationKey + Clone + DeserializeOwned + Serialize + 'static> {
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
     pub elf: Vec<u8>,
     pub elf_id: StatementDigest,
-    pub vk: [[u8; 32]; 6],
+    pub vk: V,
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
 }
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
-    pub fn new(storage_path: String, config: AdapterConfig) -> Self {
+impl<P: Proof + Clone + DeserializeOwned + Serialize + Send,
+     V: VerificationKey + Clone + DeserializeOwned + Serialize + Send,> AdapterState<P,V> {
+    pub fn new(storage_path: String, config: AdapterConfig<V>) -> Self {
         let db = DB::from_path(storage_path);
 
         AdapterState {
