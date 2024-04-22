@@ -5,7 +5,7 @@
 use crate::db::DB;
 use crate::traits::{Proof, VerificationKey};
 use crate::types::{
-    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
+    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs, RollupVerificationKey,
 };
 use anyhow::{anyhow, Error};
 use nexus_core::types::{
@@ -18,6 +18,7 @@ use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::thread;
 use tokio::sync::Mutex;
@@ -27,27 +28,28 @@ use tokio::time::{sleep, Duration};
 struct InclusionProof(pub Vec<u8>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct QueueItem<P: Proof + Clone> {
-    proof: Option<RollupProof<P>>,
+pub(crate) struct QueueItem<P: Proof<V> + Clone, V: VerificationKey + Clone> {
+    proof: Option<RollupProof<P, V>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
+    phantom_v: PhantomData<V>
 }
 
 // usage : create an object for this struct and use as a global dependency
 #[derive(Clone)]
-pub struct AdapterState <P: Proof + Clone + DeserializeOwned + Serialize + 'static, 
+pub struct AdapterState <P: Proof<V> + Clone + DeserializeOwned + Serialize + 'static, 
                         V: VerificationKey + Clone + DeserializeOwned + Serialize + 'static> {
     pub starting_block_number: u32,
-    pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
+    pub queue: Arc<Mutex<VecDeque<QueueItem<P, V>>>>,
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
     pub elf: Vec<u8>,
     pub elf_id: StatementDigest,
     pub vk: V,
     pub app_id: AppId,
-    pub db: Arc<Mutex<DB<P>>>,
+    pub db: Arc<Mutex<DB<P, V>>>,
 }
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize + Send,
+impl<P: Proof<V> + Clone + DeserializeOwned + Serialize + Send,
      V: VerificationKey + Clone + DeserializeOwned + Serialize + Send,> AdapterState<P,V> {
     pub fn new(storage_path: String, config: AdapterConfig<V>) -> Self {
         let db = DB::from_path(storage_path);
@@ -138,6 +140,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send,
                     proof: None,
                     blob: Some(([2u8; 32].into(), InclusionProof([1u8; 32].to_vec()))),
                     header: AvailHeader::from(&header),
+                    phantom_v: PhantomData,
                 };
                 // print
                 let mut queue = queue_clone.lock().await;
@@ -167,7 +170,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send,
         Ok(())
     }
 
-    async fn manage_submissions(db: Arc<Mutex<DB<P>>>) -> Result<Receipt, Error> {
+    async fn manage_submissions(db: Arc<Mutex<DB<P, V>>>) -> Result<Receipt, Error> {
         loop {
             thread::sleep(Duration::from_secs(2));
 
@@ -295,7 +298,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send,
         }
     }
 
-    pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
+    pub async fn add_proof(&mut self, proof: RollupProof<P, V>) -> Result<(), Error> {
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -324,7 +327,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send,
     }
 
     // function to generate proof against avail data when proof is received and verified from the rollup
-    fn verify_and_generate_proof(&mut self, queue_item: &QueueItem<P>) -> Result<Receipt, Error> {
+    fn verify_and_generate_proof(&mut self, queue_item: &QueueItem<P, V>) -> Result<Receipt, Error> {
         let private_inputs = AdapterPrivateInputs {
             header: queue_item.header.clone(),
             app_id: self.app_id.clone(),

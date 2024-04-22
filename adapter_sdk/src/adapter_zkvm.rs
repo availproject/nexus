@@ -1,5 +1,5 @@
-use crate::traits::Proof;
-use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+use crate::traits::{Proof, VerificationKey};
+use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupVerificationKey};
 use anyhow::{anyhow, Error};
 use nexus_core::traits::Hasher;
 use nexus_core::types::{
@@ -70,12 +70,12 @@ use serde::Serialize;
 ///
 /// Ensure that the types `Proof`, `RollupPublicInputs`, `AdapterPublicInputs`, `AdapterPrivateInputs`, `Error`, and `Digest` are properly defined and implemented.
 
-pub fn verify_proof<P: Proof>(
-    rollup_proof: Option<RollupProof<P>>,
+pub fn verify_proof<P: Proof<V>, V: VerificationKey>(
+    rollup_proof: Option<RollupProof<P, V>>,
     prev_adapter_public_inputs: Option<AdapterPublicInputs>,
     private_inputs: AdapterPrivateInputs,
     img_id: StatementDigest,
-    vk:[[u8; 32]; 6] ,
+    vk: Option<RollupVerificationKey<V>> ,
 ) -> Result<AdapterPublicInputs, Error> {
     /*  Things adapter must check,
     1. Check if first proof or not, for first proof, proof should be at start height - ✅
@@ -142,7 +142,7 @@ pub fn verify_proof<P: Proof>(
     //TODO: Remove unwrap below.
     //TODO: Allow custom encoding here.
     eprintln!("sending proof to zkvm");
-    proof.verify(&vk, &rollup_public_inputs)?;
+    proof.verify(&vk.unwrap(), &rollup_public_inputs)?;
 
     let prev_public_input: AdapterPublicInputs = match prev_adapter_public_inputs {
         Some(i) => i,

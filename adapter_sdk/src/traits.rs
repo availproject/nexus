@@ -1,4 +1,4 @@
-use crate::types::RollupPublicInputs;
+use crate::types::{RollupPublicInputs, RollupVerificationKey};
 use anyhow::Error;
 use nexus_core::types::H256;
 
@@ -10,12 +10,12 @@ use nexus_core::types::H256;
 //     fn submit_proof_for_blob() -> impl Future<Output = Result<(), anyhow::Error>>;
 // }
 
-pub trait Proof {
-    fn verify(&self, vk: &[[u8; 32] ;6], public_inputs: &RollupPublicInputs) -> Result<(), Error>;
+pub trait Proof<V: VerificationKey>{
+    fn verify(&self, vk: &RollupVerificationKey<V>, public_inputs: &RollupPublicInputs) -> Result<(), Error>;
 }
 
 pub trait VerificationKey {
-    fn temp(&self) -> Result<(), Error>;
+    fn temp(&self) -> Self;
 }
 // pub trait RollupPublicInputs {
 //     fn prev_state_root(&self) -> H256;

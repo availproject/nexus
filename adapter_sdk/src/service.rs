@@ -10,10 +10,10 @@ async fn health_check_handler() -> Result<impl Reply, Rejection> {
     Ok(warp::reply::with_status("OK", StatusCode::OK))
 }
 
-async fn handle_proof_handler<P: Proof + Clone + Serialize + DeserializeOwned + Send,
+async fn handle_proof_handler<P: Proof<V> + Clone + Serialize + DeserializeOwned + Send,
                             V: VerificationKey + Clone + Serialize + DeserializeOwned + Send>(
     state: Arc<Mutex<AdapterState<P, V>>>,
-    proof: RollupProof<P>,
+    proof: RollupProof<P, V>,
 ) -> Result<impl Reply, Rejection> {
     let mut locked_state = state.lock().await;
 
@@ -22,7 +22,7 @@ async fn handle_proof_handler<P: Proof + Clone + Serialize + DeserializeOwned + 
     Ok(warp::reply::with_status("Proof received", StatusCode::OK))
 }
 
-pub async fn server<P: Proof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize,
+pub async fn server<P: Proof<V> + Send + Clone + Sync + 'static + DeserializeOwned + Serialize,
 V: VerificationKey + Send + Clone + Sync + 'static + DeserializeOwned + Serialize>(
     state: Arc<Mutex<AdapterState<P, V>>>,
 ) {

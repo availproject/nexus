@@ -6,6 +6,8 @@ use adapter_sdk::adapter_zkvm::verify_proof;
 use adapter_sdk::types::AdapterPrivateInputs;
 use adapter_sdk::types::AdapterPublicInputs;
 use adapter_sdk::types::RollupProof;
+use adapter_sdk::types::RollupVerificationKey;
+use zk_evm_rollup_core::ZkEvmVerificationKey;
 // use demo_rollup_core::DemoProof;
 // use demo_rollup_core::DemoRollupPublicInputs;
 use zk_evm_rollup_core::ZkEvmProof;
@@ -27,10 +29,10 @@ risc0_zkvm::guest::entry!(main);
 
 fn main() {
     let prev_adapter_public_inputs: Option<AdapterPublicInputs> = env::read();
-    let proof: Option<RollupProof<ZkEvmProof>> = env::read();
+    let proof: Option<RollupProof<ZkEvmProof, ZkEvmVerificationKey>> = env::read();
     let private_inputs: AdapterPrivateInputs = env::read();
     let img_id: StatementDigest = env::read();
-    let vk: [[u8; 32]; 6] = env::read();
+    let vk: Option<RollupVerificationKey<ZkEvmVerificationKey>> = env::read();
 
     println!("here in guest main");
     let result = verify_proof(

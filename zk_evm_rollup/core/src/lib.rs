@@ -1,5 +1,5 @@
 use adapter_sdk::traits::{Proof, VerificationKey};
-use adapter_sdk::types::RollupPublicInputs;
+use adapter_sdk::types::{RollupPublicInputs, RollupVerificationKey};
 
 use ark_bn254::{Fq, Fq2, G2Affine};
 use nexus_core::types::H256;
@@ -545,8 +545,10 @@ pub struct ZkEvmVerificationKey {
 }
 
 impl VerificationKey for ZkEvmVerificationKey {
-    fn temp(&self) -> Result<(), anyhow::Error> {
-        Ok(())
+    fn temp(&self) -> Self {
+       Self {
+           vk: [[0u8; 32]; 6],
+       }
     }
 }
 
@@ -640,10 +642,10 @@ pub fn get_bignint_from_h256(h256: H256) -> BigInt {
     BigInt::from_bytes_le(num_bigint::Sign::Plus, h256.as_fixed_slice())
 }
 
-impl Proof for ZkEvmProof {
+impl Proof<ZkEvmVerificationKey> for ZkEvmProof {
     fn verify(
         &self,
-        vk: &[[u8; 32]; 6],
+        vk: &RollupVerificationKey<ZkEvmVerificationKey>,
         public_inputs: &RollupPublicInputs,
     ) -> Result<(), anyhow::Error> {
         let proof = Prooff{
@@ -686,13 +688,14 @@ impl Proof for ZkEvmProof {
             h2w3: [Fr::zero(); 3],
             h3w3: [Fr::zero(); 3],
         };
+        let iejo = vk.vk.vk[0];
         let mut vpi = VerifierProcessedInputs {
-            c0x: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[0]),
-            c0y: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[1]),
-            x2x1: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[2]),
-            x2x2: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[3]),
-            x2y1: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[4]),
-            x2y2: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk[5]),
+            c0x: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk.vk.vk[0]),
+            c0y: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk.vk.vk[1]),
+            x2x1: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk.vk.vk[2]),
+            x2x2: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk.vk.vk[3]),
+            x2y1: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk.vk.vk[4]),
+            x2y2: BigInt::from_bytes_le(num_bigint::Sign::Plus, &vk.vk.vk[5]),
         };
     
         let pubSignalBigInt = get_bignint_from_h256(self.pub_signal);

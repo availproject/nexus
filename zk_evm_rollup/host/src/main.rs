@@ -13,7 +13,7 @@ use nexus_core::types::{
 };
 use risc0_zkvm::{default_prover, ExecutorEnv, InnerReceipt};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
+use std::{fs::File, marker::PhantomData};
 use std::io::Read;
 use std::time::Instant;
 use std::sync::{Arc, Mutex};
@@ -162,6 +162,7 @@ fn main() {
                 //TODO: Change this to the actual blob hash
                 blob_hash: [2u8; 32].into(),
             },
+            phantom: PhantomData,
         }).unwrap();
         rt.block_on(adapter.add_proof(proof.clone()));
     }

@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::traits::{Proof, VerificationKey};
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
 use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
@@ -17,9 +19,15 @@ pub struct RollupPublicInputs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RollupProof<P: Proof> {
+pub struct RollupProof<P: Proof<V>, V: VerificationKey> {
     pub proof: P,
     pub public_inputs: RollupPublicInputs,
+    pub phantom: PhantomData<V>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RollupVerificationKey<V: VerificationKey> {
+    pub vk: V
 }
 
 pub struct AdapterConfig<V: VerificationKey> {
