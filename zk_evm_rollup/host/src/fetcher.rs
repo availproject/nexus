@@ -10,8 +10,6 @@ use zk_evm_rollup_core::ZkEvmVerificationKey;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::Arc;
-
-
 use crate::utils::*;
 
 #[derive(Debug, Clone)]
@@ -123,7 +121,6 @@ pub async fn fetch_proof_and_pub_signal(
     let mut txn_call_data = tx.input.to_string();
     // slice first 9 element of txn_call_data string
     txn_call_data = txn_call_data[10..].to_string(); // slice method id
-                                                     // let txn_byte = hex::decode(txn_call_data).unwrap();
 
     let chunks: Vec<String> = txn_call_data
         .as_bytes()
@@ -157,11 +154,9 @@ pub async fn fetch_proof_and_pub_signal(
     let mut old_state_root = hex::encode(&resp_old_state_root);
     println!("State Root: {:?}", old_state_root);
 
-    //add "0x"
     old_state_root = format!("0x{}", old_state_root).to_string();
 
     // rest are proof chunks
-
     let new_local_exist_root = hex::decode(chunks[4].clone()).unwrap();
     let new_state_root = hex::decode(chunks[5].clone()).unwrap();
 
@@ -180,7 +175,6 @@ pub async fn fetch_proof_and_pub_signal(
         .await
         .unwrap();
 
-    // getting the pub signal
     println!("Pub Signal: {:?}", snark_hash_bytes);
 
     let mut snark_hash_string = snark_hash_bytes.to_string();
@@ -188,7 +182,6 @@ pub async fn fetch_proof_and_pub_signal(
 
     // concat hash string with beneficairy string
     snark_hash_string = format!("{}{}", beneficiary, snark_hash_string);
-    // snark_hash_string = format!("{}{}", "0x", snark_hash_string);
 
     println!("Snark Hash String: {:?}", snark_hash_string);
 
@@ -203,15 +196,12 @@ pub async fn fetch_proof_and_pub_signal(
     println!("Public Signal: {:?}", pub_signal.to_string());
 
     let mut proof_values: Vec<String> = Vec::new();
-    // let mut proof_values_ref: Vec<&str> = Vec::new();
 
     for i in 7..chunks.len() {
         let big_int_val = U256::from_str(chunks[i].as_str()).expect("Invalid hex value");
         let val_str = big_int_val.to_string();
         proof_values.push(val_str);
     }
-
-    // proof_values_ref = proof_values.iter().map(|s| s.as_str()).collect();
 
     (
         proof_values,

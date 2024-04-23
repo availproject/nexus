@@ -151,7 +151,6 @@ fn main() {
             };
 
             println!("pub signal send {:?}",_proof.1.to_string());
-            // pubSig_fetched = get_u8_arr_from_fr(Fr::from_str(&_proof.1.to_string()).unwrap()).into()
         }
 
         let proof = Some(RollupProof {
@@ -167,7 +166,7 @@ fn main() {
         rt.block_on(adapter.add_proof(proof.clone()));
     }
 
-    rt.block_on( async move {
+    rt.block_on(async move {
         th.await.unwrap();
     }
     );

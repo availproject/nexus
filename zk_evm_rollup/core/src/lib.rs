@@ -1,10 +1,8 @@
 use adapter_sdk::traits::{Proof, VerificationKey};
 use adapter_sdk::types::{RollupPublicInputs, RollupVerificationKey};
-
 use ark_bn254::{Fq, Fq2, G2Affine};
 use nexus_core::types::H256;
 use serde::{Deserialize, Serialize, Deserializer};
-
 use ark_bn254::{g1, g1::Parameters, Bn254, FqParameters, Fr, FrParameters, G1Projective};
 use ark_ec::short_weierstrass_jacobian::GroupAffine;
 use ark_ec::*;
@@ -13,22 +11,16 @@ use std::str::FromStr;
 use std::ops::{Add, Mul, Neg, Sub};
 pub mod utils;
 use utils::*;
-
 pub type G1Point = <Bn254 as PairingEngine>::G1Affine;
 pub type G2Point = <Bn254 as PairingEngine>::G2Affine;
-
 use tiny_keccak::{Hasher, Keccak};
 use num_bigint::{BigInt, BigUint};
-
-
-
 
 pub struct LISValues {
     pub li_s0_inv: [Fp256<FrParameters>; 8],
     pub li_s1_inv: [Fp256<FrParameters>; 4],
     pub li_s2_inv: [Fp256<FrParameters>; 6],
 }
-
 pub struct Challenges {
     pub alpha: Fp256<FrParameters>,
     pub beta: Fp256<FrParameters>,
@@ -38,14 +30,12 @@ pub struct Challenges {
     pub xiSeed2: Fp256<FrParameters>,
     pub xi: Fp256<FrParameters>,
 }
-
 pub struct Roots {
     pub h0w8: [Fp256<FrParameters>; 8],
     pub h1w4: [Fp256<FrParameters>; 4],
     pub h2w3: [Fp256<FrParameters>; 3],
     pub h3w3: [Fp256<FrParameters>; 3],
 }
-
 pub struct VerifierProcessedInputs {
     pub c0x: BigInt,
     pub c0y: BigInt,
@@ -56,9 +46,6 @@ pub struct VerifierProcessedInputs {
 }
 
 fn fr_parameter_to_hex_string(hex_string: String) -> [u8; 32] {
-    // Convert the value to a hexadecimal string
-    // let hex_string = value.to_string();
-
     // Extract the desired bits (8 to 72 characters) and prepend "0x"
     let substring = format!("0x{}", &hex_string[8..72]);
 
@@ -69,7 +56,6 @@ pub fn compute_challenges(
     challenges: &mut Challenges, roots: &mut Roots, mut zh: &mut Fp256<FrParameters>, zhinv: &mut Fp256<FrParameters>, vpi: VerifierProcessedInputs, pubSignals: BigInt
 ){
     let mut hasher = Keccak::v256();
-
     let val1 = vpi.c0x.to_bytes_be();
     let val2 = vpi.c0y.to_bytes_be();
     let val3 = pubSignals.to_bytes_be();
@@ -84,7 +70,6 @@ pub fn compute_challenges(
     concatenated.extend_from_slice(&padd_bytes32(val5.1));
 
     hasher.update(&concatenated);
-
     let mut out = [0u8; 32];
     hasher.finalize(&mut out);
     let _beta = BigInt::from_bytes_be(num_bigint::Sign::Plus, &out);
@@ -109,7 +94,6 @@ pub fn compute_challenges(
     let mut hasher3 = Keccak::v256();
     let _gamma_string = gamma.to_string();
     let gamma_string = &_gamma_string[8..8+64];
-    // println!("gamma_string: {:?}", gamma_string);
     let val7 = BigInt::parse_bytes(gamma_string.as_bytes(), 16).unwrap().to_bytes_be();
     let val8 = get_proog_bigint().c2.0.to_bytes_be();
     let val9 = get_proog_bigint().c2.1.to_bytes_be();
@@ -125,11 +109,8 @@ pub fn compute_challenges(
     let _xiSeed = BigInt::from_bytes_be(num_bigint::Sign::Plus, &out);
     let xiSeed = Fr::from_str(&_xiSeed.to_string()).unwrap();
 
-    // println!("xiSeed: {:?}", xiSeed.to_string());
-
     //xiSeed2
     let mut xiSeed2 = xiSeed.mul(xiSeed);
-    // println!("xiSeed2: {:?}", xiSeed2.to_string());
 
     //roots h0w8
     roots.h0w8[0] = xiSeed2.mul(xiSeed);
@@ -157,7 +138,6 @@ pub fn compute_challenges(
     roots.h3w3[1] = roots.h3w3[0].mul(get_omegas().w3);
     roots.h3w3[2] = roots.h3w3[0].mul(get_omegas().w3_2);
 
-
     //zh and zhInv
     let mut xin = roots.h2w3[0].mul(roots.h2w3[0]).mul(roots.h2w3[0]);
     let mut Xin = xin;
@@ -169,16 +149,12 @@ pub fn compute_challenges(
 
     *zh = xin;
     *zhinv = xin;
-    // println!("zh: {:?}", zh.to_string());
 
     // alpha
     let mut hasher4 = Keccak::v256();
-
     let _xiseed_string = xiSeed.to_string();
     let xiseed_string = &_xiseed_string[8..8+64];
-    // let val6 = BigInt::parse_bytes(beta_string.trim_start_matches("0x").as_bytes(), 16).unwrap().to_bytes_be();
-    let val10 = BigInt::parse_bytes(xiseed_string.to_string().as_bytes(), 16).unwrap().to_bytes_be();
-    
+    let val10 = BigInt::parse_bytes(xiseed_string.to_string().as_bytes(), 16).unwrap().to_bytes_be();    
     let val11 = get_proog_bigint().eval_ql.to_bytes_be();
     let val12 = get_proog_bigint().eval_qr.to_bytes_be();
     let val13 = get_proog_bigint().eval_qm.to_bytes_be();
@@ -220,7 +196,6 @@ pub fn compute_challenges(
     let _alpha = BigInt::from_bytes_be(num_bigint::Sign::Plus, &out);
     let alpha = Fr::from_str(&_alpha.to_string()).unwrap();
 
-    println!("alpha: {:?}", alpha.to_string());
     //y
     let mut hasher5 = Keccak::v256();
     let _alpha_string = alpha.to_string();
@@ -239,8 +214,6 @@ pub fn compute_challenges(
     hasher5.finalize(&mut out);
     let _y = BigInt::from_bytes_be(num_bigint::Sign::Plus, &out);
     let y = Fr::from_str(&_y.to_string()).unwrap();
-
-    println!("y: {:?}", y.to_string());
 
     challenges.alpha = alpha;
     challenges.beta = beta;
@@ -286,7 +259,6 @@ pub fn calculateInversions(
     let mut w = y
         .sub(h1w4[0])
         .mul(y.sub(h1w4[1]).mul(y.sub(h1w4[2]).mul(y.sub(h1w4[3]))));
-    // println!("w: {}", (w));
 
     let denH1 = w.clone();
 
@@ -296,22 +268,14 @@ pub fn calculateInversions(
             .mul(y.sub(h3w3[0]).mul(y.sub(h3w3[1]).mul(y.sub(h3w3[2])))),
     );
 
-    // println!("w: {}", (w));
-
     let denH2 = w.clone();
-
     let mut li_s0_inv = computeLiS0(y, h0w8);
-
     let mut li_s1_inv = computeLiS1(y, h1w4);
-
     let mut li_s2_inv = computeLiS2(y, xi, h2w3, h3w3);
-    // println!()
 
     w = Fr::from_str("1").unwrap();
 
     let mut eval_l1 = get_domain_size().mul(xi.sub(w));
-
-    // println!("eval_l1: {}", eval_l1);
 
     let invser_arr_resp = inverseArray(
         denH1,
@@ -346,8 +310,6 @@ pub fn computeLiS0(
         .mul(root0)
         .mul(root0);
 
-    // println!("den1: {}", den1);
-
     den1 = den1.mul(Fr::from_str("8").unwrap());
 
     let mut den2;
@@ -358,14 +320,11 @@ pub fn computeLiS0(
     for i in 0..8 {
         let coeff = ((i * 7) % 8);
         den2 = h0w8[0 + coeff];
-        // println!("den2: {}", den2);
         den3 = y.add(get_q().sub(h0w8[0 + (i)]));
-        // println!("den3: {}", den3);
 
         li_s0_inv[i] = den1.mul(den2).mul(den3);
 
     }
-    // println!("li_s0_inv: {}", li_s0_inv[7]);
 
     li_s0_inv
 }
@@ -392,7 +351,6 @@ pub fn computeLiS1(
         li_s1_inv[i] = den1.mul(den2).mul(den3);
     }
 
-    // println!("li_s1_inv: {}", li_s1_inv[3]);
     li_s1_inv
 }
 
@@ -438,7 +396,6 @@ pub fn inverseArray(
     li_s2_inv: [Fp256<FrParameters>; 6],
     eval_l1: &mut Fp256<FrParameters>,
 ) -> (LISValues, Fp256<FrParameters>, Fp256<FrParameters>) {
-    // let mut local_eval_l1 = eval_l1.clone();
     let mut local_den_h1 = denH1.clone();
     let mut local_den_h2 = denH2.clone();
     let mut local_zh_inv = zhInv.clone();
@@ -470,15 +427,10 @@ pub fn inverseArray(
     }
     acc = acc.mul(eval_l1.clone());
     _acc.push(acc);
-    // println!("acc: {}", acc);
-    // println!("acc wala xeval_l1: {}", eval_l1);
 
     let mut inv = get_proof().eval_inv;
 
-    // println!("inv: {}", inv);
-
     let check = inv.mul(acc);
-    // println!("check: {}", check);
     //TODO: Check if check is 1
     // assert!(check == Fr::one());
 
@@ -488,7 +440,6 @@ pub fn inverseArray(
     inv = acc.mul(_acc.last().unwrap().clone());
     acc = acc.mul(eval_l1.clone());
     *eval_l1 = inv;
-    // println!("herer eval_l1: {}", eval_l1);
 
     for i in (0..6).rev() {
         _acc.pop();
@@ -496,7 +447,6 @@ pub fn inverseArray(
         acc = acc.mul(local_li_s2_inv[i]);
         local_li_s2_inv[i] = inv;
     }
-    // println!("local_li_s2_inv_0: {}", local_li_s2_inv[0]);
 
     for i in (0..4).rev() {
         _acc.pop();
@@ -505,16 +455,12 @@ pub fn inverseArray(
         local_li_s1_inv[i] = inv;
     }
 
-    // println!("local_li_s1_inv_0: {}", local_li_s1_inv[0]);
-
     for i in (0..8).rev() {
         _acc.pop();
         inv = acc.mul(_acc.last().unwrap().clone());
         acc = acc.mul(local_li_s0_inv[i]);
         local_li_s0_inv[i] = inv;
     }
-
-    // println!("local_li_s0_inv_0: {}", local_li_s0_inv[0]);
 
     _acc.pop();
     inv = acc.mul(_acc.last().unwrap().clone());
@@ -535,7 +481,6 @@ pub fn inverseArray(
     };
 
     (lis_values, local_den_h1, local_den_h2)
-    // println!("local_zh_inv: {}", local_zh_inv);
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -848,9 +793,6 @@ pub struct ZkEvmRollupPublicInputs {
 //         self.blob_hash.clone()
 //     }
 // }
-
-
-
 
 fn calculateR0(
     xi: Fp256<FrParameters>,
@@ -1320,49 +1262,17 @@ fn computeFEJ(
         <G1Projective as ProjectiveCurve>::BaseField::one(),
     )
     .into_affine();
-    // pf -> c0x
-    // pf + 32 -> c0y
-    // pf, pc1, quotient1
-
-    // min -> c1x
-    // min + 32 -> c1y
-    // min + 64 -> quotient1
-
-    // multiply c1 * quotient1
-
-    // min + 64 -> c0x
-    // min + 96 -> c0y
-
-    // adding points c1 * quotient1 + c0
-
-    // print!("Quotient 1: {:?}", quotient1.to_string());
-    // print!("Quotient 2: {:?}", quotient2.to_string());
 
     let c1_agg = c0_affine.add(c1.mul(quotient1).into_affine());
 
     let c2_agg = c1_agg.add(c2.mul(quotient2).into_affine()); //  F point
-                                                              // println!("c2_agg: {:?}", c2_agg.x.to_string());
-                                                              // println!("c2_agg: {:?}", c2_agg.y.to_string());
 
     let r_agg = R0.add(quotient1.mul(R1).add(quotient2.mul(R2)));
 
     let g1_acc = g1.mul(r_agg).into_affine(); // E point
-                                              // println!("g1_acc: {:?}", g1_acc.x.to_string());
-                                              // println!("g1_acc: {:?}", g1_acc.y.to_string());
 
     let w1_agg = w1.mul(numerator).into_affine(); // J Point
-
-    // println!("w1_agg: {:?}", w1_agg.x.to_string());
-    // println!("w1_agg: {:?}", w1_agg.y.to_string());
-    // pE, g1x, g1y, r_agg
-    // min -> g1x
-    // min + 32 -> g1y
-    // min + 64 -> r_agg
-
-    // multiply g1 * r_agg
-
-    // min + 64 -> 0
-    // min + 96 -> 0
+    
     (c2_agg, g1_acc, w1_agg)
 }
 

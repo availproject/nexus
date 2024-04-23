@@ -310,12 +310,6 @@ pub fn get_proof() -> Prooff {
         "6378827379501409574366452872421073840754012879130221505294134572417254316105",
     ];
 
-    // for i in 0..pr.len() {
-    //     // println!("{}: {}", i, pr[i]);
-    //   let val = &U256::from_str(pr[i]).unwrap().to_string();
-    //   println!(" \"{},\" ", val);
-    // }
-
     let c1_x = <G1Point as AffineCurve>::BaseField::from_str(pr[0]).unwrap();
     let c1_y = <G1Point as AffineCurve>::BaseField::from_str(pr[1]).unwrap();
     let c1_affine = G1Projective::new(
@@ -382,7 +376,6 @@ pub fn padd_bytes32(input: Vec<u8>) -> Vec<u8> {
     let mut result = input.clone();
     let mut padding = vec![0; 32 - input.len()];
     padding.append(&mut result);
-    // result.append(&mut padding);
     padding
 }
 
@@ -406,7 +399,6 @@ pub fn get_g2_pairing() -> G2Affine{
 
     // second pairing value
     G2Affine::new(Fq2::new(g2x1, g2x2), Fq2::new(g2y1, g2y2), true)
-
 }
 
 pub fn get_g2_fourth_pairing() -> G2Affine{
@@ -428,7 +420,6 @@ pub fn get_g2_fourth_pairing() -> G2Affine{
     .unwrap();
 
     G2Affine::new(Fq2::new(x2x1, x2x2), Fq2::new(x2y1, x2y2), true)
-
 }
 
 pub fn get_q() -> Fp256<FrParameters>{
