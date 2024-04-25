@@ -10,6 +10,7 @@ use crate::types::{
 };
 use anyhow::{anyhow, Context, Error};
 
+use avail_core::DataLookup;
 use avail_core::{data_proof::ProofResponse, AppId as AvailAppID, DataProof};
 use avail_subxt::AvailConfig;
 use avail_subxt::{
@@ -147,6 +148,8 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
             while let Some(header) = receiver.recv().await {
                 let avail_header = AvailHeader::from(&header);
+                let inclusion_proof = this.store_inclusion_proof(avail_header.hash()).await;
+
                 let new_queue_item = QueueItem {
                     proof: None,
                     blob: None,
@@ -161,8 +164,6 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                     .await
                     .store_last_known_queue(&queue)
                     .unwrap();
-
-                this.store_inclusion_proof(avail_header.hash()).await;
             }
         });
 
@@ -334,17 +335,26 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
     // function to generate proof against avail data when proof is received and verified from the rollup
     fn verify_and_generate_proof(&mut self, queue_item: &QueueItem<P>) -> Result<Receipt, Error> {
-        if queue_item.blob.is_none() || queue_item.proof.is_none() {
-            return Err(anyhow!("Incomplete proof item inside queue"));
+        let private_inputs;
+
+        match queue_item.blob.as_ref() {
+            Some(value) => {
+                let (hash, blob) = value;
+
+                private_inputs = AdapterPrivateInputs {
+                    header: queue_item.header.clone(),
+                    app_id: self.app_id.clone(),
+                    blob: Some((hash.clone(), blob.clone())),
+                };
+            }
+            None => {
+                private_inputs = AdapterPrivateInputs {
+                    header: queue_item.header.clone(),
+                    app_id: self.app_id.clone(),
+                    blob: None,
+                };
+            }
         }
-
-        let (hash, blob) = queue_item.blob.as_ref().unwrap();
-
-        let private_inputs = AdapterPrivateInputs {
-            header: queue_item.header.clone(),
-            app_id: self.app_id.clone(),
-            blob: (hash.clone(), blob.clone()),
-        };
 
         let prev_pi_and_receipt = match &self.previous_adapter_proof {
             None => {
@@ -420,8 +430,17 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         Ok(())
     }
 
-    async fn store_inclusion_proof(&mut self, block_hash: H256) -> Result<(), Error> {
+    async fn store_inclusion_proof(
+        &mut self,
+        block_hash: H256,
+    ) -> Result<(Option<AvailH256>, Option<DataProof>), Error> {
+        // check if app id exists, if not return empty value
         let client = Self::establish_a_connection().await?;
+
+        //  client.rpc_methods().query_app_data(self.app_id, block_hash).await?;
+
+        // return Ok((None, None))
+
         let hash_db = self.hash_db.lock().await;
         let db_entry = hash_db.get(block_hash);
 
@@ -429,26 +448,18 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             .map(|value| value.transaction_index)
             .map_err(|_| anyhow!("No such entry exists."))?;
 
-        let inclusion_proof = self
+        let inclusion_proof: Result<ProofResponse, Error> = self
             .get_inclusion_proof(
                 &client,
                 transaction_index,
                 AvailH256::from(block_hash.as_fixed_slice()),
             )
             .await;
+
         let blob_hash = inclusion_proof.as_ref().unwrap().data_proof.leaf.clone();
         let data_proof = inclusion_proof.unwrap().data_proof;
 
-        let mut queue = self.queue.lock().await;
-
-        for height in queue.iter_mut() {
-            if height.header.hash() == block_hash {
-                height.blob = Some((H256::from(blob_hash.to_fixed_bytes()), data_proof));
-                break;
-            }
-        }
-
-        Ok(())
+        Ok((Some(blob_hash), Some(data_proof)))
     }
 
     async fn send_tx(

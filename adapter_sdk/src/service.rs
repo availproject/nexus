@@ -28,7 +28,7 @@ async fn handle_proof_handler<P: Proof + Clone + Serialize + DeserializeOwned + 
     Ok(warp::reply::with_status("Proof received", StatusCode::OK))
 }
 
-async fn handle_blob_handler<P: Proof + Clone + Serialize + DeserializeOwned + Send>(
+async fn handle_submit_blob<P: Proof + Clone + Serialize + DeserializeOwned + Send>(
     state: Arc<Mutex<AdapterState<P>>>,
     request: BlobDataRequest,
 ) -> Result<impl Reply, Rejection> {
@@ -36,7 +36,7 @@ async fn handle_blob_handler<P: Proof + Clone + Serialize + DeserializeOwned + S
     let blob = &request.blob[..];
     locked_state.store_blob(blob).await;
     Ok(warp::reply::with_status(
-        "Data Blob with inclusion proof received",
+        "Data Blob received and posted on Avail DA",
         StatusCode::OK,
     ))
 }
@@ -61,7 +61,7 @@ pub async fn server<P: Proof + Send + Clone + Sync + 'static + DeserializeOwned 
         .and(warp::path("blob_data"))
         .and(warp::any().map(move || state.clone()))
         .and(warp::body::json())
-        .and_then(handle_blob_handler);
+        .and_then(handle_submit_blob);
 
     // // Combined routes
     let routes = health_check_route.or(proof_route).or(blob_data_route);

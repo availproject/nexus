@@ -1,3 +1,5 @@
+use std::any;
+
 use crate::traits::Proof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
@@ -92,6 +94,7 @@ pub fn verify_proof<P: Proof>(
     6. Verify current proof -  ✅
     7. Hash the header provided - ✅
     8. Allow verification of empty proof - ✅
+    9. Verify inclusion proof - ✅
     */
 
     let current_avail_hash: H256 = private_inputs.header.hash();
@@ -102,25 +105,6 @@ pub fn verify_proof<P: Proof>(
 
     let hash: H256 = hasher.finish();
     let app_account_id: AppAccountId = AppAccountId::from(hash);
-
-    let blob = private_inputs.blob.clone();
-
-    let leaf: Leaf<SPH256> = Leaf::from(blob.0.as_fixed_slice());
-    let root = SPH256::from(blob.1.roots.data_root.as_fixed_bytes());
-
-    //let hash = Keccak256::from(blob.0.as_fixed_slice());
-
-    if verify_merkle_proof::<Keccak256, Vec<SPH256>, Leaf<SPH256>>(
-        &root,
-        blob.1.proof,
-        blob.1.number_of_leaves as usize,
-        blob.1.leaf_index as usize,
-        leaf,
-    ) {
-        return Err(anyhow::anyhow!(
-            "Invalid data inclusion proof againts the data root"
-        ));
-    }
 
     let (proof, rollup_public_inputs) = match rollup_proof {
         Some(i) => (i.proof, i.public_inputs),
@@ -140,6 +124,26 @@ pub fn verify_proof<P: Proof>(
 
             if !empty_block {
                 return Err(anyhow!("Header not empty, but no proof"));
+            }
+
+            match private_inputs.blob.clone() {
+                Some(blob) => {
+                    let leaf: Leaf<SPH256> = Leaf::from(blob.0.as_fixed_slice());
+                    let root = SPH256::from(blob.1.roots.data_root.as_fixed_bytes());
+
+                    if verify_merkle_proof::<Keccak256, Vec<SPH256>, Leaf<SPH256>>(
+                        &root,
+                        blob.1.proof,
+                        blob.1.number_of_leaves as usize,
+                        blob.1.leaf_index as usize,
+                        leaf,
+                    ) {
+                        return Err(anyhow::anyhow!(
+                            "Invalid data inclusion proof againts the data root"
+                        ));
+                    }
+                }
+                None => return Err(anyhow!("Empty blob")),
             }
 
             return Ok(match prev_adapter_public_inputs {

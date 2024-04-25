@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct AdapterPrivateInputs {
     pub header: AvailHeader,
     pub app_id: AppId,
-    pub blob: (H256, DataProof),
+    pub blob: Option<(H256, DataProof)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
