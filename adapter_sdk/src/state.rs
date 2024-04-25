@@ -10,8 +10,9 @@ use crate::types::{
 };
 use anyhow::{anyhow, Context, Error};
 
-use avail_core::DataLookup;
 use avail_core::{data_proof::ProofResponse, AppId as AvailAppID, DataProof};
+use avail_subxt::api::runtime_types::avail_core::header::extension::v3;
+use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
 use avail_subxt::AvailConfig;
 use avail_subxt::{
     api, api::data_availability::calls::types::SubmitData, rpc::KateRpcClient, AvailClient,
@@ -148,7 +149,9 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
             while let Some(header) = receiver.recv().await {
                 let avail_header = AvailHeader::from(&header);
-                let inclusion_proof = this.store_inclusion_proof(avail_header.hash()).await;
+                let inclusion_proof = this
+                    .check_and_get_inclusion_proof(avail_header.hash())
+                    .await;
 
                 let new_queue_item = QueueItem {
                     proof: None,
@@ -430,16 +433,32 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         Ok(())
     }
 
-    async fn store_inclusion_proof(
+    async fn check_and_get_inclusion_proof(
         &mut self,
         block_hash: H256,
     ) -> Result<(Option<AvailH256>, Option<DataProof>), Error> {
         // check if app id exists, if not return empty value
         let client = Self::establish_a_connection().await?;
 
-        //  client.rpc_methods().query_app_data(self.app_id, block_hash).await?;
+        let block_headers = client
+            .backend()
+            .block_header(AvailH256::from(block_hash.as_fixed_slice()))
+            .await?;
 
-        // return Ok((None, None))
+        let mut exists = false;
+        if let Some(header) = block_headers {
+            let HeaderExtension::V3(v3::HeaderExtension { app_lookup, .. }) = header.extension;
+            for app in app_lookup.index {
+                if AppId(app.app_id.0) == self.app_id {
+                    exists = true;
+                    break;
+                }
+            }
+        }
+
+        if !exists {
+            return Ok((None, None));
+        }
 
         let hash_db = self.hash_db.lock().await;
         let db_entry = hash_db.get(block_hash);
