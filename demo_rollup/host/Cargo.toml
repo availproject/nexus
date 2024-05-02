@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 methods = { path = "../methods" }
-risc0-zkvm = { version = "0.20", features = ["metal"] }
+risc0-zkvm = { version = "0.20" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = "1.0"
 nexus-core = { path = "../../core"}
@@ -19,10 +19,11 @@ demo_rollup_core = { path = "../core" }
 anyhow = "1.0.80"
 warp = "0.3.6"
 avail-core = {  git = "https://github.com/availproject/avail-core", branch = "main" }
-avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v2.0.0.0-rc4", features = ["std"]}
 
 [patches.crate-io]
 sp-core = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
 sp-io = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
 sp-runtime = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
 sp-std = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
+target-lexicon = { git = 'https://github.com/weikengchen/target-lexicon.git', branch = 'main' }
+ahash = {git = 'https://github.com/tkaitchuck/aHash', tag = "v0.8.10"}

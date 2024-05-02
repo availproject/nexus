@@ -5,7 +5,6 @@ use adapter_sdk::{
 };
 use anyhow::{anyhow, Error};
 use avail_core::data_proof::ProofResponse;
-use avail_subxt::{rpc::KateRpcClient, utils::H256, AvailClient};
 use demo_rollup_core::{DemoProof, DemoRollupPublicInputs};
 use methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::types::{AppId, StatementDigest};
