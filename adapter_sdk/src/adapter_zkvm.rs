@@ -3,12 +3,15 @@ use std::any;
 use crate::traits::Proof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
+#[cfg(any(feature = "native"))]
 use sp_core::H256 as SPH256;
 
+#[cfg(any(feature = "native"))]
 use avail_core::{keccak256, Keccak256};
 // use avail_subxt::utils::H256;
-
+#[cfg(any(feature = "native"))]
 use avail_subxt::utils::H256 as AvailH256;
+
 use binary_merkle_tree::verify_proof as verify_merkle_proof;
 use binary_merkle_tree::Leaf;
 use binary_merkle_tree::MerkleProof;
