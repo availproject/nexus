@@ -17,8 +17,18 @@ anyhow = "1.0.81"
 warp = { version = "0.3", optional = true }
 risc0-zkvm = {version = "0.20", default-features = false, features = ["std"]}
 relayer = { path = "../relayer", optional = true}
+binary-merkle-tree = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-v1.5.0" }
+avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v2.0.0.0-rc4", features = ["std"], optional = true}
+subxt-signer = {version = "0.34", optional = true}
+
 
 [features]
 default = ["native"]
-native = ["nexus-core/native", "risc0-zkvm/default", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp"]
+native = ["nexus-core/native", "risc0-zkvm/default", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp", "avail-subxt", "subxt-signer"]
 zkvm = ["nexus-core/zkvm"]
+
+[patch.crates-io]
+avail-core = {  git = "https://github.com/availproject/avail-core",rev = "v0.5.0"}
+sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+
+
