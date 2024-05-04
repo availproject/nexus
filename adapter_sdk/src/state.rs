@@ -26,6 +26,12 @@ use tokio::time::{sleep, Duration};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InclusionProof(pub Vec<u8>);
 
+use subxt::{
+    ext::sp_core::sr25519::Pair,
+    ext::sp_core::Pair as PairT,
+    tx::{PairSigner, Payload},
+};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct QueueItem<P: Proof + Clone> {
     proof: Option<RollupProof<P>>,

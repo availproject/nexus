@@ -1,6 +1,11 @@
 use crate::traits::Proof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
 use anyhow::{anyhow, Error};
+#[cfg(any(feature = "native"))]
+use sp_core::H256 as SPH256;
+#[cfg(any(feature = "native"))]
+use avail_core::{keccak256, Keccak256};
+use avail_subxt::utils::H256 as AvailH256;
 use nexus_core::traits::Hasher;
 use nexus_core::types::{
     AppAccountId, AvailHeader, Extension, ShaHasher, StatementDigest, V3Extension, H256,
