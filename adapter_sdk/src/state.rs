@@ -57,13 +57,13 @@ pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'stati
     pub vk: [u8; 32],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
-    pub hash_db: Arc<Mutex<HashDB>>,
+    // pub hash_db: Arc<Mutex<HashDB>>,
 }
 
 impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     pub fn new(storage_path: String, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path.clone());
-        let hash_db = HashDB::from_path(storage_path.clone());
+        // let hash_db = HashDB::from_path(storage_path.clone());
 
         AdapterState {
             starting_block_number: config.rollup_start_height,
@@ -74,7 +74,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             vk: config.vk,
             app_id: config.app_id,
             db: Arc::new(Mutex::new(db)),
-            hash_db: Arc::new(Mutex::new(hash_db)),
+            // hash_db: Arc::new(Mutex::new(hash_db)),
         }
     }
 
@@ -423,14 +423,14 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         let call = api::tx().data_availability().submit_data(data);
         let (transaction_index) = self.send_tx(call, &signer, &client).await?;
 
-        let hash_db = self.hash_db.lock().await;
+        // let hash_db = self.hash_db.lock().await;
         //TODO
         // let _ = hash_db.put(
         //     H256::from(block_hash.to_fixed_bytes()),
         //     InclusionData::new(H256::from(block_hash.to_fixed_bytes()), transaction_index),
         // );
 
-        drop(hash_db);
+        // drop(hash_db);
 
         Ok(())
     }
@@ -466,12 +466,14 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             return Ok((None, None));
         }
 
-        let hash_db = self.hash_db.lock().await;
-        let db_entry = hash_db.get(block_hash);
+        // TODO
+        // let hash_db = self.hash_db.lock().await;
+        // let db_entry = hash_db.get(block_hash);
 
-        let transaction_index = db_entry
-            .map(|value| value.transaction_index)
-            .map_err(|_| anyhow!("No such entry exists."))?;
+        let transaction_index = 0u32;
+        // db_entry
+        //     .map(|value| value.transaction_index)
+        //     .map_err(|_| anyhow!("No such entry exists."))?;
 
         let inclusion_proof: Result<DataProof, Error> = self
             .get_inclusion_proof(
