@@ -39,9 +39,8 @@ name = "adapter_sdk"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "avail-core 0.6.0",
  "avail-subxt 0.5.0",
- "binary-merkle-tree 13.0.0",
+ "binary-merkle-tree 4.0.0-dev (git+https://github.com/availproject/polkadot-sdk.git?tag=polkadot-v1.5.0)",
  "hex",
  "nexus-core",
  "relayer",
@@ -49,9 +48,9 @@ dependencies = [
  "risc0-zkvm",
  "serde",
  "serde_json",
- "sp-core 28.0.0 (git+https://github.com/availproject/polkadot-sdk.git?tag=polkadot-1.7.1-patch-2)",
  "subxt 0.34.0",
  "subxt-signer",
+ "tiny-keccak",
  "tokio",
  "tokio-stream",
  "warp",
@@ -841,7 +840,7 @@ name = "avail-core"
 version = "0.5.1"
 source = "git+https://github.com/availproject/avail-core?tag=core-goldberg-v1.11.0.0#34c910c175b6b7f18a48aabd1e64c86da5cfbad2"
 dependencies = [
- "binary-merkle-tree 4.0.0-dev",
+ "binary-merkle-tree 4.0.0-dev (git+https://github.com/availproject/substrate.git?branch=goldberg)",
  "derive_more",
  "ethabi",
  "frame-support 4.0.0-dev",
@@ -1070,6 +1069,16 @@ dependencies = [
 [[package]]
 name = "binary-merkle-tree"
 version = "4.0.0-dev"
+source = "git+https://github.com/availproject/polkadot-sdk.git?tag=polkadot-v1.5.0#a3dc2f15f23b3fd25ada62917bfab169a01f2b0d"
+dependencies = [
+ "array-bytes 6.2.2",
+ "hash-db 0.16.0",
+ "log",
+]
+
+[[package]]
+name = "binary-merkle-tree"
+version = "4.0.0-dev"
 source = "git+https://github.com/availproject/substrate.git?branch=goldberg#da7b751f925fdd1e64d78682f01d1d4bfb13938c"
 dependencies = [
  "hash-db 0.16.0",
@@ -1081,7 +1090,6 @@ name = "binary-merkle-tree"
 version = "13.0.0"
 source = "git+https://github.com/availproject/polkadot-sdk.git?tag=polkadot-1.7.1-patch-2#421b75ae1795b6c4e9a362b214395b3910ed5b8c"
 dependencies = [
- "array-bytes 6.2.2",
  "hash-db 0.16.0",
  "log",
 ]

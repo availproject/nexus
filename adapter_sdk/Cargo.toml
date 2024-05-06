@@ -17,18 +17,18 @@ anyhow = "1.0.81"
 warp = { version = "0.3", optional = true }
 risc0-zkvm = {version = "0.20", default-features = false, features = ["std"]}
 relayer = { path = "../relayer", optional = true}
-avail-core = {  git = "https://github.com/availproject/avail-core", branch = "main", optional = true }
-binary-merkle-tree = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2" }
-sp-core = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-2", optional = true }
+binary-merkle-tree = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-v1.5.0" }
+
 avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v2.0.0.0-rc4", features = ["std"], optional = true}
 subxt-signer = {version = "0.34", optional = true}
 subxt = {version = "0.34.0", features = ["substrate-compat"], optional = true}
 # mockito = "1.4.0"
+tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
 
 [patches.crate-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 
 [features]
 default = ["native"]
-native = ["nexus-core/native", "risc0-zkvm/default", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp", "sp-core", "avail-core", "avail-subxt", "subxt-signer", "subxt"]
+native = ["nexus-core/native", "risc0-zkvm/default", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp", "avail-subxt", "subxt-signer", "subxt"]
 zkvm = ["nexus-core/zkvm"]

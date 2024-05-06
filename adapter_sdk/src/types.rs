@@ -1,8 +1,49 @@
 use crate::traits::Proof;
-use avail_core::DataProof;
+// use bounded_collections::BoundedVec;
+
+// use codec::{Decode, Encode};
+
+// use avail_core::DataProof;
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
 use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
 use serde::{Deserialize, Serialize};
+
+
+
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+// #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+// #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct TxDataRoots {
+	/// Global Merkle root
+	pub data_root: H256,
+	/// Merkle root hash of submitted data
+	pub blob_root: H256,
+	/// Merkle root of bridged data
+	pub bridge_root: H256,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct DataProof {
+	pub roots: TxDataRoots,
+	/// Proof items (does not contain the leaf hash, nor the root obviously).
+	///
+	/// This vec contains all inner node hashes necessary to reconstruct the root hash given the
+	/// leaf hash.
+	pub proof: Vec<H256>,
+	/// Number of leaves in the original tree.
+	///
+	/// This is needed to detect a case where we have an odd number of leaves that "get promoted"
+	/// to upper layers.
+	// #[codec(compact)]
+	pub number_of_leaves: u32,
+	/// Index of the leaf the proof is for (0-based).
+	// #[codec(compact)]
+	pub leaf_index: u32,
+	/// Leaf content.
+	pub leaf: H256,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterPrivateInputs {
