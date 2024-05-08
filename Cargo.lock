@@ -1443,6 +1443,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "cdk-validium-adapter-host"
+version = "0.1.0"
+dependencies = [
+ "adapter_sdk",
+ "anyhow",
+ "avail-core 0.6.0",
+ "avail-subxt 0.5.0",
+ "cdk-validium-methods",
+ "cdk_validium_core",
+ "nexus-core",
+ "parity-scale-codec",
+ "relayer",
+ "risc0-zkvm",
+ "serde",
+ "serde_json",
+ "sp-runtime 33.0.0",
+ "tokio",
+ "tracing-subscriber 0.3.18",
+ "warp",
+]
+
+[[package]]
+name = "cdk-validium-methods"
+version = "0.1.0"
+dependencies = [
+ "risc0-build",
+]
+
+[[package]]
+name = "cdk_validium_core"
+version = "0.1.0"
+dependencies = [
+ "adapter_sdk",
+ "anyhow",
+ "nexus-core",
+ "serde",
+]
+
+[[package]]
 name = "cexpr"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -8,9 +8,12 @@ members = [
     "demo_rollup/host", 
     "demo_rollup/methods",
     "demo_rollup/core",
+    "cdk_validium_service/core",
+    "cdk_validium_service/host",
+    "cdk_validium_service/methods",
     "adapter_sdk",
     "old_demo_rollup"
-]
+    ]
 
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
