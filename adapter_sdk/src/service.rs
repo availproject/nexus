@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{http::StatusCode, reject::Rejection, reply::Reply, Filter};
+use env_logger;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct BlobDataRequest {
@@ -44,6 +45,7 @@ async fn handle_submit_blob<P: Proof + Clone + Serialize + DeserializeOwned + Se
 pub async fn server<P: Proof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize>(
     state: Arc<Mutex<AdapterState<P>>>,
 ) {
+    env_logger::init();
     // Health check route
     let health_check_route = warp::get()
         .and(warp::path("health"))
@@ -67,5 +69,5 @@ pub async fn server<P: Proof + Send + Clone + Sync + 'static + DeserializeOwned 
     let routes = health_check_route.or(proof_route).or(blob_data_route);
 
     // Start the server
-    warp::serve(routes).run(([127, 0, 0, 1], 3031)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 3031)).await;
 }

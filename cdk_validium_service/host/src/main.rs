@@ -1,12 +1,12 @@
 use adapter_sdk::{state::AdapterState, types::AdapterConfig, service::server};
-use cdk_validium_core::DemoProof;
+use cdk_validium_core::CdkProof;
 use cdk_validium_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::types::{AppId, StatementDigest};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 fn main() {
-    let mut adapter: AdapterState<DemoProof> = AdapterState::new(
+    let mut adapter: AdapterState<CdkProof> = AdapterState::new(
         String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),

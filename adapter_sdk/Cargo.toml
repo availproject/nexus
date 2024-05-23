@@ -24,6 +24,8 @@ subxt-signer = {version = "0.34", optional = true}
 subxt = {version = "0.34.0", features = ["substrate-compat"], optional = true}
 # mockito = "1.4.0"
 tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
+env_logger = "0.11.3"
+log = "0.4.21"
 
 [patches.crate-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
