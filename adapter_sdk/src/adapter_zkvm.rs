@@ -1,25 +1,18 @@
-use std::any;
-
 use crate::traits::Proof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+
 use anyhow::{anyhow, Error};
-use sp_core::H256 as SPH256;
-
-use avail_core::{keccak256, Keccak256};
-// use avail_subxt::utils::H256;
-
-use avail_subxt::utils::H256 as AvailH256;
+use avail_core::Keccak256;
 use binary_merkle_tree::verify_proof as verify_merkle_proof;
 use binary_merkle_tree::Leaf;
-use binary_merkle_tree::MerkleProof;
 use nexus_core::traits::Hasher;
 use nexus_core::types::{AppAccountId, Extension, ShaHasher, StatementDigest, H256};
+use primitive_types::H256 as SP256;
 use risc0_zkvm::{
     guest::env::{self, verify},
     serde::to_vec,
     sha::rust_crypto::Digest,
 };
-use serde::Serialize;
 
 /// Verifies a proof against a specified set of public inputs.
 ///
@@ -128,10 +121,10 @@ pub fn verify_proof<P: Proof>(
 
             match private_inputs.blob.clone() {
                 Some(blob) => {
-                    let leaf: Leaf<SPH256> = Leaf::from(blob.0.as_fixed_slice());
-                    let root = SPH256::from(blob.1.roots.data_root.as_fixed_bytes());
+                    let leaf: Leaf<SP256> = Leaf::from(blob.0.as_fixed_slice());
+                    let root = SP256::from(blob.1.roots.data_root.as_fixed_bytes());
 
-                    if verify_merkle_proof::<Keccak256, Vec<SPH256>, Leaf<SPH256>>(
+                    if verify_merkle_proof::<Keccak256, Vec<SP256>, Leaf<SP256>>(
                         &root,
                         blob.1.proof,
                         blob.1.number_of_leaves as usize,

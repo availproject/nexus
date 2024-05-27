@@ -7,7 +7,7 @@ fn main() {
     let mut adapter: AdapterState<DemoProof> = AdapterState::new(
         String::from("adapter_store"),
         AdapterConfig {
-            app_id: APP_ID,
+            app_id: AppId(1),
             elf: ADAPTER_ELF.to_vec(),
             adapter_elf_id: StatementDigest(ADAPTER_ID),
             vk: [0u8; 32],
