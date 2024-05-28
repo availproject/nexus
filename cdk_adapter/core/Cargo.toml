@@ -1,5 +1,5 @@
 [package]
-name = "cdk_validium_core"
+name = "cdk_adapter_core"
 version = "0.1.0"
 edition = "2021"
 

@@ -1503,15 +1503,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "cdk-validium-adapter-host"
+name = "cdk-adapter-host"
 version = "0.1.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
  "avail-core 0.6.0",
  "avail-subxt 0.5.0",
- "cdk-validium-methods",
- "cdk_validium_core",
+ "cdk-adapter-methods",
+ "cdk_adapter_core",
  "nexus-core",
  "parity-scale-codec",
  "relayer",
@@ -1525,14 +1525,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "cdk-validium-methods"
+name = "cdk-adapter-methods"
 version = "0.1.0"
 dependencies = [
  "risc0-build",
 ]
 
 [[package]]
-name = "cdk_validium_core"
+name = "cdk_adapter_core"
 version = "0.1.0"
 dependencies = [
  "adapter_sdk",

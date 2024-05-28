@@ -6,7 +6,7 @@ use adapter_sdk::adapter_zkvm::verify_proof;
 use adapter_sdk::types::AdapterPrivateInputs;
 use adapter_sdk::types::AdapterPublicInputs;
 use adapter_sdk::types::RollupProof;
-use cdk_validium_core::CdkProof;
+use cdk_adapter_core::CdkProof;
 use nexus_core::types::StatementDigest;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::sha::Digest;

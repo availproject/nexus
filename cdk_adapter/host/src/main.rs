@@ -1,6 +1,6 @@
 use adapter_sdk::{state::AdapterState, types::AdapterConfig, service::server};
-use cdk_validium_core::CdkProof;
-use cdk_validium_methods::{ADAPTER_ELF, ADAPTER_ID};
+use cdk_adapter_core::CdkProof;
+use cdk_adapter_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::types::{AppId, StatementDigest};
 use std::sync::Arc;
 use tokio::sync::Mutex;
