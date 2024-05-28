@@ -331,6 +331,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         }
 
         if updated_proof {
+            println!("Added Proof");
             return Ok(());
         }
 
