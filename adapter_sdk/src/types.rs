@@ -6,11 +6,25 @@ use crate::traits::Proof;
 // use avail_core::DataProof;
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
 use nexus_core::types::{AppId, AvailHeader, StatementDigest, H256};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
+use serde::de::{self, Error};
+use base64::decode;
 
+fn decode_base64<'de, D>(deserializer: D) -> Result<H256, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer).unwrap();
+    let bytes = decode(&s).unwrap();
 
-
-
+	if bytes.len() == 32 {
+        let mut val = [0u8; 32];
+        val.copy_from_slice(&bytes);
+        Ok(H256::from(val))
+    } else {
+        Err(de::Error::custom("expected 32 bytes"))
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 // #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -54,8 +68,11 @@ pub struct AdapterPrivateInputs {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RollupPublicInputs {
+    #[serde(deserialize_with = "decode_base64")]
     pub prev_state_root: H256,
+    #[serde(deserialize_with = "decode_base64")]
     pub post_state_root: H256,
+    #[serde(deserialize_with = "decode_base64")]
     pub blob_hash: H256,
 }
 

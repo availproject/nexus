@@ -26,6 +26,7 @@ subxt = {version = "0.34.0", features = ["substrate-compat"], optional = true}
 tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
 env_logger = "0.11.3"
 log = "0.4.21"
+base64 = "0.22.1"
 
 [patches.crate-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
