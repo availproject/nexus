@@ -27,8 +27,6 @@ use relayer::Relayer;
 use risc0_zkvm::{default_prover, Receipt};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-
 use std::{collections::VecDeque, env, sync::Arc, thread};
 use tokio::sync::Mutex;
 use tokio::time::Duration;
@@ -36,6 +34,7 @@ use tokio::time::Duration;
 use subxt::{
     ext::sp_core::sr25519::Pair,
     ext::sp_core::Pair as PairT,
+    ext::sp_core::H256 as AvailH256,
     tx::{PairSigner, Payload},
 };
 

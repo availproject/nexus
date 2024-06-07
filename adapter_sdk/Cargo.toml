@@ -10,30 +10,24 @@ tokio = { version = "1.36.0", optional = true }
 hex = { version = "0.4", optional = true }
 tokio-stream = { version = "0.1.14", optional = true}
 reqwest = {version = "0.11.24", features = ["json"], optional = true}
-nexus-core = { path = "../core", default-features = false }
+nexus-core = { path = "../core", default-features = false}
 serde = "1.0.196"
 serde_json = "1.0.113"
 anyhow = "1.0.81"
 warp = { version = "0.3", optional = true }
-risc0-zkvm = {version = "0.20", default-features = false, features = ["std"]}
+risc0-zkvm = {version = "0.21", default-features = false, features = ["std"]}
 relayer = { path = "../relayer", optional = true}
-binary-merkle-tree = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-v1.5.0" }
-
-avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v2.0.0.0-rc4", features = ["std"], optional = true}
-subxt-signer = {version = "0.34", optional = true}
+binary-merkle-tree = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-5", default-features = false }
+avail-base = { git = "https://github.com/availproject/avail", branch = "main", default-features = false }
+avail-core = { git = "https://github.com/availproject/avail-core", tag = "node-v2220-rc1", default-features = false, features = ["runtime", "serde"] }
+avail-subxt = { git = "https://github.com/availproject/avail", branch = "main", default-features = false, features = ["api-dev", "native", "std"], optional = true}
 subxt = {version = "0.34.0", features = ["substrate-compat"], optional = true}
-# mockito = "1.4.0"
-tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
-env_logger = "0.11.3"
-log = "0.4.21"
-tracing-subscriber = "0.3.18"
-tracing = "0.1.40"
-base64 = "0.22.1"
-
-[patches.crate-io]
-sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+primitive-types = "0.12.2"
+unicode-normalization = { version = "0.1.22" }
+sp-runtime-interface = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-5", default-features = false, features = ["disable_target_static_assertions"] }
+sp-io = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "polkadot-1.7.1-patch-5", default-features = false, features = ["disable_panic_handler"] }
 
 [features]
 default = ["native"]
-native = ["nexus-core/native", "risc0-zkvm/default", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp", "avail-subxt", "subxt-signer", "subxt"]
+native = ["nexus-core/native", "risc0-zkvm/default", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp", "avail-subxt", "subxt"]
 zkvm = ["nexus-core/zkvm"]

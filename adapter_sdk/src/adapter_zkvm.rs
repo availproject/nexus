@@ -1,28 +1,18 @@
-use std::any;
-
 use crate::traits::Proof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+
 use anyhow::{anyhow, Error};
-
-
-use tiny_keccak::{Keccak};
-
-
-// use avail_subxt::utils::H256;
-#[cfg(any(feature = "native"))]
-use avail_subxt::utils::H256 as AvailH256;
-
-
+use avail_core::Keccak256;
+use binary_merkle_tree::verify_proof as verify_merkle_proof;
 use binary_merkle_tree::Leaf;
-
 use nexus_core::traits::Hasher;
 use nexus_core::types::{AppAccountId, Extension, ShaHasher, StatementDigest, H256};
+use primitive_types::H256 as SP256;
 use risc0_zkvm::{
     guest::env::{self, verify},
     serde::to_vec,
     sha::rust_crypto::Digest,
 };
-use serde::Serialize;
 
 /// Verifies a proof against a specified set of public inputs.
 ///
@@ -131,21 +121,20 @@ pub fn verify_proof<P: Proof>(
 
             match private_inputs.blob.clone() {
                 Some(blob) => {
-                    let leaf: Leaf<H256> = Leaf::from(blob.0.as_fixed_slice());
-                    // let root = H256::from(blob.1.roots.data_root.as_fixed_bytes());
+                    let leaf: Leaf<SP256> = Leaf::from(blob.0.as_fixed_slice());
+                    let root = SP256::from(blob.1.roots.data_root.as_fixed_bytes());
 
-                    //TODO: Uncomment below code after fixing the issue with the merkle proof.
-                    // if verify_merkle_proof::<Keccak, Vec<H256>, Leaf<H256>>(
-                    //     &root,
-                    //     blob.1.proof,
-                    //     blob.1.number_of_leaves as usize,
-                    //     blob.1.leaf_index as usize,
-                    //     leaf,
-                    // ) {
-                    //     return Err(anyhow::anyhow!(
-                    //         "Invalid data inclusion proof againts the data root"
-                    //     ));
-                    // }
+                    if verify_merkle_proof::<Keccak256, Vec<SP256>, Leaf<SP256>>(
+                        &root,
+                        blob.1.proof,
+                        blob.1.number_of_leaves as usize,
+                        blob.1.leaf_index as usize,
+                        leaf,
+                    ) {
+                        return Err(anyhow::anyhow!(
+                            "Invalid data inclusion proof againts the data root"
+                        ));
+                    }
                 }
                 None => return Err(anyhow!("Empty blob")),
             }
