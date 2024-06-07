@@ -10,4 +10,3 @@ nexus-core = { path = "../../core"}
 tokio = "1.36.0"
 adapter_sdk = { path = "../../adapter_sdk" }
 demo_rollup_core = { path = "../core" }
-

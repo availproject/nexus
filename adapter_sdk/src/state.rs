@@ -6,11 +6,11 @@ use crate::db::{HashDB, InclusionData, DB};
 
 use crate::traits::Proof;
 use crate::types::{
-    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
+    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, DataProof, RollupProof, RollupPublicInputs
 };
 use anyhow::{anyhow, Context, Error};
 
-use avail_core::{data_proof::ProofResponse, AppId as AvailAppID, DataProof};
+
 use avail_subxt::api::runtime_types::avail_core::header::extension::v3;
 use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
 use avail_subxt::AvailConfig;
@@ -56,13 +56,13 @@ pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'stati
     pub vk: [u8; 32],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
-    pub hash_db: Arc<Mutex<HashDB>>,
+    // pub hash_db: Arc<Mutex<HashDB>>,
 }
 
 impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     pub fn new(storage_path: String, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path.clone());
-        let hash_db = HashDB::from_path(storage_path.clone());
+        // let hash_db = HashDB::from_path(storage_path.clone());
 
         AdapterState {
             starting_block_number: config.rollup_start_height,
@@ -73,7 +73,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             vk: config.vk,
             app_id: config.app_id,
             db: Arc::new(Mutex::new(db)),
-            hash_db: Arc::new(Mutex::new(hash_db)),
+            // hash_db: Arc::new(Mutex::new(hash_db)),
         }
     }
 
@@ -330,6 +330,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         }
 
         if updated_proof {
+            println!("Added Proof");
             return Ok(());
         }
 
@@ -420,15 +421,16 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
         let data = BoundedVec(blob.into());
         let call = api::tx().data_availability().submit_data(data);
-        let (block_hash, transaction_index) = self.send_tx(call, &signer, &client).await?;
+        let (transaction_index) = self.send_tx(call, &signer, &client).await?;
 
-        let hash_db = self.hash_db.lock().await;
-        let _ = hash_db.put(
-            H256::from(block_hash.to_fixed_bytes()),
-            InclusionData::new(H256::from(block_hash.to_fixed_bytes()), transaction_index),
-        );
+        // let hash_db = self.hash_db.lock().await;
+        //TODO
+        // let _ = hash_db.put(
+        //     H256::from(block_hash.to_fixed_bytes()),
+        //     InclusionData::new(H256::from(block_hash.to_fixed_bytes()), transaction_index),
+        // );
 
-        drop(hash_db);
+        // drop(hash_db);
 
         Ok(())
     }
@@ -436,47 +438,53 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     async fn check_and_get_inclusion_proof(
         &mut self,
         block_hash: H256,
-    ) -> Result<(Option<AvailH256>, Option<DataProof>), Error> {
+    ) -> Result<(Option<H256>, Option<DataProof>), Error> {
         // check if app id exists, if not return empty value
         let client = Self::establish_a_connection().await?;
 
-        let block_headers = client
-            .backend()
-            .block_header(AvailH256::from(block_hash.as_fixed_slice()))
-            .await?;
+        let block_headers = Option::<AvailHeader>::default();
+        // TODO
+        // client
+        //     .backend()
+        //     .block_header(H256::from(*block_hash.as_fixed_slice()))
+        //     .await?;
 
         let mut exists = false;
         if let Some(header) = block_headers {
-            let HeaderExtension::V3(v3::HeaderExtension { app_lookup, .. }) = header.extension;
-            for app in app_lookup.index {
-                if AppId(app.app_id.0) == self.app_id {
-                    exists = true;
-                    break;
-                }
-            }
+        // TODO
+
+            // let HeaderExtension::V3(v3::HeaderExtension { app_lookup, .. }) = header.extension;
+            // for app in app_lookup.index {
+            //     if AppId(app.app_id.0) == self.app_id {
+            //         exists = true;
+            //         break;
+            //     }
+            // }
         }
 
         if !exists {
             return Ok((None, None));
         }
 
-        let hash_db = self.hash_db.lock().await;
-        let db_entry = hash_db.get(block_hash);
+        // TODO
+        // let hash_db = self.hash_db.lock().await;
+        // let db_entry = hash_db.get(block_hash);
 
-        let transaction_index = db_entry
-            .map(|value| value.transaction_index)
-            .map_err(|_| anyhow!("No such entry exists."))?;
+        let transaction_index = 0u32;
+        // db_entry
+        //     .map(|value| value.transaction_index)
+        //     .map_err(|_| anyhow!("No such entry exists."))?;
 
-        let inclusion_proof: Result<ProofResponse, Error> = self
+        let inclusion_proof: Result<DataProof, Error> = self
             .get_inclusion_proof(
                 &client,
                 transaction_index,
-                AvailH256::from(block_hash.as_fixed_slice()),
+                H256::from(*block_hash.as_fixed_slice()),
             )
             .await;
 
-        let blob_hash = inclusion_proof.as_ref().unwrap().data_proof.leaf.clone();
-        let data_proof = inclusion_proof.unwrap().data_proof;
+        let blob_hash = inclusion_proof.as_ref().unwrap().leaf.clone();
+        let data_proof = inclusion_proof.unwrap();
 
         Ok((Some(blob_hash), Some(data_proof)))
     }
@@ -486,43 +494,49 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         tx: Payload<SubmitData>,
         signer: &PairSigner<AvailConfig, Pair>,
         client: &AvailClient,
-    ) -> Result<(AvailH256, u32), Error> {
+        // TODO
+    // ) -> Result<(H256, u32), Error> {
+    ) -> Result<(u32), Error> {
         let nonce = client
             .legacy_rpc()
             .system_account_next_index(signer.account_id())
             .await?;
 
-        let e_event = client
-            .tx()
-            .create_signed_with_nonce(
-                &tx,
-                signer,
-                nonce,
-                avail_subxt::primitives::new_params_from_app_id(AvailAppID(self.app_id.0)),
-            )?
-            .submit_and_watch()
-            .await
-            .context("Submission failed")
-            .unwrap()
-            .wait_for_finalized_success()
-            .await
-            .context("Waiting for success failed")
-            .unwrap();
-        let block_hash = e_event.block_hash();
-        let extrinsic_hash = e_event.extrinsic_index();
-        Ok((block_hash, extrinsic_hash))
+            // TODO
+        // let e_event = client
+        //     .tx()
+        //     .create_signed_with_nonce(
+        //         &tx,
+        //         signer,
+        //         nonce,
+        //         avail_subxt::primitives::new_params_from_app_id(AvailAppID(self.app_id.0)),
+        //     )?
+        //     .submit_and_watch()
+        //     .await
+        //     .context("Submission failed")
+        //     .unwrap()
+        //     .wait_for_finalized_success()
+        //     .await
+        //     .context("Waiting for success failed")
+        //     .unwrap();
+        // let block_hash = e_event.block_hash();
+        // let extrinsic_hash = e_event.extrinsic_index();
+        let extrinsic_hash = 0u32;
+        Ok(( extrinsic_hash))
     }
 
     async fn get_inclusion_proof(
         &self,
         client: &AvailClient,
         transaction_index: u32,
-        block_hash: AvailH256,
-    ) -> Result<ProofResponse, Error> {
-        let actual_proof = client
-            .rpc_methods()
-            .query_data_proof(transaction_index, block_hash)
-            .await?;
+        block_hash: H256,
+    ) -> Result<DataProof, Error> {
+        // let actual_proof = client
+        //     .rpc_methods()
+        //     .query_data_proof(transaction_index, block_hash)
+        //     .await?
+        //     .data_proof;
+        let actual_proof = DataProof::default();
         Ok(actual_proof)
     }
 
