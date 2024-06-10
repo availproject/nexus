@@ -83,6 +83,7 @@ impl StateTransitionFunction {
         let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
             app_id: params.app_id.clone(),
             nexus_hash: params.nexus_hash.clone(),
+            height: params.height,
             start_nexus_hash: H256::from(pre_state.1.start_nexus_hash.clone()),
             state_root: params.state_root.clone(),
             img_id: pre_state.1.statement.clone(),
@@ -145,6 +146,7 @@ impl StateTransitionFunction {
             statement: pre_state.1.statement.clone(),
             start_nexus_hash: pre_state.1.start_nexus_hash,
             state_root: params.state_root.as_fixed_slice().clone(),
+            height: params.height,
             //Okay to do unwrap as we check above if it is None.
             last_proof_height: found_header_height.unwrap(),
         };

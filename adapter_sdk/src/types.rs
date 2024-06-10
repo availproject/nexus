@@ -14,6 +14,7 @@ pub struct AdapterPrivateInputs {
 pub struct RollupPublicInputs {
     pub prev_state_root: H256,
     pub post_state_root: H256,
+    pub height: u32,
     pub blob_hash: H256,
 }
 

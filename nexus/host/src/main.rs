@@ -187,7 +187,9 @@ fn execute_batch(
         .map(|tx| {
             if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
                 //TODO: Remove transactions that error out from mempool
-                let proof: Receipt = submit_proof_tx.proof.try_into()?;
+                let proof = submit_proof_tx.proof.clone();
+
+                let receipt: Receipt = proof.try_into()?;
                 let pre_state = match state_update.pre_state.get(&submit_proof_tx.app_id.0) {
                     Some(i) => i,
                     None => {
@@ -199,6 +201,7 @@ fn execute_batch(
                 };
 
                 let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
+                    height: submit_proof_tx.height,
                     app_id: submit_proof_tx.app_id.clone(),
                     nexus_hash: submit_proof_tx.nexus_hash.clone(),
                     start_nexus_hash: H256::from(pre_state.start_nexus_hash.clone()),
@@ -206,7 +209,7 @@ fn execute_batch(
                     img_id: pre_state.statement.clone(),
                 };
 
-                env_builder.add_assumption(proof);
+                env_builder.add_assumption(receipt);
             }
 
             Ok(TransactionZKVM {

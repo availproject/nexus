@@ -216,6 +216,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
                         proof: ZKProof::try_from(latest_proof.0)?,
+                        height: latest_proof.1.height,
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,
                         app_id: latest_proof.1.app_id,

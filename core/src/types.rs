@@ -46,6 +46,7 @@ pub struct AccountState {
     pub state_root: [u8; 32],
     pub start_nexus_hash: [u8; 32],
     pub last_proof_height: u32,
+    pub height: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -72,6 +73,7 @@ pub struct SubmitProof {
     pub proof: Proof,
     pub nexus_hash: H256,
     pub state_root: H256,
+    pub height: u32,
     pub app_id: AppAccountId,
 }
 
@@ -92,6 +94,7 @@ pub struct StatementDigest(pub [u32; 8]);
 pub struct RollupPublicInputsV2 {
     pub nexus_hash: H256,
     pub state_root: H256,
+    pub height: u32,
     pub start_nexus_hash: H256,
     pub app_id: AppAccountId,
     pub img_id: StatementDigest,
@@ -366,6 +369,7 @@ impl Value for AccountState {
             statement: StatementDigest::zero(),
             start_nexus_hash: [0; 32],
             last_proof_height: 0,
+            height: 0,
         }
     }
 }

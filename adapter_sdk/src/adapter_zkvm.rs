@@ -125,6 +125,7 @@ pub fn verify_proof<P: Proof>(
             return Ok(match prev_adapter_public_inputs {
                 Some(i) => AdapterPublicInputs {
                     nexus_hash,
+                    height: i.height,
                     state_root: i.state_root,
                     start_nexus_hash: i.start_nexus_hash,
                     app_id: app_account_id,
@@ -132,6 +133,7 @@ pub fn verify_proof<P: Proof>(
                 },
                 None => AdapterPublicInputs {
                     nexus_hash: nexus_hash.clone(),
+                    height: 0,
                     state_root: H256::zero(),
                     start_nexus_hash: nexus_hash,
                     app_id: app_account_id,
@@ -156,6 +158,7 @@ pub fn verify_proof<P: Proof>(
                     Err(anyhow::anyhow!("Previous proof not submitted"))
                 } else {
                     Ok(AdapterPublicInputs {
+                        height: 0,
                         nexus_hash: nexus_hash.clone(),
                         state_root: post_state_root,
                         start_nexus_hash: nexus_hash,
@@ -187,6 +190,7 @@ pub fn verify_proof<P: Proof>(
 
     Ok(AdapterPublicInputs {
         nexus_hash,
+        height: rollup_public_inputs.height,
         state_root: rollup_public_inputs.post_state_root,
         start_nexus_hash: prev_public_input.start_nexus_hash,
         app_id: app_account_id,
