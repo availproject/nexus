@@ -18,11 +18,17 @@ impl ZKVMStateMachine {
 
     pub fn execute_batch(
         &self,
-        new_header: &AvailHeader,
-        old_headers: &mut HeaderStore,
+        new_avail_header: &AvailHeader,
+        old_headers: &HeaderStore,
         txs: &Vec<TransactionZKVM>,
         state_update: StateUpdate,
     ) -> Result<NexusHeader, anyhow::Error> {
+        let number: u32 = if let Some(first_header) = old_headers.first() {
+            first_header.number
+        } else {
+            0
+        };
+
         if !txs.is_empty() {
             if let Some(proof) = state_update.proof.clone() {
                 match proof.verify::<ShaHasher>(
@@ -30,7 +36,7 @@ impl ZKVMStateMachine {
                     state_update
                         .pre_state
                         .iter()
-                        .map(|v| (v.0.as_h256(), v.1.to_h256()))
+                        .map(|v| (H256::from(v.0.clone()), v.1.to_h256()))
                         .collect(),
                 ) {
                     Ok(true) => {}
@@ -49,7 +55,7 @@ impl ZKVMStateMachine {
 
         let result =
             self.stf
-                .execute_batch(new_header, old_headers, txs, &state_update.pre_state)?;
+                .execute_batch(new_avail_header, old_headers, txs, &state_update.pre_state)?;
 
         if !txs.is_empty() {
             if let Some(proof) = state_update.proof {
@@ -62,7 +68,7 @@ impl ZKVMStateMachine {
                                 "Modified account after batch : {:?} -- AccountID: {:?}",
                                 v.1, v.0
                             );
-                            (v.0.as_h256(), v.1.to_h256())
+                            (H256::from(v.0.clone()), v.1.to_h256())
                         })
                         .collect(),
                 ) {
@@ -80,10 +86,16 @@ impl ZKVMStateMachine {
                 return Err(anyhow!("Merkle proof for stateupdate not provided."));
             }
         }
+
         Ok(NexusHeader {
+            parent_hash: match old_headers.first() {
+                Some(i) => i.hash(),
+                None => H256::zero(),
+            },
+            number,
             state_root: state_update.post_state_root,
             prev_state_root: state_update.pre_state_root,
-            avail_header_hash: H256::from(new_header.hash().as_fixed_slice().clone()),
+            avail_header_hash: H256::from(new_avail_header.hash().as_fixed_slice().clone()),
         })
     }
 }

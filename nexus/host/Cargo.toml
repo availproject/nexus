@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"]}
 prover = { path = "../prover" }
 risc0-zkvm = { version = "0.20", features = ["metal"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

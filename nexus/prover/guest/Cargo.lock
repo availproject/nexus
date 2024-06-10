@@ -902,10 +902,11 @@ dependencies = [
 [[package]]
 name = "sparse-merkle-tree"
 version = "0.6.2"
-source = "git+https://github.com/vibhurajeev/sparse-merkle-tree.git#3ed07be4f29b2d4905f2beab47b6b499d9baf1ec"
+source = "git+https://github.com/vibhurajeev/sparse-merkle-tree.git?rev=a2f94a7#a2f94a75d1680fbca2bb5a555897dd4a2a786084"
 dependencies = [
  "cc",
  "cfg-if",
+ "hex",
  "parity-scale-codec",
  "serde",
 ]

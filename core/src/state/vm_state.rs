@@ -70,16 +70,14 @@ impl VmState {
             .tree
             .merkle_proof(set.iter().map(|v| v.0).collect())
             .unwrap();
+        let mut pre_merkle_set = HashMap::new();
 
-        let pre_merkle_set = set
-            .iter()
-            .map(|v| {
-                (
-                    AppAccountId::from(v.0),
-                    self.tree.get(&v.0).expect("Cannot get from tree."),
-                )
-            })
-            .collect();
+        set.iter().for_each(|v| {
+            pre_merkle_set.insert(
+                v.0.as_fixed_slice().clone(),
+                self.tree.get(&v.0).expect("Cannot get from tree."),
+            );
+        });
 
         self.tree
             .update_all(set.clone().into_iter().map(|v| (v.0, v.1)).collect())
@@ -87,10 +85,13 @@ impl VmState {
 
         let post_state_root = self.get_root();
 
-        let post_merkle_set = set
-            .iter()
-            .map(|v| (AppAccountId::from(v.0), v.1.clone()))
-            .collect();
+        let mut post_merkle_set = HashMap::new();
+        set.iter().for_each(|v| {
+            post_merkle_set.insert(
+                v.0.as_fixed_slice().clone(),
+                self.tree.get(&v.0).expect("Cannot get from tree."),
+            );
+        });
         // let post_merkle_proof = self
         //     .tree
         //     .merkle_proof(set.iter().map(|v| v.0).collect())

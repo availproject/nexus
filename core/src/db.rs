@@ -10,7 +10,7 @@ pub struct NodeDB {
 }
 
 impl NodeDB {
-    pub fn from_path(path: String) -> Self {
+    pub fn from_path(path: &str) -> Self {
         let mut db_options = Options::default();
         db_options.create_if_missing(true);
 

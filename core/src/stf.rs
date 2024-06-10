@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use crate::types::{
-    AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, StatementDigest,
-    SubmitProof, TransactionZKVM, TxParamsV2, H256,
+    AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusHeader,
+    RollupPublicInputsV2, StatementDigest, SubmitProof, TransactionZKVM, TxParamsV2, H256,
 };
 use anyhow::{anyhow, Error};
-use risc0_zkvm::guest::env;
 #[cfg(not(feature = "native"))]
 use risc0_zkvm::{guest::env::verify, serde::to_vec};
 use sparse_merkle_tree::traits::Value;
@@ -22,24 +23,33 @@ impl StateTransitionFunction {
     }
     pub fn execute_batch(
         &self,
-        new_header: &AvailHeader,
-        prev_headers: &mut HeaderStore,
+        new_avail_header: &AvailHeader,
+        prev_headers: &HeaderStore,
         txs: &Vec<TransactionZKVM>,
-        pre_state: &Vec<(AppAccountId, AccountState)>,
-    ) -> Result<(Vec<(AppAccountId, AccountState)>), anyhow::Error> {
-        //TODO: Need to remove is empty part. Should not be empty as this opens an attack vector.
-        if !prev_headers.is_empty() {
-            if new_header.parent_hash.as_fixed_slice()
-                != prev_headers.first().hash().as_fixed_slice()
-            {
-                return Err(anyhow!("Wrong fork, or Avail header skipped."));
+        pre_state: &HashMap<[u8; 32], AccountState>,
+    ) -> Result<HashMap<[u8; 32], AccountState>, anyhow::Error> {
+        //Check if this is sequentially the next block.
+        if let Some(last_header) = prev_headers.first() {
+            if new_avail_header.parent_hash != last_header.avail_header_hash {
+                return Err(anyhow!("Previous Nexus header not valid as per Avail Header for which block is being built."));
             }
         }
-        prev_headers.push_front(new_header);
 
-        let mut post_state = vec![];
-        for (index, tx) in txs.iter().enumerate() {
-            post_state.push(self.execute_tx(tx, &pre_state[index], prev_headers)?);
+        let mut post_state: HashMap<[u8; 32], AccountState> = HashMap::new();
+
+        for tx in txs.iter() {
+            let state_key = match &tx.params {
+                TxParamsV2::SubmitProof(params) => params.app_id.clone(),
+                TxParamsV2::InitAccount(params) => params.app_id.clone(),
+            };
+
+            let pre_state = match pre_state.get(&state_key.0) {
+                None => return Err(anyhow!("Incorrect pre state provided by host.")),
+                Some(i) => i,
+            };
+
+            let result = self.execute_tx(tx, (&state_key, pre_state), prev_headers)?;
+            post_state.insert(result.0 .0, result.1);
         }
 
         Ok(post_state)
@@ -48,12 +58,12 @@ impl StateTransitionFunction {
     pub fn execute_tx(
         &self,
         tx: &TransactionZKVM,
-        pre_state: &(AppAccountId, AccountState),
+        pre_state: (&AppAccountId, &AccountState),
         headers: &HeaderStore,
     ) -> Result<(AppAccountId, AccountState), anyhow::Error> {
         //TODO: Signature verification
         let post_state = match &tx.params {
-            TxParamsV2::SubmitProof(params) => self.submit_proof(&params, &pre_state, headers)?,
+            TxParamsV2::SubmitProof(params) => self.submit_proof(params, pre_state, headers)?,
             TxParamsV2::InitAccount(params) => self.init_account(params, pre_state)?,
         };
 
@@ -63,13 +73,21 @@ impl StateTransitionFunction {
     fn submit_proof(
         &self,
         params: &SubmitProof,
-        pre_state: &(AppAccountId, AccountState),
+        pre_state: (&AppAccountId, &AccountState),
         headers: &HeaderStore,
     ) -> Result<(AppAccountId, AccountState), Error> {
-        if pre_state.1 == AccountState::zero() {
+        if pre_state.1.clone() == AccountState::zero() {
             return Err(anyhow!("Invalid transaction, account not initiated."));
         }
-        let public_inputs = &params.public_inputs;
+
+        let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
+            app_id: params.app_id.clone(),
+            nexus_hash: params.nexus_hash.clone(),
+            start_nexus_hash: H256::from(pre_state.1.start_nexus_hash.clone()),
+            state_root: params.state_root.clone(),
+            img_id: pre_state.1.statement.clone(),
+        };
+
         // let journal_vec = match to_vec(&params.public_inputs) {
         //     Ok(i) => i.iter().flat_map(|&x| x.to_le_bytes().to_vec()).collect(),
         //     Err(e) => return Err(anyhow!(e)),
@@ -79,31 +97,33 @@ impl StateTransitionFunction {
             return Err(anyhow!("Incorrect app account id"));
         }
 
-        if public_inputs.avail_start_hash != H256::from(pre_state.1.start_avail_hash) {
+        if public_inputs.start_nexus_hash != H256::from(pre_state.1.start_nexus_hash) {
             return Err(anyhow!("Not a recursive proof from registered start hash."));
         }
 
-        let mut last_header_hash_in_loop: H256 = H256::zero();
-        let mut found_match: bool = false;
+        let mut header_hash: H256 = match headers.first() {
+            Some(i) => i.hash(),
+            None => unreachable!("Node is not expected to accept submit proof txs if first block."),
+        };
+        let mut found_header_height: Option<u32> = None;
 
         for header in headers.inner().iter() {
-            if last_header_hash_in_loop == public_inputs.header_hash {
-                found_match = true;
+            if header.hash() != header_hash {
+                return Err(anyhow!("Incorrect header list given by sequencer."));
+            }
+
+            if header_hash == public_inputs.nexus_hash {
+                found_header_height = Some(header.number);
 
                 break;
             }
 
-            if last_header_hash_in_loop != H256::zero() {
-                if header.hash() != last_header_hash_in_loop {
-                    return Err(anyhow!("Incorrect header list given by sequencer."));
-                }
-            }
-            last_header_hash_in_loop = header.parent_hash;
+            header_hash = header.parent_hash;
 
             continue;
         }
 
-        if !found_match {
+        if found_header_height.is_none() {
             return Err(anyhow!("Not right fork, or against last 32 blocks"));
         }
 
@@ -123,8 +143,10 @@ impl StateTransitionFunction {
 
         let post_state: AccountState = AccountState {
             statement: pre_state.1.statement.clone(),
-            start_avail_hash: pre_state.1.start_avail_hash,
-            state_root: public_inputs.state_root.as_fixed_slice().clone(),
+            start_nexus_hash: pre_state.1.start_nexus_hash,
+            state_root: params.state_root.as_fixed_slice().clone(),
+            //Okay to do unwrap as we check above if it is None.
+            last_proof_height: found_header_height.unwrap(),
         };
 
         Ok((public_inputs.app_id.clone(), post_state))
@@ -133,16 +155,16 @@ impl StateTransitionFunction {
     fn init_account(
         &self,
         params: &InitAccount,
-        pre_state: &(AppAccountId, AccountState),
+        pre_state: (&AppAccountId, &AccountState),
     ) -> Result<(AppAccountId, AccountState), Error> {
-        if pre_state.1 != AccountState::zero() {
+        if pre_state.1.clone() != AccountState::zero() {
             return Err(anyhow!("Account already initiated."));
         }
 
         let mut post_account = AccountState::zero();
 
         post_account.statement = params.statement.clone();
-        post_account.start_avail_hash = params.avail_start_hash.as_fixed_slice().clone();
+        post_account.start_nexus_hash = params.start_nexus_hash.as_fixed_slice().clone();
 
         Ok((pre_state.0.clone(), post_account))
     }

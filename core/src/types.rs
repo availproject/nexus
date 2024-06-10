@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 #[cfg(any(feature = "native"))]
 pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
@@ -11,6 +14,7 @@ use risc0_zkvm::sha::Digest as RiscZeroDigest;
 use risc0_zkvm::InnerReceipt;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
+use serde_json::{from_slice, to_vec, Error};
 use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
@@ -40,7 +44,8 @@ pub struct UpdatedBlob {
 pub struct AccountState {
     pub statement: StatementDigest,
     pub state_root: [u8; 32],
-    pub start_avail_hash: [u8; 32],
+    pub start_nexus_hash: [u8; 32],
+    pub last_proof_height: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -54,7 +59,6 @@ pub enum TxParamsV2 {
 pub struct TransactionV2 {
     pub signature: TxSignature,
     pub params: TxParamsV2,
-    pub proof: Option<InnerReceipt>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -65,16 +69,20 @@ pub struct TransactionZKVM {
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct SubmitProof {
-    //Disabled for now.
-    //pub proof: risc0_zkvm::InnerReceipt,
-    pub public_inputs: RollupPublicInputsV2,
+    pub proof: Proof,
+    pub nexus_hash: H256,
+    pub state_root: H256,
+    pub app_id: AppAccountId,
 }
+
+#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+pub struct Proof(Vec<u8>);
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct InitAccount {
     pub app_id: AppAccountId,
     pub statement: StatementDigest,
-    pub avail_start_hash: H256,
+    pub start_nexus_hash: H256,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
@@ -82,18 +90,20 @@ pub struct StatementDigest(pub [u32; 8]);
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct RollupPublicInputsV2 {
-    pub header_hash: H256,
+    pub nexus_hash: H256,
     pub state_root: H256,
-    pub avail_start_hash: H256,
+    pub start_nexus_hash: H256,
     pub app_id: AppAccountId,
     pub img_id: StatementDigest,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct NexusHeader {
+    pub parent_hash: H256,
     pub prev_state_root: H256,
     pub state_root: H256,
     pub avail_header_hash: H256,
+    pub number: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -108,24 +118,15 @@ pub struct SimpleNexusHeader {
 pub struct StateUpdate {
     pub pre_state_root: H256,
     pub post_state_root: H256,
-    pub pre_state: Vec<(AppAccountId, AccountState)>,
-    pub post_state: Vec<(AppAccountId, AccountState)>,
-    pub proof: Option<MerkleProof>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SimpleStateUpdate {
-    pub pre_state_root: H256,
-    pub post_state_root: H256,
-    pub pre_state: Vec<(AppAccountId, AccountState)>,
-    pub post_state: Vec<(AppAccountId, AccountState)>,
+    pub pre_state: HashMap<[u8; 32], AccountState>,
+    pub post_state: HashMap<[u8; 32], AccountState>,
     pub proof: Option<MerkleProof>,
 }
 
 //TODO: Store on hash list, instead of headers.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeaderStore {
-    inner: Vec<AvailHeader>,
+    inner: Vec<NexusHeader>,
     max_size: usize,
 }
 
@@ -363,7 +364,8 @@ impl Value for AccountState {
         Self {
             state_root: [0; 32],
             statement: StatementDigest::zero(),
-            start_avail_hash: [0; 32],
+            start_nexus_hash: [0; 32],
+            last_proof_height: 0,
         }
     }
 }
@@ -376,7 +378,7 @@ impl HeaderStore {
         }
     }
 
-    pub fn push_front(&mut self, header: &AvailHeader) -> () {
+    pub fn push_front(&mut self, header: &NexusHeader) -> () {
         if self.inner.len() == self.max_size {
             self.inner.remove(self.max_size - 1); // Remove the last element if size is at max
         }
@@ -387,11 +389,14 @@ impl HeaderStore {
         self.inner.is_empty()
     }
 
-    pub fn first(&self) -> &AvailHeader {
-        return &self.inner[0];
+    pub fn first(&self) -> Option<&NexusHeader> {
+        if self.is_empty() {
+            return None;
+        }
+        return Some(&self.inner[0]);
     }
 
-    pub fn inner(&self) -> &Vec<AvailHeader> {
+    pub fn inner(&self) -> &Vec<NexusHeader> {
         &self.inner
     }
 }
@@ -462,5 +467,35 @@ impl From<RiscZeroDigest> for StatementDigest {
         }
 
         Self(new_digest)
+    }
+}
+
+#[cfg(any(feature = "native"))]
+impl TryFrom<risc0_zkvm::Receipt> for Proof {
+    type Error = Error;
+
+    fn try_from(value: risc0_zkvm::Receipt) -> Result<Self, Self::Error> {
+        Ok(Self(to_vec(&value)?))
+    }
+}
+
+#[cfg(any(feature = "native"))]
+impl TryInto<risc0_zkvm::Receipt> for Proof {
+    type Error = Error;
+
+    fn try_into(self) -> Result<risc0_zkvm::Receipt, Self::Error> {
+        Ok(from_slice(&self.0)?)
+    }
+}
+
+impl NexusHeader {
+    pub fn hash(&self) -> H256 {
+        let serialized = self.encode();
+
+        let mut hasher = ShaHasher::new();
+
+        hasher.0.update(&serialized);
+
+        hasher.finish()
     }
 }

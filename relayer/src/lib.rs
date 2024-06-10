@@ -50,7 +50,7 @@ impl Relayer {
     pub async fn start(&self, start_height: u32) -> () {
         println!("Started client.");
         let (subxt_client, _) =
-            avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
+            avail_subxt::build_client("wss://turing-rpc.avail.so:443/ws", false)
                 .await
                 .unwrap();
         println!("Built client");
