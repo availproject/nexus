@@ -1,10 +1,13 @@
 {
   "rust-analyzer.linkedProjects": [
-    "./demo_rollup/methods/guest/Cargo.toml",
-    "./demo_rollup/host/Cargo.toml",
+    "./examples/demo_rollup/methods/guest/Cargo.toml",
+    "./examples/demo_rollup/host/Cargo.toml",
     "./adapter_sdk/Cargo.toml",
     "./relayer/Cargo.toml",
     "./nexus/host/Cargo.toml",
     "./nexus/prover/guest/Cargo.toml",
+    "./examples/mock_geth_adapter/host",
+    "./examples/mock_geth_adapter/methods",
+    "./examples/mock_geth_adapter/core",
   ]
 }

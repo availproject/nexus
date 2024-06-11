@@ -2,8 +2,9 @@ use anyhow::Error;
 use core::convert::Infallible;
 use nexus_core::db::NodeDB;
 use nexus_core::mempool::{self, Mempool};
+use nexus_core::state::{sparse_merkle_tree::traits::Value, VmState};
 use nexus_core::state_machine::StateMachine;
-use nexus_core::types::{AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256};
+use nexus_core::types::{AccountState, AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256};
 use serde_json;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -15,9 +16,11 @@ use crate::AvailToNexusPointer;
 pub fn routes(
     mempool: Mempool,
     db: Arc<Mutex<NodeDB>>,
+    vm_state: Arc<Mutex<VmState>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let mempool_clone = mempool.clone();
     let db_clone = db.clone();
+    let db_clone_2 = db.clone();
 
     let tx = warp::path("tx")
         .and(warp::post())
@@ -27,12 +30,12 @@ pub fn routes(
 
     let submit_batch = warp::path("range")
         .and(warp::get())
-        .and(warp::any().map(move || db_clone.clone()))
+        .and(warp::any().map(move || db_clone_2.clone()))
         .and_then(range);
 
     let header = warp::path("header")
         .and(warp::get())
-        .and(warp::any().map(move || db.clone()))
+        .and(warp::any().map(move || db_clone.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
             |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
@@ -49,7 +52,29 @@ pub fn routes(
             },
         );
 
-    tx.or(submit_batch).or(header)
+    let account = warp::path("account")
+        .and(warp::get())
+        .and(warp::any().map(move || db.clone()))
+        .and(warp::any().map(move || vm_state.clone()))
+        .and(warp::query::<HashMap<String, String>>())
+        .and_then(
+            |db: Arc<Mutex<NodeDB>>,
+             vm_state: Arc<Mutex<VmState>>,
+             params: HashMap<String, String>| async move {
+                match params.get("app_account_id") {
+                    Some(hash_str) => {
+                        let app_account_id = H256::try_from(hash_str.as_str());
+                        match app_account_id {
+                            Ok(i) => get_state(vm_state, &i).await,
+                            Err(_) => Ok(String::from("Invalid hash")),
+                        }
+                    }
+                    None => Ok(String::from("Hash parameter not provided")),
+                }
+            },
+        );
+
+    tx.or(submit_batch).or(header).or(account)
 }
 
 //TODO: Better status codes and error handling.
@@ -57,6 +82,21 @@ pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, In
     mempool.add_tx(tx).await;
 
     Ok(String::from("Added tx"))
+}
+
+pub async fn get_state(
+    state: Arc<Mutex<VmState>>,
+    app_account_id: &H256,
+) -> Result<String, Infallible> {
+    let state_lock = state.lock().await;
+
+    let account = match state_lock.get(app_account_id, true) {
+        Ok(Some(i)) => i,
+        Ok(None) => AccountState::zero(),
+        Err(e) => return Ok(String::from("Internal error")),
+    };
+
+    Ok(serde_json::to_string(&account).expect("Failed to serialize Account to JSON"))
 }
 
 pub async fn header(db: Arc<Mutex<NodeDB>>, avail_hash: H256) -> Result<String, Infallible> {
@@ -74,8 +114,7 @@ pub async fn header(db: Arc<Mutex<NodeDB>>, avail_hash: H256) -> Result<String, 
         Err(_) => panic!("Node DB error. Cannot find nexus header"),
     };
 
-    Ok(serde_json::to_string(&nexus_header)
-        .expect("Failed to serialize AvailHeader vector to JSON"))
+    Ok(serde_json::to_string(&nexus_header).expect("Failed to serialize AvailHeader to JSON"))
 }
 
 pub async fn range(db: Arc<Mutex<NodeDB>>) -> Result<String, Infallible> {

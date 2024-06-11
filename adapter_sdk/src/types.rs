@@ -24,6 +24,7 @@ pub struct RollupProof<P: Proof> {
     pub public_inputs: RollupPublicInputs,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdapterConfig {
     pub app_id: AppId,
     pub elf: Vec<u8>,

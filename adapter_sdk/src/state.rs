@@ -150,8 +150,13 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                     .unwrap();
             }
         });
+        let nexus_api_clone = self.nexus_api.clone();
 
-        let submission_handle = tokio::spawn(Self::manage_submissions(db_clone_2));
+        let submission_handle = tokio::spawn(async move {
+            let nexus_api = nexus_api_clone;
+
+            Self::manage_submissions(db_clone_2, &nexus_api).await
+        });
 
         match self.process_queue().await {
             Ok(_) => (),
@@ -166,7 +171,10 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         Ok(())
     }
 
-    async fn manage_submissions(db: Arc<Mutex<DB<P>>>) -> Result<Receipt, Error> {
+    async fn manage_submissions(
+        db: Arc<Mutex<DB<P>>>,
+        nexus_api: &NexusAPI,
+    ) -> Result<Receipt, Error> {
         loop {
             thread::sleep(Duration::from_secs(2));
 
@@ -199,7 +207,10 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                 continue;
             }
 
-            let range: Vec<H256> = response.json().await?;
+            let range: Vec<H256> = match nexus_api.get_range().await {
+                Ok(i) => i,
+                Err(e) => continue,
+            };
 
             let mut is_in_range = false;
 

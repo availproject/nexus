@@ -1,6 +1,9 @@
-use anyhow::anyhow;
-use nexus_core::types::{NexusHeader, TransactionV2, H256};
+use std::collections::HashMap;
 
+use anyhow::anyhow;
+use nexus_core::types::{AccountState, NexusHeader, TransactionV2, H256};
+
+#[derive(Debug, Clone)]
 pub struct NexusAPI {
     url: String,
     client: reqwest::Client,
@@ -44,6 +47,54 @@ impl NexusAPI {
             let nexus_header: NexusHeader = response.json().await?;
 
             Ok(nexus_header)
+        } else {
+            Err(anyhow!(
+                "Request failed with status code: {}",
+                response.status()
+            ))
+        }
+    }
+
+    pub async fn get_range(&self) -> Result<Vec<H256>, anyhow::Error> {
+        let response = reqwest::get("http://127.0.0.1:7000/range").await?;
+
+        // Check if the request was successful
+        if !response.status().is_success() {
+            println!(
+                "⛔️ Request to nexus failed with status {}. Nexus must be down",
+                response.status()
+            );
+
+            return Err(anyhow!(
+                "GET request failed with status: {}",
+                response.status()
+            ));
+        }
+
+        let range: Vec<H256> = response.json().await?;
+
+        Ok(range)
+    }
+
+    pub async fn get_account_state(
+        &self,
+        app_account_id: &H256,
+    ) -> Result<AccountState, anyhow::Error> {
+        let app_account_id = hex::encode(app_account_id.as_slice());
+        let mut params = HashMap::new();
+        params.insert("app_account_id".to_string(), app_account_id.to_string());
+
+        let response = self
+            .client
+            .get(&format!("{}/account", self.url))
+            .query(&params)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let account: AccountState = response.json().await?;
+
+            Ok(account)
         } else {
             Err(anyhow!(
                 "Request failed with status code: {}",

@@ -14,38 +14,39 @@ use risc0_zkvm::serde::{to_vec, Serializer};
 use risc0_zkvm::{Journal, Receipt};
 use serde::Serialize;
 use sparse_merkle_tree::traits::Value;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub struct StateMachine {
     stf: StateTransitionFunction,
-    state: VmState,
-    db: NodeDB,
+    state: Arc<Mutex<VmState>>,
 }
 
 impl StateMachine {
-    pub fn new(root: H256, path: &str) -> Self {
-        let chain_state_path = format!("{}/chain_state", path);
-        let node_storage_path = format!("{}/node_storage", path);
-        let state = VmState::new(root, &chain_state_path);
-        let node_db = NodeDB::from_path(&node_storage_path);
+    pub fn new(state: Arc<Mutex<VmState>>) -> Self {
+        // let chain_state_path = format!("{}/chain_state", path);
+        // let state = VmState::new(root, &chain_state_path);
 
         StateMachine {
             stf: StateTransitionFunction::new(),
-            db: node_db,
             state,
         }
     }
 
-    pub fn commit_state(&mut self, state_root: &H256) -> Result<(), Error> {
+    pub async fn commit_state(&mut self, state_root: &H256) -> Result<(), Error> {
+        let mut state_lock = self.state.lock().await;
+
         //TODO: Can remove as fixed slice from below
-        if (self.state.get_root().as_fixed_slice() != state_root.as_fixed_slice()) {
+        if (state_lock.get_root().as_fixed_slice() != state_root.as_fixed_slice()) {
             return Err(anyhow::anyhow!("State roots do not match to commit."));
         }
-        self.state.commit()?;
+
+        state_lock.commit()?;
 
         Ok(())
     }
 
-    pub fn execute_batch(
+    pub async fn execute_batch(
         &mut self,
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
@@ -53,23 +54,26 @@ impl StateMachine {
     ) -> Result<StateUpdate, Error> {
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
 
-        let result = txs.iter().try_for_each(|tx| {
-            let app_account_id: AppAccountId = match &tx.params {
-                TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
-                TxParamsV2::InitAccount(init_account) => {
-                    AppAccountId::from(init_account.app_id.clone())
-                }
-            };
+        let result = {
+            let state_lock = self.state.lock().await;
+            txs.iter().try_for_each(|tx| {
+                let app_account_id: AppAccountId = match &tx.params {
+                    TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
+                    TxParamsV2::InitAccount(init_account) => {
+                        AppAccountId::from(init_account.app_id.clone())
+                    }
+                };
 
-            let account_state = match self.state.get(&app_account_id.as_h256(), false) {
-                Ok(Some(account)) => account,
-                Err(e) => return Err(anyhow::anyhow!(e)), // Exit and return the error
-                Ok(None) => AccountState::zero(),
-            };
+                let account_state = match state_lock.get(&app_account_id.as_h256(), false) {
+                    Ok(Some(account)) => account,
+                    Err(e) => return Err(anyhow::anyhow!(e)), // Exit and return the error
+                    Ok(None) => AccountState::zero(),
+                };
 
-            pre_state.insert(app_account_id.0.clone(), account_state);
-            Ok(()) // Continue iterating
-        });
+                pre_state.insert(app_account_id.0.clone(), account_state);
+                Ok(()) // Continue iterating
+            })
+        };
 
         // Check the result and return an error if necessary
         match result {
@@ -91,8 +95,10 @@ impl StateMachine {
             self.stf
                 .execute_batch(avail_header, old_nexus_headers, &zkvm_txs, &pre_state)?;
 
+        let mut state_lock = self.state.lock().await;
+
         if !result.is_empty() {
-            Ok(self.state.update_set(
+            Ok(state_lock.update_set(
                 result
                     .iter()
                     .map(|f| (H256::from(f.0.clone()), f.1.clone()))
@@ -100,8 +106,8 @@ impl StateMachine {
             )?)
         } else {
             Ok(StateUpdate {
-                pre_state_root: self.state.get_root(),
-                post_state_root: self.state.get_root(),
+                pre_state_root: state_lock.get_root(),
+                post_state_root: state_lock.get_root(),
                 pre_state: HashMap::new(),
                 post_state: HashMap::new(),
                 proof: None,

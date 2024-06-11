@@ -6,6 +6,7 @@ use nexus_core::{
     agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction},
     db::NodeDB,
     mempool::Mempool,
+    state::VmState,
     state_machine::StateMachine,
     types::{
         AvailHeader, HeaderStore, NexusHeader, RollupPublicInputsV2, TransactionV2,
@@ -31,15 +32,18 @@ use crate::rpc::routes;
 pub mod rpc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let node_db: NodeDB = NodeDB::from_path(&String::from("./db"));
+    let node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
+
     let old_state_root: H256 = match node_db.get_current_root()? {
         Some(i) => i,
         None => H256::zero(),
     };
+    let state = Arc::new(Mutex::new(VmState::new(old_state_root, "./db/chain_state")));
+
     let db = Arc::new(Mutex::new(node_db));
     let db_clone = db.clone();
     let db_clone_2 = db.clone();
-    let mut state_machine = StateMachine::new(old_state_root, "./db");
+    let mut state_machine = StateMachine::new(state.clone());
     let relayer_mutex = Arc::new(Mutex::new(Relayer::new()));
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -107,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut state_machine,
                     &AvailHeader::from(&header),
                     &mut old_headers,
-                ) {
+                ).await {
                     Ok((_, result)) => {
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
@@ -141,7 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         //Server part//
-        let routes = routes(mempool, db_clone);
+        let routes = routes(mempool, db_clone, state.clone());
         let cors = warp::cors()
             .allow_any_origin()
             .allow_methods(vec!["POST"])
@@ -172,58 +176,61 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn execute_batch(
+async fn execute_batch(
     txs: &Vec<TransactionV2>,
     state_machine: &mut StateMachine,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
 ) -> Result<(Receipt, NexusHeader), Error> {
-    let state_update = state_machine.execute_batch(&header, header_store, &txs)?;
-
-    let mut env_builder = ExecutorEnv::builder();
-
-    let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
-        .iter()
-        .map(|tx| {
-            if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
-                //TODO: Remove transactions that error out from mempool
-                let proof = submit_proof_tx.proof.clone();
-
-                let receipt: Receipt = proof.try_into()?;
-                let pre_state = match state_update.pre_state.get(&submit_proof_tx.app_id.0) {
-                    Some(i) => i,
-                    None => {
-                        return Err(anyhow!(
-                        "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
-                        submit_proof_tx.app_id
-                    ))
-                    }
-                };
-
-                let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
-                    height: submit_proof_tx.height,
-                    app_id: submit_proof_tx.app_id.clone(),
-                    nexus_hash: submit_proof_tx.nexus_hash.clone(),
-                    start_nexus_hash: H256::from(pre_state.start_nexus_hash.clone()),
-                    state_root: submit_proof_tx.state_root.clone(),
-                    img_id: pre_state.statement.clone(),
-                };
-
-                env_builder.add_assumption(receipt);
-            }
-
-            Ok(TransactionZKVM {
-                signature: tx.signature.clone(),
-                params: tx.params.clone(),
-            })
-        })
-        .collect();
-
-    // Exit the whole process if there was an error during mapping
-    let zkvm_txs = zkvm_txs?;
+    let state_update = state_machine
+        .execute_batch(&header, header_store, &txs)
+        .await?;
 
     //Proof generation part.
-    let env = env_builder
+    let env = {
+        let mut env_builder = ExecutorEnv::builder();
+
+        let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
+            .iter()
+            .map(|tx| {
+                if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
+                    //TODO: Remove transactions that error out from mempool
+                    let proof = submit_proof_tx.proof.clone();
+    
+                    let receipt: Receipt = proof.try_into()?;
+                    let pre_state = match state_update.pre_state.get(&submit_proof_tx.app_id.0) {
+                        Some(i) => i,
+                        None => {
+                            return Err(anyhow!(
+                            "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
+                            submit_proof_tx.app_id
+                        ))
+                        }
+                    };
+    
+                    let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
+                        height: submit_proof_tx.height,
+                        app_id: submit_proof_tx.app_id.clone(),
+                        nexus_hash: submit_proof_tx.nexus_hash.clone(),
+                        start_nexus_hash: H256::from(pre_state.start_nexus_hash.clone()),
+                        state_root: submit_proof_tx.state_root.clone(),
+                        img_id: pre_state.statement.clone(),
+                    };
+    
+                    env_builder.add_assumption(receipt);
+                }
+    
+                Ok(TransactionZKVM {
+                    signature: tx.signature.clone(),
+                    params: tx.params.clone(),
+                })
+            })
+            .collect();
+    
+        // Exit the whole process if there was an error during mapping
+        let zkvm_txs = zkvm_txs?;
+        
+        env_builder
         .write(&zkvm_txs)
         .unwrap()
         .write(&state_update)
@@ -233,13 +240,17 @@ fn execute_batch(
         .write(&header_store)
         .unwrap()
         .build()
-        .unwrap();
-    let prover = default_prover();
-    let receipt = prover.prove(env, NEXUS_RUNTIME_ELF)?;
-    let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
+        .unwrap()
+    };
+    let (result, receipt): (NexusHeader, Receipt) = {
+        let prover = default_prover();
+        let receipt = prover.prove(env, NEXUS_RUNTIME_ELF)?;
+        
+        (from_slice(&receipt.journal.bytes).unwrap(), receipt)
+    };
 
     header_store.push_front(&result);
-    state_machine.commit_state(&result.state_root)?;
+    state_machine.commit_state(&result.state_root).await?;
 
     Ok((receipt, result))
 }

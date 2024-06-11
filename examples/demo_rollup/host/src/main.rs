@@ -5,7 +5,7 @@ use nexus_core::types::{AppId, StatementDigest};
 
 fn main() {
     let mut adapter: AdapterState<DemoProof> = AdapterState::new(
-        String::from("adapter_store"),
+        &String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),
             elf: ADAPTER_ELF.to_vec(),
