@@ -4,10 +4,12 @@ use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
 use nexus_core::state::sparse_merkle_tree::traits::Value;
 use nexus_core::types::{
-    AccountState, AppAccountId, AppId, InitAccount, RollupPublicInputsV2, StatementDigest,
-    TransactionV2, TxParamsV2, TxSignature, H256,
+    AccountState, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2, StatementDigest,
+    SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use risc0_zkvm::guest::env;
+use risc0_zkvm::serde::to_vec;
+use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::env::args;
 use std::time::Duration;
@@ -19,7 +21,7 @@ use web3::Web3;
 
 #[derive(Clone, Serialize, Deserialize)]
 struct AdapterStateData {
-    last_height: u64,
+    last_height: u32,
     adapter_config: AdapterConfig,
 }
 
@@ -81,7 +83,7 @@ async fn main() -> Result<(), Error> {
             .await
         {
             Ok(Some(header)) => {
-                let current_height = header.number.unwrap().as_u64();
+                let current_height = header.number.unwrap().as_u32();
                 let range = match nexus_api.get_range().await {
                     Ok(i) => i,
                     Err(e) => {
@@ -89,6 +91,7 @@ async fn main() -> Result<(), Error> {
                         continue;
                     }
                 };
+
                 let app_account_id =
                     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
                 let account: AccountState =
@@ -100,6 +103,8 @@ async fn main() -> Result<(), Error> {
                             continue;
                         }
                     };
+
+                last_height = account.height;
 
                 if range.is_empty() {
                     println!("Nexus does not have a valid range, retrying.");
@@ -129,6 +134,8 @@ async fn main() -> Result<(), Error> {
                             continue;
                         }
                     }
+                } else {
+                    println!("Account is already initiated.");
                 }
 
                 let height: u32 = header.number.unwrap().as_u32();
@@ -140,24 +147,68 @@ async fn main() -> Result<(), Error> {
                         //TODO: remove unwrap
                         height,
                         start_nexus_hash: H256::from(account.start_nexus_hash),
-                        app_id: app_account_id,
+                        app_id: app_account_id.clone(),
                         img_id: account.statement,
                     };
-                    // Pass the state root to adapter.run()
-                    env::commit(&public_inputs);
+
+                    let mut env_builder = ExecutorEnv::builder();
+                    let env = env_builder.write(&public_inputs).unwrap().build().unwrap();
+                    let prover = default_prover();
+                    let receipt = match prover.prove(env, ADAPTER_ELF) {
+                        Ok(i) => i,
+                        Err(e) => {
+                            println!("Unable to generate proof due to error: {:?}", e);
+
+                            continue;
+                        }
+                    };
+
+                    let tx = TransactionV2 {
+                        signature: TxSignature([0u8; 64]),
+                        params: TxParamsV2::SubmitProof(SubmitProof {
+                            app_id: app_account_id.clone(),
+                            nexus_hash: range[0],
+                            state_root: public_inputs.state_root.clone(),
+                            proof: match Proof::try_from(receipt) {
+                                Ok(i) => i,
+                                Err(e) => {
+                                    println!("Unable to serialise proof: {:?}", e);
+
+                                    continue;
+                                }
+                            },
+                            height: public_inputs.height,
+                        }),
+                    };
+                    match nexus_api.send_tx(tx).await {
+                        Ok(i) => {
+                            println!(
+                                "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
+                                &app_account_id, i, &public_inputs.state_root
+                            )
+                        }
+                        Err(e) => {
+                            println!("Error when iniating account: {:?}", e);
+
+                            continue;
+                        }
+                    }
 
                     last_height = current_height;
+                } else {
+                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, last_height);
                 }
             }
             Ok(None) => {
-                println!("")
+                println!("Got no header.")
             }
             Err(err) => {
                 println!("Error fetching latest header: {:?}", err);
             }
         }
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        println!("Sleeping for 10 seconds");
+        tokio::time::sleep(Duration::from_secs(10)).await;
         // Persist adapter state data to the database
         db.put(
             b"adapter_state_data",

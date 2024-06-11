@@ -49,7 +49,6 @@ impl MerkleStore {
 
                     match db.get(serialized_key) {
                         Ok(Some(i)) => {
-                            println!("now trying to deserialize to value..");
                             let deserialized_value: V = match from_slice(&i) {
                                 Ok(v) => v,
                                 Err(e) => return Err(Error::Store(e.to_string())),
@@ -73,7 +72,6 @@ impl MerkleStore {
 
             match db.get(serialized_key) {
                 Ok(Some(i)) => {
-                    println!("now trying to deserialize to value..");
                     let deserialized_value: V = match from_slice(&i) {
                         Ok(v) => v,
                         Err(e) => return Err(Error::Store(e.to_string())),
@@ -120,10 +118,9 @@ impl MerkleStore {
             Ok(i) => i,
             Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
         };
-        println!("committing {}", cache.len());
+
         for (key, value) in cache.iter() {
             if !value.is_empty() {
-                println!("Added to db: {:?}", &key);
                 match db.put(key, value) {
                     Err(e) => return Err(Error::Store(e.to_string())),
                     _ => (),
