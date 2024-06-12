@@ -167,7 +167,7 @@ impl StateTransitionFunction {
 
         post_account.statement = params.statement.clone();
         post_account.start_nexus_hash = params.start_nexus_hash.as_fixed_slice().clone();
-
+        
         Ok((pre_state.0.clone(), post_account))
     }
 }

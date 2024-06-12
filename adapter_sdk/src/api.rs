@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-use nexus_core::types::{AccountState, NexusHeader, TransactionV2, H256};
+use nexus_core::types::{AccountState, AccountWithProof, NexusHeader, TransactionV2, H256};
 
 #[derive(Debug, Clone)]
 pub struct NexusAPI {
@@ -79,7 +79,7 @@ impl NexusAPI {
     pub async fn get_account_state(
         &self,
         app_account_id: &H256,
-    ) -> Result<AccountState, anyhow::Error> {
+    ) -> Result<AccountWithProof, anyhow::Error> {
         let app_account_id = hex::encode(app_account_id.as_slice());
         let mut params = HashMap::new();
         params.insert("app_account_id".to_string(), app_account_id.to_string());
@@ -92,7 +92,7 @@ impl NexusAPI {
             .await?;
 
         if response.status().is_success() {
-            let account: AccountState = response.json().await?;
+            let account: AccountWithProof = response.json().await?;
 
             Ok(account)
         } else {

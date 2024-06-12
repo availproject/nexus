@@ -4,8 +4,8 @@ use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
 use nexus_core::state::sparse_merkle_tree::traits::Value;
 use nexus_core::types::{
-    AccountState, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2, StatementDigest,
-    SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2,
+    StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
@@ -94,7 +94,7 @@ async fn main() -> Result<(), Error> {
 
                 let app_account_id =
                     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-                let account: AccountState =
+                let account_with_proof: AccountWithProof =
                     match nexus_api.get_account_state(&app_account_id.as_h256()).await {
                         Ok(i) => i,
                         Err(e) => {
@@ -104,7 +104,7 @@ async fn main() -> Result<(), Error> {
                         }
                     };
 
-                last_height = account.height;
+                last_height = account_with_proof.account.height;
 
                 if range.is_empty() {
                     println!("Nexus does not have a valid range, retrying.");
@@ -112,7 +112,7 @@ async fn main() -> Result<(), Error> {
                     continue;
                 }
 
-                if account == AccountState::zero() {
+                if account_with_proof.account == AccountState::zero() {
                     let tx = TransactionV2 {
                         signature: TxSignature([0u8; 64]),
                         params: TxParamsV2::InitAccount(InitAccount {
@@ -146,9 +146,9 @@ async fn main() -> Result<(), Error> {
                         state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
                         //TODO: remove unwrap
                         height,
-                        start_nexus_hash: H256::from(account.start_nexus_hash),
+                        start_nexus_hash: H256::from(account_with_proof.account.start_nexus_hash),
                         app_id: app_account_id.clone(),
-                        img_id: account.statement,
+                        img_id: account_with_proof.account.statement,
                     };
 
                     let mut env_builder = ExecutorEnv::builder();

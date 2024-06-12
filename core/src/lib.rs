@@ -1,7 +1,6 @@
 #[cfg(any(feature = "native"))]
 pub mod db;
 //mod new_stf;
-#[cfg(any(feature = "native"))]
 pub mod state;
 #[cfg(any(feature = "native"))]
 pub mod state_machine;

@@ -8,6 +8,10 @@ use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtens
 #[cfg(any(feature = "native"))]
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
 use parity_scale_codec::{Decode, Encode};
+use solabi::{
+    encode::{Encode as SolabiEncode, Encoder, Size},
+    decode::{Decode as SolabiDecode, DecodeError, Decoder},
+};
 use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
 use risc0_zkvm::sha::Digest as RiscZeroDigest;
 #[cfg(any(feature = "native"))]
@@ -19,6 +23,7 @@ use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
 pub use sparse_merkle_tree::H256;
+pub use crate::state::types::{AccountState, StatementDigest, ShaHasher};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct AppAccountId(pub [u8; 32]);
@@ -29,8 +34,11 @@ pub struct AppId(#[codec(compact)] pub u32);
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct TxSignature(#[serde(with = "BigArray")] pub [u8; 64]);
 
-#[derive(Default)]
-pub struct ShaHasher(pub Sha256);
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AccountWithProof {
+    pub account: AccountState,
+    pub proof: MerkleProof,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]
 pub struct UpdatedBlob {
@@ -39,17 +47,7 @@ pub struct UpdatedBlob {
     //TODO: messages will be added a bit later.
 }
 
-//TODO: Need to check PartialEq to Eq difference, to ensure there is not security vulnerability.
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
-pub struct AccountState {
-    pub statement: StatementDigest,
-    pub state_root: [u8; 32],
-    pub start_nexus_hash: [u8; 32],
-    pub last_proof_height: u32,
-    pub height: u32,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum TxParamsV2 {
     SubmitProof(SubmitProof),
     InitAccount(InitAccount),
@@ -68,7 +66,7 @@ pub struct TransactionZKVM {
     pub params: TxParamsV2,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct SubmitProof {
     pub proof: Proof,
     pub nexus_hash: H256,
@@ -80,17 +78,14 @@ pub struct SubmitProof {
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct Proof(Vec<u8>);
 
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct InitAccount {
     pub app_id: AppAccountId,
     pub statement: StatementDigest,
     pub start_nexus_hash: H256,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
-pub struct StatementDigest(pub [u32; 8]);
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RollupPublicInputsV2 {
     pub nexus_hash: H256,
     pub state_root: H256,
@@ -344,36 +339,6 @@ impl AvailHeader {
     }
 }
 
-impl StatementDigest {
-    fn zero() -> Self {
-        Self([0u32; 8])
-    }
-}
-
-impl Value for AccountState {
-    fn to_h256(&self) -> H256 {
-        if self.statement == StatementDigest::zero() {
-            return H256::zero();
-        }
-
-        let mut hasher = ShaHasher::new();
-        let serialized = self.encode();
-        hasher.0.update(&serialized);
-
-        hasher.finish()
-    }
-
-    fn zero() -> Self {
-        Self {
-            state_root: [0; 32],
-            statement: StatementDigest::zero(),
-            start_nexus_hash: [0; 32],
-            last_proof_height: 0,
-            height: 0,
-        }
-    }
-}
-
 impl HeaderStore {
     pub fn new(max_size: usize) -> Self {
         Self {
@@ -458,19 +423,6 @@ impl RollupPublicInputsV2 {
         } else {
             Ok(())
         }
-    }
-}
-
-impl From<RiscZeroDigest> for StatementDigest {
-    fn from(item: RiscZeroDigest) -> Self {
-        let words = item.as_words();
-        let mut new_digest = [0u32; 8];
-
-        for (i, &element) in words.iter().take(8).enumerate() {
-            new_digest[i] = element;
-        }
-
-        Self(new_digest)
     }
 }
 

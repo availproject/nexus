@@ -1,7 +1,7 @@
 use crate::{
-    state::MerkleStore,
+    state::{MerkleStore, types::AccountState},
     traits::Leaf,
-    types::{AccountState, AppAccountId, ShaHasher, StateUpdate},
+    types::{AppAccountId, ShaHasher, StateUpdate},
 };
 use anyhow::{anyhow, Error};
 use rocksdb::{Options, DB};
@@ -121,6 +121,7 @@ impl VmState {
             Err(_e) => return Err(anyhow!("Erroneous state.")),
         };
 
+        //TODO: Return only proof of already committed state.
         let proof = match self.tree.merkle_proof(vec![*key]) {
             Ok(i) => i,
             Err(_e) => return Err(anyhow!("Erroneous state.")),

@@ -2,9 +2,13 @@ use anyhow::Error;
 use core::convert::Infallible;
 use nexus_core::db::NodeDB;
 use nexus_core::mempool::{self, Mempool};
+use nexus_core::state::sparse_merkle_tree::MerkleProof;
 use nexus_core::state::{sparse_merkle_tree::traits::Value, VmState};
 use nexus_core::state_machine::StateMachine;
-use nexus_core::types::{AccountState, AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256};
+use nexus_core::types::{
+    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256,
+};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -90,13 +94,15 @@ pub async fn get_state(
 ) -> Result<String, Infallible> {
     let state_lock = state.lock().await;
 
-    let account = match state_lock.get(app_account_id, true) {
-        Ok(Some(i)) => i,
-        Ok(None) => AccountState::zero(),
-        Err(e) => return Ok(String::from("Internal error")),
-    };
+    let (account, proof): (AccountState, MerkleProof) =
+        match state_lock.get_with_proof(app_account_id) {
+            Ok(i) => i,
+            Err(e) => return Ok(String::from("Internal error")),
+        };
 
-    Ok(serde_json::to_string(&account).expect("Failed to serialize Account to JSON"))
+    let response = AccountWithProof { account, proof };
+
+    Ok(serde_json::to_string(&response).expect("Failed to serialize Account to JSON"))
 }
 
 pub async fn header(db: Arc<Mutex<NodeDB>>, avail_hash: H256) -> Result<String, Infallible> {

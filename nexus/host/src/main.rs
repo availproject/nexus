@@ -10,7 +10,7 @@ use nexus_core::{
     state_machine::StateMachine,
     types::{
         AvailHeader, HeaderStore, NexusHeader, RollupPublicInputsV2, TransactionV2,
-        TransactionZKVM, TxParamsV2, H256,
+        TransactionZKVM, TxParamsV2, H256
     },
 };
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
@@ -29,7 +29,7 @@ use std::str::FromStr;
 
 use crate::rpc::routes;
 
-pub mod rpc;
+mod rpc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
