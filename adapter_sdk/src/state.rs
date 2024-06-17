@@ -13,7 +13,7 @@ use nexus_core::types::{
     TxParamsV2, TxSignature, H256,
 };
 use relayer::Relayer;
-use risc0_zkvm::{default_prover, Receipt};
+use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Receipt};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,33 @@ pub(crate) struct QueueItem<P: Proof + Clone> {
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
 }
+
+trait ZKVMAdapter<P: Proof + Clone + DeserializeOwned + Serialize + Send> {
+    fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error>;
+  
+
+//   fn add_assumption<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error>;
+
+}
+
+pub struct RiscZeroZKVM<'a> {
+    env_builder: ExecutorEnvBuilder<'a>,
+}
+
+impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> ZKVMAdapter<P> for RiscZeroZKVM<'_> {
+    fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
+        let env = self.env_builder.write(&input).unwrap();
+        // Ok(env)
+        Ok(())
+    }
+
+    // fn add_assumption<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
+    //     let env = self.env_builder.add_assumption(Receipt::);
+    //     // Ok(env)
+    //     Ok(())
+    // }
+}
+
 
 // usage : create an object for this struct and use as a global dependency
 pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
@@ -332,6 +359,9 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         };
 
         let mut env_builder = ExecutorEnv::builder();
+        // let zkvm = RiscZeroZKVM {
+        //     env_builder: env_builder.clone(),
+        // };
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
             None => None,
