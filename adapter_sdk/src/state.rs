@@ -13,11 +13,12 @@ use nexus_core::types::{
     TxParamsV2, TxSignature, H256,
 };
 use relayer::Relayer;
-use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Receipt};
+use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Prover, Receipt};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
 use tokio::sync::Mutex;
@@ -33,7 +34,7 @@ pub(crate) struct QueueItem<P: Proof + Clone> {
     header: AvailHeader,
 }
 
-trait ZKVMAdapter<P: Proof + Clone + DeserializeOwned + Serialize + Send> {
+trait ZKVMAdapter {
     fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error>;
   
 
@@ -43,9 +44,10 @@ trait ZKVMAdapter<P: Proof + Clone + DeserializeOwned + Serialize + Send> {
 
 pub struct RiscZeroZKVM<'a> {
     env_builder: ExecutorEnvBuilder<'a>,
+    default_prover: Rc<dyn Prover>,
 }
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> ZKVMAdapter<P> for RiscZeroZKVM<'_> {
+impl ZKVMAdapter for RiscZeroZKVM<'_> {
     fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
         let env = self.env_builder.write(&input).unwrap();
         // Ok(env)
@@ -358,21 +360,24 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             Some(i) => Some(i.clone()),
         };
 
-        let mut env_builder = ExecutorEnv::builder();
-        // let zkvm = RiscZeroZKVM {
-        //     env_builder: env_builder.clone(),
-        // };
+        let prover = default_prover();
+        // let mut env_builder = ExecutorEnv::builder();
+        let mut zkvm = RiscZeroZKVM {
+            env_builder: ExecutorEnv::builder(),
+            default_prover: default_prover(),
+        };
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
             None => None,
             Some((receipt, pi, _)) => {
-                env_builder.add_assumption(receipt);
+                // env_builder.add_assumption(receipt);
 
                 Some(pi)
             }
         };
 
-        let env = env_builder
+
+        let env = zkvm.env_builder
             .write(&prev_pi)
             .unwrap()
             .write(&queue_item.proof)
@@ -386,7 +391,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             .build()
             .unwrap();
 
-        let prover = default_prover();
+        let prover = zkvm.default_prover;
 
         let receipt = prover.prove(env, &self.elf);
 
