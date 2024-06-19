@@ -1,4 +1,3 @@
-use anyhow::Error;
 use core::convert::Infallible;
 use jmt::ValueHash;
 use nexus_core::db::NodeDB;
@@ -71,7 +70,7 @@ pub fn routes(
                     Some(hash_str) => {
                         let app_account_id = H256::try_from(hash_str.as_str());
                         match app_account_id {
-                            Ok(i) => get_state(vm_state, &i).await,
+                            Ok(i) => get_state(db, vm_state, &i).await,
                             Err(_) => Ok(String::from("Invalid hash")),
                         }
                     }
@@ -91,11 +90,18 @@ pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, In
 }
 
 pub async fn get_state(
+    db: Arc<Mutex<NodeDB>>,
     state: Arc<Mutex<VmState>>,
     app_account_id: &H256,
 ) -> Result<String, Infallible> {
     let state_lock = state.lock().await;
+    let db_lock = db.lock().await;
 
+    let header_store: HeaderStore = match db_lock.get(b"previous_headers") {
+        Ok(Some(i)) => i,
+        Ok(None) => HeaderStore::new(32),
+        Err(_) => panic!("Header store error"),
+    };
     let (account_option, proof) = match state_lock.get_with_proof(app_account_id, 0) {
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
@@ -122,7 +128,10 @@ pub async fn get_state(
         proof: siblings.clone(),
         value_hash: value_hash.clone(),
         account_encoded: hex::encode(account.encode()),
-        nexus_state_root: root.as_fixed_slice().clone(),
+        nexus_header: match header_store.first() {
+            Some(i) => i.clone(),
+            None => return Ok(String::from("No headers available.")),
+        },
         //TODO: Remove below unwrap
         proof_hex: siblings.iter().map(|s| hex::encode(s)).collect(),
         value_hash_hex: hex::encode(value_hash),
