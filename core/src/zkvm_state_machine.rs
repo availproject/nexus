@@ -31,7 +31,7 @@ impl ZKVMStateMachine {
         state_update: StateUpdate,
     ) -> Result<NexusHeader, anyhow::Error> {
         let number: u32 = if let Some(first_header) = old_headers.first() {
-            first_header.number
+            first_header.number + 1
         } else {
             0
         };
@@ -60,7 +60,7 @@ impl ZKVMStateMachine {
                             KeyHash(key.clone()),
                             value,
                         )?;
-                        
+
                         Ok(())
                     },
                 )?
