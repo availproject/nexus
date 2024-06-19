@@ -3275,6 +3275,7 @@ dependencies = [
  "anyhow",
  "avail-subxt",
  "bincode",
+ "jmt",
  "nexus-core",
  "parity-scale-codec",
  "prover",

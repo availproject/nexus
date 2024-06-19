@@ -1,5 +1,6 @@
 use anyhow::Error;
 use core::convert::Infallible;
+use jmt::ValueHash;
 use nexus_core::db::NodeDB;
 use nexus_core::mempool::{self, Mempool};
 use nexus_core::state::sparse_merkle_tree::MerkleProof;
@@ -107,12 +108,13 @@ pub async fn get_state(
     };
 
     let response = AccountWithProof {
-        account,
+        account: account.clone(),
         proof: proof
             .siblings()
             .iter()
             .map(|s| s.hash::<Sha256>())
             .collect(),
+        value_hash: ValueHash::with::<Sha256>(account.encode()).0,
     };
 
     Ok(serde_json::to_string(&response).expect("Failed to serialize Account to JSON"))

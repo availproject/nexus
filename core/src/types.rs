@@ -40,6 +40,7 @@ pub struct TxSignature(#[serde(with = "BigArray")] pub [u8; 64]);
 pub struct AccountWithProof {
     pub account: AccountState,
     pub proof: Vec<[u8; 32]>,
+    pub value_hash: [u8; 32],
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]
