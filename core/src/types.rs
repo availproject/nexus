@@ -41,6 +41,11 @@ pub struct AccountWithProof {
     pub account: AccountState,
     pub proof: Vec<[u8; 32]>,
     pub value_hash: [u8; 32],
+    pub nexus_state_root: [u8; 32],
+    pub account_encoded: String,
+    pub proof_hex: Vec<String>,
+    pub value_hash_hex: String,
+    pub nexus_state_root_hex: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]

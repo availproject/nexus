@@ -100,21 +100,33 @@ pub async fn get_state(
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
     };
+    let root = match state_lock.get_root(0) {
+        Ok(i) => i,
+        Err(e) => return Ok(String::from("Internal error")),
+    };
 
     let account = if let Some(a) = account_option {
         a
     } else {
         AccountState::zero()
     };
+    let siblings: Vec<[u8; 32]> = proof
+        .siblings()
+        .iter()
+        .map(|s| s.hash::<Sha256>())
+        .collect();
+    let value_hash = ValueHash::with::<Sha256>(account.encode()).0;
 
     let response = AccountWithProof {
         account: account.clone(),
-        proof: proof
-            .siblings()
-            .iter()
-            .map(|s| s.hash::<Sha256>())
-            .collect(),
-        value_hash: ValueHash::with::<Sha256>(account.encode()).0,
+        proof: siblings.clone(),
+        value_hash: value_hash.clone(),
+        account_encoded: hex::encode(account.encode()),
+        nexus_state_root: root.as_fixed_slice().clone(),
+        //TODO: Remove below unwrap
+        proof_hex: siblings.iter().map(|s| hex::encode(s)).collect(),
+        value_hash_hex: hex::encode(value_hash),
+        nexus_state_root_hex: hex::encode(root.as_fixed_slice()),
     };
 
     Ok(serde_json::to_string(&response).expect("Failed to serialize Account to JSON"))
