@@ -35,15 +35,16 @@ impl StateTransitionFunction {
             }
         }
 
-        let mut post_state: HashMap<[u8; 32], AccountState> = HashMap::new();
+        //TODO: Take mutable ref of pre_state so it can be modified directly, instead of returning post state.
+        let mut post_state: HashMap<[u8; 32], AccountState> = pre_state.clone();
 
-        for tx in txs.iter() {
+        for (i, tx) in txs.iter().enumerate() {
             let state_key = match &tx.params {
                 TxParamsV2::SubmitProof(params) => params.app_id.clone(),
                 TxParamsV2::InitAccount(params) => params.app_id.clone(),
             };
 
-            let pre_state = match pre_state.get(&state_key.0) {
+            let pre_state = match post_state.get(&state_key.0) {
                 None => return Err(anyhow!("Incorrect pre state provided by host.")),
                 Some(i) => i,
             };
@@ -89,11 +90,6 @@ impl StateTransitionFunction {
             img_id: pre_state.1.statement.clone(),
         };
 
-        // let journal_vec = match to_vec(&params.public_inputs) {
-        //     Ok(i) => i.iter().flat_map(|&x| x.to_le_bytes().to_vec()).collect(),
-        //     Err(e) => return Err(anyhow!(e)),
-        // };
-        //let proof: Receipt = Receipt::new(params.proof.clone(), journal_vec);
         if public_inputs.app_id != pre_state.0.clone() {
             return Err(anyhow!("Incorrect app account id"));
         }
@@ -137,9 +133,11 @@ impl StateTransitionFunction {
         };
 
         #[cfg(not(feature = "native"))]
-        match verify(public_inputs.img_id.0, &public_input_vec) {
-            Ok(_) => (),
-            Err(e) => return Err(anyhow!("Invalid proof")),
+        {
+            match verify(public_inputs.img_id.0, &public_input_vec) {
+                Ok(_) => (),
+                Err(e) => return Err(anyhow!("Invalid proof")),
+            }
         };
 
         let post_state: AccountState = AccountState {
@@ -167,7 +165,7 @@ impl StateTransitionFunction {
 
         post_account.statement = params.statement.clone();
         post_account.start_nexus_hash = params.start_nexus_hash.as_fixed_slice().clone();
-        
+
         Ok((pre_state.0.clone(), post_account))
     }
 }

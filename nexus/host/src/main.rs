@@ -6,7 +6,7 @@ use nexus_core::{
     agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction},
     db::NodeDB,
     mempool::Mempool,
-    state::VmState,
+    state::{merkle_store, MerkleStore, VmState},
     state_machine::StateMachine,
     types::{
         AvailHeader, HeaderStore, NexusHeader, RollupPublicInputsV2, TransactionV2,
@@ -18,8 +18,9 @@ use relayer::Relayer;
 use risc0_zkvm::{
     default_executor, default_prover, serde::from_slice, ExecutorEnv, Journal, Receipt,
 };
+use rocksdb::{Options, DB};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::{Arc, Mutex as StdMutex}};
 use tokio::time::{sleep, Duration};
 use tokio::{self, sync::Mutex};
 use warp::Filter;
@@ -33,12 +34,16 @@ mod rpc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
+    let mut db_options = Options::default();
+    db_options.create_if_missing(true);
 
     let old_state_root: H256 = match node_db.get_current_root()? {
         Some(i) => i,
         None => H256::zero(),
     };
-    let state = Arc::new(Mutex::new(VmState::new(old_state_root, "./db/chain_state")));
+
+
+        let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
 
     let db = Arc::new(Mutex::new(node_db));
     let db_clone = db.clone();
@@ -123,8 +128,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 number: header.number,
                                 nexus_hash: nexus_hash.clone(),
                             },
-                        );
-                        db_lock.put(nexus_hash.as_slice(), &result);
+                        ).unwrap();
+                        db_lock.put(nexus_hash.as_slice(), &result).unwrap();
 
                         db_lock.set_current_root(&result.state_root).unwrap();
                         if let Some(i) = index {
@@ -141,6 +146,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         break;
                     }
                 };
+
+                tokio::time::sleep(Duration::from_secs(5)).await;
             }
         });
 
@@ -183,7 +190,7 @@ async fn execute_batch(
     header_store: &mut HeaderStore,
 ) -> Result<(Receipt, NexusHeader), Error> {
     let state_update = state_machine
-        .execute_batch(&header, header_store, &txs)
+        .execute_batch(&header, header_store, &txs, 0)
         .await?;
 
     //Proof generation part.
@@ -198,7 +205,7 @@ async fn execute_batch(
                     let proof = submit_proof_tx.proof.clone();
     
                     let receipt: Receipt = proof.try_into()?;
-                    let pre_state = match state_update.pre_state.get(&submit_proof_tx.app_id.0) {
+                    let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
                         Some(i) => i,
                         None => {
                             return Err(anyhow!(
@@ -206,15 +213,6 @@ async fn execute_batch(
                             submit_proof_tx.app_id
                         ))
                         }
-                    };
-    
-                    let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
-                        height: submit_proof_tx.height,
-                        app_id: submit_proof_tx.app_id.clone(),
-                        nexus_hash: submit_proof_tx.nexus_hash.clone(),
-                        start_nexus_hash: H256::from(pre_state.start_nexus_hash.clone()),
-                        state_root: submit_proof_tx.state_root.clone(),
-                        img_id: pre_state.statement.clone(),
                     };
     
                     env_builder.add_assumption(receipt);
@@ -233,7 +231,7 @@ async fn execute_batch(
         env_builder
         .write(&zkvm_txs)
         .unwrap()
-        .write(&state_update)
+        .write(&state_update.1)
         .unwrap()
         .write(&header)
         .unwrap()
@@ -242,6 +240,7 @@ async fn execute_batch(
         .build()
         .unwrap()
     };
+    
     let (result, receipt): (NexusHeader, Receipt) = {
         let prover = default_prover();
         let receipt = prover.prove(env, NEXUS_RUNTIME_ELF)?;
@@ -250,7 +249,13 @@ async fn execute_batch(
     };
 
     header_store.push_front(&result);
-    state_machine.commit_state(&result.state_root).await?;
+    
+    match state_update.0 {
+        Some(i) => {
+            state_machine.commit_state(&result.state_root, &i.node_batch, 0).await?;
+        }, 
+        None => ()
+    }
 
     Ok((receipt, result))
 }

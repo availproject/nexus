@@ -8,6 +8,7 @@ use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
     AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256,
 };
+use risc0_zkvm::sha::rust_crypto::Sha256;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
@@ -94,13 +95,25 @@ pub async fn get_state(
 ) -> Result<String, Infallible> {
     let state_lock = state.lock().await;
 
-    let (account, proof): (AccountState, MerkleProof) =
-        match state_lock.get_with_proof(app_account_id) {
-            Ok(i) => i,
-            Err(e) => return Ok(String::from("Internal error")),
-        };
+    let (account_option, proof) = match state_lock.get_with_proof(app_account_id, 0) {
+        Ok(i) => i,
+        Err(e) => return Ok(String::from("Internal error")),
+    };
 
-    let response = AccountWithProof { account, proof };
+    let account = if let Some(a) = account_option {
+        a
+    } else {
+        AccountState::zero()
+    };
+
+    let response = AccountWithProof {
+        account,
+        proof: proof
+            .siblings()
+            .iter()
+            .map(|s| s.hash::<Sha256>())
+            .collect(),
+    };
 
     Ok(serde_json::to_string(&response).expect("Failed to serialize Account to JSON"))
 }

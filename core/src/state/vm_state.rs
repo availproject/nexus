@@ -1,136 +1,142 @@
 use crate::{
-    state::{MerkleStore, types::AccountState},
+    state::{types::AccountState, MerkleStore},
     traits::Leaf,
     types::{AppAccountId, ShaHasher, StateUpdate},
 };
 use anyhow::{anyhow, Error};
+use jmt::{
+    proof::SparseMerkleProof,
+    storage::{NodeBatch, TreeUpdateBatch, TreeWriter},
+    JellyfishMerkleTree, KeyHash, SimpleHasher, Version,
+};
+use risc0_zkvm::sha::rust_crypto::Sha256;
 use rocksdb::{Options, DB};
-use serde::{de::DeserializeOwned, Serialize};
-use sparse_merkle_tree::{traits::Hasher, traits::Value, MerkleProof, SparseMerkleTree, H256};
+use sparse_merkle_tree::H256;
 use std::{
     cmp::PartialEq,
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 
-//TODO - Replace MerkleStore with a generic so any backing store could be used.
 pub struct VmState {
-    tree: SparseMerkleTree<ShaHasher, AccountState, MerkleStore>,
     merkle_store: MerkleStore,
 }
 
 impl VmState {
-    pub fn new(root: H256, path: &str) -> Self {
+    pub fn new(path: &str) -> Self {
         let mut db_options = Options::default();
         db_options.create_if_missing(true);
 
         let db = DB::open(&db_options, path).expect("unable to open rocks db.");
         let cache: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
-        let cache_arc = Arc::new(Mutex::new(cache));
+
         let db_arc = Arc::new(Mutex::new(db));
+        let cache_arc = Arc::new(Mutex::new(cache));
+        let merkle_store = MerkleStore::with_db(db_arc.clone(), cache_arc.clone());
 
-        VmState {
-            tree: SparseMerkleTree::new(
-                root,
-                MerkleStore::with_db(db_arc.clone(), cache_arc.clone()),
-            ),
-            merkle_store: MerkleStore::with_db(db_arc, cache_arc),
-        }
+        Self { merkle_store }
     }
 
-    //Revert to last committed state and clear cache.
-    pub fn revert(&mut self) -> Result<(), Error> {
-        self.merkle_store.clear_cache()?;
-
-        let tree = match SparseMerkleTree::new_with_store(self.merkle_store.clone()) {
-            Ok(i) => i,
-            Err(e) => {
-                return Err(anyhow!(
-                    "Could not calculate root from last committed state. Critical error. {e}"
-                ))
-            }
+    pub fn get_root(&self, version: u64) -> Result<H256, anyhow::Error> {
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
+            JellyfishMerkleTree::new(&self.merkle_store);
+        let root = match tree.get_root_hash_option(version)? {
+            Some(i) => H256::from(i.0),
+            None => H256::zero(),
         };
-
-        self.tree = tree;
-        println!("Reverted to root: {:?}", self.tree.root());
-
-        Ok(())
+        Ok(root)
     }
 
-    pub fn commit(&mut self) -> Result<(), Error> {
-        match self.merkle_store.commit() {
-            Ok(()) => Ok(()),
-            Err(e) => Err(anyhow!(e.to_string())),
+    pub fn update_set(
+        &mut self,
+        set: HashMap<H256, Option<AccountState>>,
+        version: Version,
+    ) -> Result<(TreeUpdateBatch, StateUpdate), Error> {
+        let mut pre_state: HashMap<[u8; 32], (Option<AccountState>, SparseMerkleProof<Sha256>)> =
+            HashMap::new();
+        let pre_state_root = self.get_root(version)?;
+
+        set.iter()
+            .try_for_each::<_, Result<(), anyhow::Error>>(|(key, account)| {
+                //Note: Do not have to get version minus one, as any version lesser than equal to is retrieved.
+                let result = self.get_with_proof(key, version)?;
+
+                pre_state.insert(key.as_fixed_slice().clone(), result);
+                Ok(())
+            })?;
+        // Convert AccountState to Vec<u8> before inserting into the set
+        let serialized_set: HashMap<KeyHash, Option<Vec<u8>>> = set
+            .into_iter()
+            .map(|(key, value)| {
+                let serialized_value = value.map(|account_state| account_state.encode());
+                (KeyHash(key.as_fixed_slice().clone()), serialized_value)
+            })
+            .collect();
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
+            JellyfishMerkleTree::new(&self.merkle_store);
+
+        // Perform the update with the serialized set
+        match tree.put_value_set(serialized_set, version) {
+            Ok(i) => Ok((
+                i.1,
+                StateUpdate {
+                    pre_state,
+                    post_state_root: H256::from(i.0 .0),
+                    pre_state_root,
+                },
+            )),
+            Err(e) => Err(e),
         }
     }
 
-    pub fn update_set(&mut self, set: Vec<(H256, AccountState)>) -> Result<StateUpdate, Error> {
-        let pre_state_root = self.get_root();
-        let pre_merkle_proof = self
-            .tree
-            .merkle_proof(set.iter().map(|v| v.0).collect())
-            .unwrap();
-        let mut pre_merkle_set = HashMap::new();
-
-        set.iter().for_each(|v| {
-            pre_merkle_set.insert(
-                v.0.as_fixed_slice().clone(),
-                self.tree.get(&v.0).expect("Cannot get from tree."),
-            );
-        });
-
-        self.tree
-            .update_all(set.clone().into_iter().map(|v| (v.0, v.1)).collect())
-            .unwrap();
-
-        let post_state_root = self.get_root();
-
-        let mut post_merkle_set = HashMap::new();
-        set.iter().for_each(|v| {
-            post_merkle_set.insert(
-                v.0.as_fixed_slice().clone(),
-                self.tree.get(&v.0).expect("Cannot get from tree."),
-            );
-        });
-        // let post_merkle_proof = self
-        //     .tree
-        //     .merkle_proof(set.iter().map(|v| v.0).collect())
-        //     .unwrap();
-
-        //println!("Pre: {:?} || Post {:?}", pre_merkle_proof, post_merkle_proof);
-
-        Ok(StateUpdate {
-            pre_state_root,
-            post_state_root,
-            proof: Some(pre_merkle_proof),
-            pre_state: pre_merkle_set,
-            post_state: post_merkle_set,
-        })
+    pub fn commit(&mut self, node_batch: &NodeBatch) -> Result<(), Error> {
+        self.merkle_store.write_node_batch(&node_batch)
     }
 
-    pub fn get(&self, key: &H256, committed: bool) -> Result<Option<AccountState>, Error> {
-        self.merkle_store
-            .get(key.as_slice(), committed)
-            .map_err(|e| anyhow!({ e }))
+    pub fn get(&self, key: &H256, version: Version) -> Result<Option<AccountState>, Error> {
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
+            JellyfishMerkleTree::new(&self.merkle_store);
+
+        match tree.get(KeyHash(key.as_fixed_slice().clone()), version) {
+            Ok(Some(value)) => match AccountState::decode(&value) {
+                Ok(account_state) => Ok(Some(account_state)),
+                Err(e) => Err(e.into()),
+            },
+            Ok(None) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     //Gets from state even if not committed.
-    pub fn get_with_proof(&self, key: &H256) -> Result<(AccountState, MerkleProof), Error> {
-        let value = match self.tree.get(key) {
-            Ok(i) => i,
-            Err(_e) => return Err(anyhow!("Erroneous state.")),
+    pub fn get_with_proof(
+        &self,
+        key: &H256,
+        version: Version,
+    ) -> Result<(Option<AccountState>, SparseMerkleProof<Sha256>), Error> {
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
+            JellyfishMerkleTree::new(&self.merkle_store);
+        let root = self.get_root(0)?;
+
+        //TODO: Add genesis state so there is no empty root.
+        if root == H256::zero() {
+            return Ok((None, SparseMerkleProof::new(None, vec![])));
+        }
+        let proof = tree.get_with_proof(KeyHash(key.as_fixed_slice().clone()), version)?;
+
+        let result = proof.1.verify(
+            jmt::RootHash(root.as_fixed_slice().clone()),
+            KeyHash(key.as_fixed_slice().clone()),
+            proof.0.clone(),
+        );
+
+        let value = match proof.0 {
+            Some(i) => match AccountState::decode(&i) {
+                Ok(account_state) => Some(account_state),
+                Err(e) => return Err(e.into()),
+            },
+            None => None,
         };
 
-        //TODO: Return only proof of already committed state.
-        let proof = match self.tree.merkle_proof(vec![*key]) {
-            Ok(i) => i,
-            Err(_e) => return Err(anyhow!("Erroneous state.")),
-        };
-
-        Ok((value, proof))
-    }
-
-    pub fn get_root(&self) -> H256 {
-        *self.tree.root()
+        Ok((value, proof.1))
     }
 }

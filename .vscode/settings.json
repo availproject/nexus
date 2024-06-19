@@ -9,5 +9,6 @@
     "./examples/mock_geth_adapter/host",
     "./examples/mock_geth_adapter/methods",
     "./examples/mock_geth_adapter/core",
+    "./smt_playground"
   ]
 }

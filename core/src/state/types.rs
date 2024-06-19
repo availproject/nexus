@@ -1,12 +1,7 @@
-use solabi::{
-  encode::{Encode as SolabiEncode, Encoder, Size},
-  decode::{Decode as SolabiDecode, DecodeError, Decoder},
-};
-use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
+use ethabi::{decode, encode, ParamType, Token};
+use risc0_zkvm::sha::rust_crypto::Sha256;
 use risc0_zkvm::sha::Digest as RiscZeroDigest;
-use sparse_merkle_tree::traits::{Hasher, Value};
 use serde::{Deserialize, Serialize};
-use sparse_merkle_tree::H256;
 
 #[derive(Default)]
 pub struct ShaHasher(pub Sha256);
@@ -24,74 +19,121 @@ pub struct AccountState {
     pub height: u32,
 }
 
-impl SolabiEncode for AccountState {
-  fn size(&self) -> Size {
-      (&self.statement.0, &self.state_root, &self.start_nexus_hash, self.last_proof_height, self.height).size()
-  }
+impl AccountState {
+    pub fn zero() -> Self {
+        Self {
+            state_root: [0; 32],
+            statement: StatementDigest::zero(),
+            start_nexus_hash: [0; 32],
+            last_proof_height: 0,
+            height: 0,
+        }
+    }
 
-  fn encode(&self, encoder: &mut Encoder) {
-      (&self.statement.0, &self.state_root, &self.start_nexus_hash, self.last_proof_height, self.height).encode(encoder);
-  }
-}
+    pub fn encode(&self) -> Vec<u8> {
+        let tokens = vec![
+            self.statement.encode(),
+            Token::FixedBytes(self.state_root.to_vec()),
+            Token::FixedBytes(self.start_nexus_hash.to_vec()),
+            Token::Uint(self.last_proof_height.into()),
+            Token::Uint(self.height.into()),
+        ];
+        encode(&tokens)
+    }
 
-impl SolabiDecode for AccountState {
-  fn is_dynamic() -> bool {
-      true // AccountState contains dynamic fields
-  }
+    pub fn decode(encoded: &[u8]) -> Result<Self, ethabi::Error> {
+        let tokens = decode(
+            &[
+                ParamType::FixedBytes(32),
+                ParamType::FixedBytes(32),
+                ParamType::FixedBytes(32),
+                ParamType::Uint(32),
+                ParamType::Uint(32),
+            ],
+            encoded,
+        )?;
 
-  fn decode(decoder: &mut Decoder) -> Result<Self, DecodeError> {
-      let (statement, state_root, start_nexus_hash, last_proof_height, height) = SolabiDecode::decode(decoder)?;
-      
-      Ok(AccountState {
-          statement: StatementDigest(statement),
-          state_root,
-          start_nexus_hash,
-          last_proof_height,
-          height,
-      })
-  }
-}
+        if tokens.len() != 5 {
+            return Err(ethabi::Error::InvalidData);
+        }
 
-impl Value for AccountState {
-  fn to_h256(&self) -> H256 {
-      if self.statement == StatementDigest::zero() {
-          return H256::zero();
-      }
+        let statement = StatementDigest::decode(&tokens[0])?;
+        let state_root: [u8; 32] = tokens[1]
+            .clone()
+            .into_fixed_bytes()
+            .ok_or(ethabi::Error::InvalidData)?
+            .try_into()
+            .map_err(|_| ethabi::Error::InvalidData)?;
+        let start_nexus_hash: [u8; 32] = tokens[2]
+            .clone()
+            .into_fixed_bytes()
+            .ok_or(ethabi::Error::InvalidData)?
+            .try_into()
+            .map_err(|_| ethabi::Error::InvalidData)?;
+        let last_proof_height = tokens[3]
+            .clone()
+            .into_uint()
+            .ok_or(ethabi::Error::InvalidData)?
+            .as_u32();
+        let height = tokens[4]
+            .clone()
+            .into_uint()
+            .ok_or(ethabi::Error::InvalidData)?
+            .as_u32();
 
-      let mut hasher = ShaHasher::new();
-      
-      let serialized = solabi::encode(self);
-      hasher.0.update(&serialized);
-
-      hasher.finish()
-  }
-
-  fn zero() -> Self {
-      Self {
-          state_root: [0; 32],
-          statement: StatementDigest::zero(),
-          start_nexus_hash: [0; 32],
-          last_proof_height: 0,
-          height: 0,
-      }
-  }
+        Ok(AccountState {
+            statement,
+            state_root,
+            start_nexus_hash,
+            last_proof_height,
+            height,
+        })
+    }
 }
 
 impl StatementDigest {
-  fn zero() -> Self {
-      Self([0u32; 8])
-  }
+    pub fn encode(&self) -> Token {
+        let mut bytes = vec![];
+        for &num in &self.0 {
+            bytes.extend(&num.to_be_bytes());
+        }
+        Token::FixedBytes(bytes)
+    }
+
+    pub fn decode(token: &Token) -> Result<Self, ethabi::Error> {
+        if let Token::FixedBytes(bytes) = token {
+            if bytes.len() != 32 {
+                return Err(ethabi::Error::InvalidData);
+            }
+
+            let mut u32_array = [0u32; 8];
+            for (i, chunk) in bytes.chunks(4).enumerate() {
+                u32_array[i] =
+                    u32::from_be_bytes(chunk.try_into().map_err(|_| ethabi::Error::InvalidData)?);
+            }
+
+            Ok(StatementDigest(u32_array))
+        } else {
+            Err(ethabi::Error::InvalidData)
+        }
+    }
+}
+
+impl StatementDigest {
+    fn zero() -> Self {
+        Self([0u32; 8])
+    }
 }
 
 impl From<RiscZeroDigest> for StatementDigest {
-  fn from(item: RiscZeroDigest) -> Self {
-      let words = item.as_words();
-      let mut new_digest = [0u32; 8];
+    fn from(item: RiscZeroDigest) -> Self {
+        let words = item.as_words();
+        let mut new_digest = [0u32; 8];
 
-      for (i, &element) in words.iter().take(8).enumerate() {
-          new_digest[i] = element;
-      }
+        for (i, &element) in words.iter().take(8).enumerate() {
+            new_digest[i] = element;
+        }
 
-      Self(new_digest)
-  }
+        Self(new_digest)
+    }
 }

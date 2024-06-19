@@ -13,6 +13,7 @@ use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::env::args;
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 use web3::transports::Http;
 use web3::types::BlockId;
 use web3::Web3;
@@ -74,6 +75,7 @@ async fn main() -> Result<(), Error> {
 
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
+    let mut start_nexus_hash = None;
 
     let web3 = Web3::new(Http::new(ethereum_node_url).unwrap());
     loop {
@@ -123,6 +125,7 @@ async fn main() -> Result<(), Error> {
                     };
                     match nexus_api.send_tx(tx).await {
                         Ok(i) => {
+                            start_nexus_hash = Some(range[0]);
                             println!(
                                 "Initiated account on nexus. AppAccountId: {:?} Response: {:?}",
                                 &app_account_id, i,
@@ -134,9 +137,37 @@ async fn main() -> Result<(), Error> {
                             continue;
                         }
                     }
-                } else {
-                    println!("Account is already initiated.");
                 }
+                //else {
+                //     let timestamp = SystemTime::now()
+                //         .duration_since(UNIX_EPOCH)
+                //         .expect("Time went backwards")
+                //         .as_secs() as u32;
+                //     let app_id = AppAccountId::from(AppId(timestamp));
+
+                //     let tx = TransactionV2 {
+                //         signature: TxSignature([0u8; 64]),
+                //         params: TxParamsV2::InitAccount(InitAccount {
+                //             app_id: app_id.clone(),
+                //             statement: StatementDigest(ADAPTER_ID),
+                //             start_nexus_hash: range[0],
+                //         }),
+                //     };
+                //     match nexus_api.send_tx(tx).await {
+                //         Ok(i) => {
+                //             println!(
+                //                 "Initiated account on nexus. AppAccountId: {:?} Response: {:?}",
+                //                 &app_id, i,
+                //             )
+                //         }
+                //         Err(e) => {
+                //             println!("Error when iniating account: {:?}", e);
+
+                //             continue;
+                //         }
+                //     }
+                //     println!("Account is already initiated.");
+                // }
 
                 let height: u32 = header.number.unwrap().as_u32();
 
@@ -146,9 +177,20 @@ async fn main() -> Result<(), Error> {
                         state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
                         //TODO: remove unwrap
                         height,
-                        start_nexus_hash: H256::from(account_with_proof.account.start_nexus_hash),
+                        start_nexus_hash: start_nexus_hash.unwrap_or_else(|| {
+                            H256::from(account_with_proof.account.start_nexus_hash)
+                        }),
                         app_id: app_account_id.clone(),
-                        img_id: account_with_proof.account.statement,
+                        img_id: StatementDigest(ADAPTER_ID),
+                    };
+
+                    let public_input_vec = match to_vec(&public_inputs) {
+                        Ok(i) => i,
+                        Err(e) => {
+                            return Err(anyhow::anyhow!(
+                                "Could not encode public inputs of rollup."
+                            ))
+                        }
                     };
 
                     let mut env_builder = ExecutorEnv::builder();

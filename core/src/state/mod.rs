@@ -1,5 +1,5 @@
 #[cfg(any(feature = "native"))]
-mod merkle_store;
+pub mod merkle_store;
 
 #[cfg(any(feature = "native"))]
 pub mod vm_state;

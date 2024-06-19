@@ -18,3 +18,4 @@ relayer = { path = "../../relayer" }
 anyhow = "1.0.80"
 warp = "0.3.6"
 bincode = "1.3.3"
+rocksdb = {version = "0.22.0"}

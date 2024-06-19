@@ -9,8 +9,9 @@ use crate::types::{
 };
 use anyhow::Error;
 use avail_subxt::config::Header as HeaderTrait;
+use jmt::storage::{NodeBatch, TreeUpdateBatch};
+use jmt::{KeyHash, Version};
 use parity_scale_codec::{Decode, Encode};
-use risc0_zkvm::serde::{to_vec, Serializer};
 use risc0_zkvm::{Journal, Receipt};
 use serde::Serialize;
 use sparse_merkle_tree::traits::Value;
@@ -33,15 +34,21 @@ impl StateMachine {
         }
     }
 
-    pub async fn commit_state(&mut self, state_root: &H256) -> Result<(), Error> {
+    pub async fn commit_state(
+        &mut self,
+        state_root: &H256,
+        node_batch: &NodeBatch,
+        version: Version,
+    ) -> Result<(), Error> {
         let mut state_lock = self.state.lock().await;
+        state_lock.commit(node_batch)?;
+
+        let root = state_lock.get_root(version)?;
 
         //TODO: Can remove as fixed slice from below
-        if (state_lock.get_root().as_fixed_slice() != state_root.as_fixed_slice()) {
+        if (root.as_fixed_slice() != state_root.as_fixed_slice()) {
             return Err(anyhow::anyhow!("State roots do not match to commit."));
         }
-
-        state_lock.commit()?;
 
         Ok(())
     }
@@ -51,7 +58,10 @@ impl StateMachine {
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
         txs: &Vec<TransactionV2>,
-    ) -> Result<StateUpdate, Error> {
+        prev_version: Version,
+    ) -> Result<(Option<TreeUpdateBatch>, StateUpdate), Error> {
+        //TODO: Increment version for each update.
+        let version = prev_version;
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
 
         let result = {
@@ -64,7 +74,7 @@ impl StateMachine {
                     }
                 };
 
-                let account_state = match state_lock.get(&app_account_id.as_h256(), false) {
+                let account_state = match state_lock.get(&app_account_id.as_h256(), 0) {
                     Ok(Some(account)) => account,
                     Err(e) => return Err(anyhow::anyhow!(e)), // Exit and return the error
                     Ok(None) => AccountState::zero(),
@@ -91,27 +101,38 @@ impl StateMachine {
                 };
             })
             .collect();
-        let result =
+        let stf_result =
             self.stf
                 .execute_batch(avail_header, old_nexus_headers, &zkvm_txs, &pre_state)?;
 
         let mut state_lock = self.state.lock().await;
 
-        if !result.is_empty() {
-            Ok(state_lock.update_set(
-                result
-                    .iter()
-                    .map(|f| (H256::from(f.0.clone()), f.1.clone()))
+        if !stf_result.is_empty() {
+            let result = state_lock.update_set(
+                stf_result
+                    .into_iter()
+                    .map(|(key, account_state)| {
+                        if account_state == AccountState::zero() {
+                            (H256::from(key), None)
+                        } else {
+                            (H256::from(key), Some(account_state))
+                        }
+                    })
                     .collect(),
-            )?)
+                version,
+            )?;
+
+            Ok((Some(result.0), result.1))
         } else {
-            Ok(StateUpdate {
-                pre_state_root: state_lock.get_root(),
-                post_state_root: state_lock.get_root(),
-                pre_state: HashMap::new(),
-                post_state: HashMap::new(),
-                proof: None,
-            })
+            let root = state_lock.get_root(version)?;
+            Ok((
+                None,
+                StateUpdate {
+                    pre_state_root: root,
+                    post_state_root: root,
+                    pre_state: HashMap::new(),
+                },
+            ))
         }
     }
 }

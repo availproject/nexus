@@ -7,11 +7,9 @@ pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
 #[cfg(any(feature = "native"))]
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
+use jmt::proof::{SparseMerkleLeafNode, SparseMerkleNode, SparseMerkleProof, UpdateMerkleProof};
+use jmt::storage::TreeUpdateBatch;
 use parity_scale_codec::{Decode, Encode};
-use solabi::{
-    encode::{Encode as SolabiEncode, Encoder, Size},
-    decode::{Decode as SolabiDecode, DecodeError, Decoder},
-};
 use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
 use risc0_zkvm::sha::Digest as RiscZeroDigest;
 #[cfg(any(feature = "native"))]
@@ -19,11 +17,15 @@ use risc0_zkvm::InnerReceipt;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use serde_json::{from_slice, to_vec, Error};
+use solabi::{
+    decode::{Decode as SolabiDecode, DecodeError, Decoder},
+    encode::{Encode as SolabiEncode, Encoder, Size},
+};
 use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
+pub use crate::state::types::{AccountState, ShaHasher, StatementDigest};
 pub use sparse_merkle_tree::H256;
-pub use crate::state::types::{AccountState, StatementDigest, ShaHasher};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct AppAccountId(pub [u8; 32]);
@@ -37,7 +39,7 @@ pub struct TxSignature(#[serde(with = "BigArray")] pub [u8; 64]);
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AccountWithProof {
     pub account: AccountState,
-    pub proof: MerkleProof,
+    pub proof: Vec<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]
@@ -112,13 +114,11 @@ pub struct SimpleNexusHeader {
     pub avail_blob_root: H256,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StateUpdate {
     pub pre_state_root: H256,
     pub post_state_root: H256,
-    pub pre_state: HashMap<[u8; 32], AccountState>,
-    pub post_state: HashMap<[u8; 32], AccountState>,
-    pub proof: Option<MerkleProof>,
+    pub pre_state: HashMap<[u8; 32], (Option<AccountState>, SparseMerkleProof<Sha256>)>,
 }
 
 //TODO: Store on hash list, instead of headers.
