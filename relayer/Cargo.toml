@@ -12,6 +12,10 @@ avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.
 serde = "1.0.196"
 serde_json = "1.0.113"
 nexus-core = { path = "../core"}
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", optional = true }
+
+[features]
+sp1 = ["sp1-sdk"]
 
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }

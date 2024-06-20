@@ -24,6 +24,12 @@ use std::thread;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
+#[cfg(feature = "sp1")]
+use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
+
+#[cfg(feature = "sp1")]
+const ELF: &[u8] = include_bytes!("../../demo_rollup/program/elf/riscv32im-succinct-zkvm-elf");
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InclusionProof(pub Vec<u8>);
 
@@ -47,6 +53,12 @@ pub struct RiscZeroZKVM<'a> {
     default_prover: Rc<dyn Prover>,
 }
 
+#[cfg(feature = "sp1")]
+pub struct SpOneZKVM {
+    std_in: SP1Stdin,
+    prover_client: ProverClient,
+}
+
 impl ZKVMAdapter for RiscZeroZKVM<'_> {
     fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
         let env = self.env_builder.write(&input).unwrap();
@@ -59,6 +71,16 @@ impl ZKVMAdapter for RiscZeroZKVM<'_> {
     //     // Ok(env)
     //     Ok(())
     // }
+}
+
+#[cfg(feature = "sp1")]
+impl ZKVMAdapter for SpOneZKVM {
+    fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
+        // let env = self.prover_client.add_input(&input).unwrap();
+        self.std_in.write(&input);
+        // Ok(env)
+        Ok(())
+    }
 }
 
 
@@ -361,6 +383,15 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
         };
 
         let prover = default_prover();
+
+        #[cfg(feature = "sp1")]
+        let mut zkvm_sp1 = SpOneZKVM {
+            std_in: SP1Stdin::new(),
+            prover_client: ProverClient::new(),
+        };
+
+        #[cfg(feature = "sp1")]
+        zkvm_sp1.prover_client.setup(ELF);
         // let mut env_builder = ExecutorEnv::builder();
         let mut zkvm = RiscZeroZKVM {
             env_builder: ExecutorEnv::builder(),
