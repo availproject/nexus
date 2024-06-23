@@ -13,14 +13,14 @@ use nexus_core::types::{
     TxParamsV2, TxSignature, H256,
 };
 use relayer::Relayer;
-use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Prover, Receipt};
+use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::thread;
+use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
@@ -40,17 +40,39 @@ pub(crate) struct QueueItem<P: Proof + Clone> {
     header: AvailHeader,
 }
 
-trait ZKVMAdapter {
+
+pub trait ZkVmReceipt {
+    fn dummy(&self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZkVmReceiptRisc0 {
+    receipt: Receipt,
+}
+
+
+impl ZkVmReceipt for ZkVmReceiptRisc0 {
+    fn dummy(&self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+}
+
+
+trait ZkVmAdapter {
     fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error>;
+
+    fn prove(&mut self) -> Result<(), anyhow::Error>;
   
-
-//   fn add_assumption<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error>;
-
 }
 
 pub struct RiscZeroZKVM<'a> {
     env_builder: ExecutorEnvBuilder<'a>,
     default_prover: Rc<dyn Prover>,
+    elf: Vec<u8>,
+    receipt: Option<Receipt>,
+    
 }
 
 #[cfg(feature = "sp1")]
@@ -59,10 +81,16 @@ pub struct SpOneZKVM {
     prover_client: ProverClient,
 }
 
-impl ZKVMAdapter for RiscZeroZKVM<'_> {
+impl ZkVmAdapter for RiscZeroZKVM<'_> {
     fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
-        let env = self.env_builder.write(&input).unwrap();
+        self.env_builder.write(&input).unwrap();
         // Ok(env)
+        Ok(())
+    }
+
+    fn prove(&mut self) -> Result<(), anyhow::Error> {
+        self.default_prover = default_prover();
+        self.receipt = Some(self.default_prover.prove(self.env_builder.build().unwrap(), &self.elf)?);
         Ok(())
     }
 
@@ -74,7 +102,7 @@ impl ZKVMAdapter for RiscZeroZKVM<'_> {
 }
 
 #[cfg(feature = "sp1")]
-impl ZKVMAdapter for SpOneZKVM {
+impl ZkVmAdapter for SpOneZKVM {
     fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
         // let env = self.prover_client.add_input(&input).unwrap();
         self.std_in.write(&input);
@@ -312,28 +340,30 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                 thread::sleep(Duration::from_secs(10));
 
                 continue; // Restart the loop
-            };
+            }
 
-            let receipt = match self.verify_and_generate_proof(&queue_item) {
+            //todo
+            // let receipt = 
+            match self.verify_and_generate_proof(&queue_item) {
                 Err(e) => {
                     return Err(e);
                 }
                 Ok(i) => i,
-            };
+            }
+// TODO]
+            // let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
+            // self.queue.lock().await.pop_front();
 
-            let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
-            self.queue.lock().await.pop_front();
-
-            self.db.lock().await.store_last_proof(&(
-                receipt.clone(),
-                adapter_pi.clone(),
-                queue_item.header.number,
-            ))?;
-            self.previous_adapter_proof = Some((
-                receipt.clone(),
-                adapter_pi.clone(),
-                queue_item.header.number,
-            ));
+            // self.db.lock().await.store_last_proof(&(
+            //     receipt.clone(),
+            //     adapter_pi.clone(),
+            //     queue_item.header.number,
+            // ))?;
+            // self.previous_adapter_proof = Some((
+            //     receipt.clone(),
+            //     adapter_pi.clone(),
+            //     queue_item.header.number,
+            // ));
         }
     }
 
@@ -365,7 +395,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     }
 
     // function to generate proof against avail data when proof is received and verified from the rollup
-    fn verify_and_generate_proof(&mut self, queue_item: &QueueItem<P>) -> Result<Receipt, Error> {
+    fn verify_and_generate_proof(&mut self, queue_item: &QueueItem<P>) -> Result<(), Error> {
         let private_inputs = AdapterPrivateInputs {
             header: queue_item.header.clone(),
             app_id: self.app_id.clone(),
@@ -384,18 +414,22 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
 
         let prover = default_prover();
 
+        // let zkvm;
         #[cfg(feature = "sp1")]
-        let mut zkvm_sp1 = SpOneZKVM {
+        let zkvm = SpOneZKVM {
             std_in: SP1Stdin::new(),
             prover_client: ProverClient::new(),
         };
 
-        #[cfg(feature = "sp1")]
-        zkvm_sp1.prover_client.setup(ELF);
+        // #[cfg(feature = "sp1")]
+        // zkvm_sp1.prover_client.setup(ELF);
         // let mut env_builder = ExecutorEnv::builder();
+        #[cfg(feature = "risc0")]
         let mut zkvm = RiscZeroZKVM {
             env_builder: ExecutorEnv::builder(),
             default_prover: default_prover(),
+            elf: self.elf.clone(),
+            receipt: None,
         };
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
@@ -407,25 +441,38 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             }
         };
 
+        #[cfg(feature = "risc0")]
+        {zkvm.add_input(&prev_pi);
+        zkvm.add_input(&queue_item.proof);
+        zkvm.add_input(&private_inputs);
+        zkvm.add_input(&self.elf_id);
+        zkvm.add_input(&self.vk);
 
-        let env = zkvm.env_builder
-            .write(&prev_pi)
-            .unwrap()
-            .write(&queue_item.proof)
-            .unwrap()
-            .write(&private_inputs)
-            .unwrap()
-            .write(&self.elf_id)
-            .unwrap()
-            .write(&self.vk)
-            .unwrap()
-            .build()
-            .unwrap();
+        zkvm.prove();}
 
-        let prover = zkvm.default_prover;
+        Ok(())
 
-        let receipt = prover.prove(env, &self.elf);
+        // let env = zkvm.env_builder
+        //     .write(&prev_pi)
+        //     .unwrap()
+        //     .write(&queue_item.proof)
+        //     .unwrap()
+        //     .write(&private_inputs)
+        //     .unwrap()
+        //     .write(&self.elf_id)
+        //     .unwrap()
+        //     .write(&self.vk)
+        //     .unwrap()
+        //     .build()
+        //     .unwrap();
 
-        receipt
+        // let prover = zkvm.default_prover;
+
+        // let receipt = zkvm.prove(env, &self.elf);
+
+        // let receipt = prover.prove(env, &self.elf);
+
+        //return
+        // Ok(ZkVmReceipt::<T>::new(zkvm.receipt.unwrap()))
     }
 }

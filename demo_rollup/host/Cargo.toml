@@ -22,3 +22,4 @@ warp = "0.3.6"
 
 [features]
 sp1 = ["adapter_sdk/sp1"]
+risc0 = ["adapter_sdk/risc0"]
