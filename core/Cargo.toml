@@ -23,5 +23,5 @@ bincode = "1.3.3"
 
 [features]
 default = ["native"]
-native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio"]
+native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio", "risc0-zkvm/default"]
 zkvm = ["sparse-merkle-tree/arch-32", "sparse-merkle-tree/std"]

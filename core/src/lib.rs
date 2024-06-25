@@ -12,4 +12,5 @@ pub mod agg_types;
 pub mod mempool;
 pub mod stf;
 pub mod types;
+pub mod zkvm;
 pub mod zkvm_state_machine;

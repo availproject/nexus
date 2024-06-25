@@ -4,11 +4,13 @@ use anyhow::{Context, Error};
 use nexus_core::{
     agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction},
     db::NodeDB,
+    zkvm::traits::{ZKVMProver, ZKProof},
     mempool::Mempool,
     state_machine::StateMachine,
     types::{
         AvailHeader, HeaderStore, NexusHeader, TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
+    zkvm::risczero::{Proof, RiscZeroProver},
 };
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
@@ -81,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     txs.len()
                 );
 
-                match execute_batch(
+                match execute_batch::<Proof, RiscZeroProver>(
                     &txs,
                     &mut state_machine,
                     &AvailHeader::from(&header),
@@ -144,16 +146,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn execute_batch(
+fn execute_batch<R: ZKProof, Z: ZKVMProver<R>>(
     txs: &Vec<TransactionV2>,
     state_machine: &mut StateMachine,
     header: &AvailHeader,
-    header_store: &mut HeaderStore,
+    header_store: &mut HeaderStore
 ) -> Result<(Receipt, HeaderStore, NexusHeader), Error> {
     let mut cloned_old_headers = header_store.clone();
     let state_update = state_machine.execute_batch(&header, &mut cloned_old_headers, &txs)?;
 
     let mut env_builder = ExecutorEnv::builder();
+    let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ID);
 
     let zkvm_txs: Vec<TransactionZKVM> = txs
         .iter()
@@ -171,7 +174,9 @@ fn execute_batch(
                     },
                 };
 
-                env_builder.add_assumption(receipt);
+                zkvm.add_proof_for_recursion(receipt).unwrap();
+
+                //env_builder.add_assumption(receipt);
             }
 
             TransactionZKVM {
@@ -180,21 +185,28 @@ fn execute_batch(
             }
         })
         .collect();
+
+    zkvm_prover.add_input(&zkvm_txs).unwrap();
+    zkvm_prover.add_input(&state_update).unwrap();
+    zkvm_prover.add_input(&header).unwrap();
+    zkvm_prover.add_input(&header_store).unwrap();
     //Proof generation part.
-    let env = env_builder
-        .write(&zkvm_txs)
-        .unwrap()
-        .write(&state_update)
-        .unwrap()
-        .write(&header)
-        .unwrap()
-        .write(&header_store)
-        .unwrap()
-        .build()
-        .unwrap();
+    // let env = env_builder
+    //     .write(&zkvm_txs)
+    //     .unwrap()
+    //     .write(&state_update)
+    //     .unwrap()
+    //     .write(&header)
+    //     .unwrap()
+    //     .write(&header_store)
+    //     .unwrap()
+    //     .build()
+    //     .unwrap();
     let prover = default_prover();
-    let receipt = prover.prove(env, NEXUS_RUNTIME_ELF)?;
-    let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
+    prover.prove(env, elf)
+    let proof = zkvm_prover.prove()?;
+    //let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
+    let result: NexusHeader = proof.public_inputs();
 
     Ok((receipt, cloned_old_headers, result))
 }
