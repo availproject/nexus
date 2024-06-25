@@ -6537,7 +6537,6 @@ dependencies = [
  "nexus-core",
  "serde",
  "serde_json",
- "sp1-sdk",
  "tokio",
  "tokio-stream",
 ]

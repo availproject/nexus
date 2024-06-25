@@ -2,14 +2,15 @@ use crate::stf::StateTransitionFunction;
 use crate::types::{
     AvailHeader, HeaderStore, NexusHeader, ShaHasher, StateUpdate, TransactionZKVM, H256,
 };
+use crate::zkvm::traits::ZKVMEnv;
 use anyhow::anyhow;
 use sparse_merkle_tree::traits::Value;
 
-pub struct ZKVMStateMachine {
-    stf: StateTransitionFunction,
+pub struct ZKVMStateMachine<Z: ZKVMEnv> {
+    stf: StateTransitionFunction<Z>,
 }
 
-impl ZKVMStateMachine {
+impl<Z: ZKVMEnv> ZKVMStateMachine<Z> {
     pub fn new() -> Self {
         Self {
             stf: StateTransitionFunction::new(),

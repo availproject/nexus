@@ -14,6 +14,8 @@ use serde_big_array::BigArray;
 use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
+use crate::zkvm::traits::ZKProof;
+use core::fmt::Debug as DebugTrait;
 pub use sparse_merkle_tree::H256;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
@@ -51,10 +53,10 @@ pub enum TxParamsV2 {
 
 #[cfg(any(feature = "native"))]
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct TransactionV2 {
+pub struct TransactionV2<P: ZKProof + Serialize + Clone + Serialize + DebugTrait> {
     pub signature: TxSignature,
     pub params: TxParamsV2,
-    pub proof: Option<InnerReceipt>,
+    pub proof: Option<P>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -78,7 +80,7 @@ pub struct InitAccount {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
-pub struct StatementDigest(pub [u32; 8]);
+pub struct StatementDigest(pub [u8; 32]);
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct RollupPublicInputsV2 {
@@ -342,7 +344,7 @@ impl AvailHeader {
 
 impl StatementDigest {
     fn zero() -> Self {
-        Self([0u32; 8])
+        Self([0u8; 32])
     }
 }
 
@@ -454,10 +456,10 @@ impl RollupPublicInputsV2 {
 
 impl From<RiscZeroDigest> for StatementDigest {
     fn from(item: RiscZeroDigest) -> Self {
-        let words = item.as_words();
-        let mut new_digest = [0u32; 8];
+        let bytes = item.as_bytes();
+        let mut new_digest = [0u8; 32];
 
-        for (i, &element) in words.iter().take(8).enumerate() {
+        for (i, &element) in bytes.iter().enumerate() {
             new_digest[i] = element;
         }
 

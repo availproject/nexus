@@ -2,21 +2,16 @@
 // The ELF is used for proving and the ID is used for verification.
 use anyhow::{Context, Error};
 use nexus_core::{
-    agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction},
-    db::NodeDB,
-    zkvm::traits::{ZKVMProver, ZKProof},
-    mempool::Mempool,
-    state_machine::StateMachine,
-    types::{
+    agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction}, db::NodeDB, mempool::Mempool, state_machine::StateMachine, types::{
         AvailHeader, HeaderStore, NexusHeader, TransactionV2, TransactionZKVM, TxParamsV2, H256,
-    },
-    zkvm::risczero::{Proof, RiscZeroProver},
+    }, zkvm::{risczero::{Proof, RiscZeroProver, ZKVM}, traits::{ZKProof, ZKVMEnv, ZKVMProver}}
 };
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
 use risc0_zkvm::{
     default_executor, default_prover, serde::from_slice, ExecutorEnv, Journal, Receipt,
 };
+use serde::Serialize;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use tokio::{self, sync::Mutex};
@@ -24,6 +19,7 @@ use warp::Filter;
 
 use std::net::SocketAddr;
 use std::str::FromStr;
+use std::fmt::Debug as DebugTrait;
 
 use crate::rpc::routes;
 
@@ -38,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = Arc::new(Mutex::new(node_db));
     let db_clone = db.clone();
     let db_clone_2 = db.clone();
-    let mut state_machine = StateMachine::new(old_state_root, "./runtime_db");
+    let mut state_machine = StateMachine::<ZKVM, Proof>::new(old_state_root, "./runtime_db");
     let relayer_mutex = Arc::new(Mutex::new(Relayer::new()));
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -48,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             relayer.receiver()
         };
-        let mempool = Mempool::new();
+        let mempool = Mempool::<Proof>::new();
         let mempool_clone = mempool.clone();
         let relayer_handle = tokio::spawn(async move {
             let cloned_relayer = relayer_mutex.lock().await;
@@ -83,7 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     txs.len()
                 );
 
-                match execute_batch::<Proof, RiscZeroProver>(
+                match execute_batch::<RiscZeroProver, Proof, ZKVM>(
                     &txs,
                     &mut state_machine,
                     &AvailHeader::from(&header),
@@ -146,17 +142,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn execute_batch<R: ZKProof, Z: ZKVMProver<R>>(
-    txs: &Vec<TransactionV2>,
-    state_machine: &mut StateMachine,
+fn execute_batch<Z: ZKVMProver<P>, P: ZKProof + Serialize + Clone + DebugTrait, E: ZKVMEnv>(
+    txs: &Vec<TransactionV2<P>>,
+    state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore
-) -> Result<(Receipt, HeaderStore, NexusHeader), Error> {
+) -> Result<(P, HeaderStore, NexusHeader), Error> {
     let mut cloned_old_headers = header_store.clone();
     let state_update = state_machine.execute_batch(&header, &mut cloned_old_headers, &txs)?;
 
     let mut env_builder = ExecutorEnv::builder();
-    let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ID);
+    let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
     let zkvm_txs: Vec<TransactionZKVM> = txs
         .iter()
@@ -166,15 +162,8 @@ fn execute_batch<R: ZKProof, Z: ZKVMProver<R>>(
                     Some(i) => i,
                     None => unreachable!("Proof cannot be empty if submit proof tx."),
                 };
-                let receipt = Receipt {
-                    inner: proof.clone(),
-                    journal: Journal {
-                        //TODO: remove unwrap below
-                        bytes: bincode::serialize(&submit_proof_tx.public_inputs).unwrap(),
-                    },
-                };
 
-                zkvm.add_proof_for_recursion(receipt).unwrap();
+                zkvm_prover.add_proof_for_recursion(proof.clone()).unwrap();
 
                 //env_builder.add_assumption(receipt);
             }
@@ -202,13 +191,11 @@ fn execute_batch<R: ZKProof, Z: ZKVMProver<R>>(
     //     .unwrap()
     //     .build()
     //     .unwrap();
-    let prover = default_prover();
-    prover.prove(env, elf)
     let proof = zkvm_prover.prove()?;
     //let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
-    let result: NexusHeader = proof.public_inputs();
+    let result: NexusHeader = proof.public_inputs()?;
 
-    Ok((receipt, cloned_old_headers, result))
+    Ok((proof, cloned_old_headers, result))
 }
 
 // #[derive(Clone, Debug)]

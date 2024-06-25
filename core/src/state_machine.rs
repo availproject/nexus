@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::db::NodeDB;
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
@@ -5,21 +7,21 @@ use crate::types::{
     AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, StateUpdate, SubmitProof,
     TransactionV2, TransactionZKVM, TxParamsV2, H256,
 };
+use crate::zkvm::traits::{ZKProof, ZKVMEnv};
 use anyhow::Error;
 use avail_subxt::config::Header as HeaderTrait;
 use parity_scale_codec::{Decode, Encode};
-use risc0_zkvm::serde::{to_vec, Serializer};
-use risc0_zkvm::{Journal, Receipt};
 use serde::Serialize;
 use sparse_merkle_tree::traits::Value;
+use std::fmt::Debug as DebugTrait;
 
-pub struct StateMachine {
-    stf: StateTransitionFunction,
+pub struct StateMachine<Z: ZKVMEnv, P: ZKProof + DebugTrait + Clone> {
+    stf: StateTransitionFunction<Z>,
     state: VmState,
-    //db: NodeDB,
+    p: PhantomData<P>, //db: NodeDB,
 }
 
-impl StateMachine {
+impl<Z: ZKVMEnv, P: ZKProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
     pub fn new(root: H256, path: &str) -> Self {
         let state = VmState::new(root, path);
         // let node_db = NodeDB::from_path(String::from(&path));
@@ -27,6 +29,7 @@ impl StateMachine {
         StateMachine {
             stf: StateTransitionFunction::new(),
             //      db: node_db,
+            p: PhantomData,
             state,
         }
     }
@@ -35,7 +38,7 @@ impl StateMachine {
         &mut self,
         new_header: &AvailHeader,
         old_headers: &mut HeaderStore,
-        txs: &Vec<TransactionV2>,
+        txs: &Vec<TransactionV2<P>>,
     ) -> Result<StateUpdate, Error> {
         let pre_state: Vec<(AppAccountId, AccountState)> = txs
             .iter()

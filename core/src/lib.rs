@@ -10,6 +10,7 @@ pub mod traits;
 pub mod agg_types;
 #[cfg(any(feature = "native"))]
 pub mod mempool;
+pub mod prover;
 pub mod stf;
 pub mod types;
 pub mod zkvm;

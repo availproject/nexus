@@ -1,9 +1,15 @@
+use super::traits::ZKVMEnv;
+#[cfg(any(feature = "native"))]
+use super::traits::{ZKProof, ZKVMProver};
+#[cfg(any(feature = "native"))]
 use anyhow::anyhow;
+use risc0_zkvm::guest::env;
+use risc0_zkvm::serde::to_vec;
 #[cfg(any(feature = "native"))]
 use risc0_zkvm::{default_prover, ExecutorEnv, ExecutorEnvBuilder};
+#[cfg(any(feature = "native"))]
 use risc0_zkvm::{serde::from_slice, Receipt};
-
-use super::traits::{ZKProof, ZKVMProver};
+use serde::{Deserialize, Serialize};
 
 #[cfg(any(feature = "native"))]
 pub struct RiscZeroProver<'a> {
@@ -43,6 +49,7 @@ impl<'a> ZKVMProver<Proof> for RiscZeroProver<'a> {
 }
 
 #[cfg(any(feature = "native"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Proof(pub Receipt);
 
 #[cfg(any(feature = "native"))]
@@ -53,5 +60,29 @@ impl ZKProof for Proof {
 
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
         self.0.verify(img_id).map_err(|e| anyhow!(e))
+    }
+}
+
+pub struct ZKVM();
+
+impl ZKVMEnv for ZKVM {
+    fn read_input<T: serde::de::DeserializeOwned>() -> Result<T, anyhow::Error> {
+        Ok(env::read())
+    }
+
+    fn verify<T: serde::Serialize>(
+        img_id: [u8; 32],
+        public_inputs: &T,
+    ) -> Result<(), anyhow::Error> {
+        let public_input_vec = match to_vec(public_inputs) {
+            Ok(i) => i,
+            Err(_) => return Err(anyhow::anyhow!("Could not encode public inputs")),
+        };
+
+        env::verify(img_id, &public_input_vec).map_err(|e| anyhow::anyhow!(e))
+    }
+
+    fn commit<T: serde::Serialize>(data: &T) {
+        env::commit(data);
     }
 }

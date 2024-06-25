@@ -1,14 +1,18 @@
-use crate::types::{
-    AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, StatementDigest,
-    SubmitProof, TransactionZKVM, TxParamsV2, H256,
+use std::marker::PhantomData;
+
+use crate::{
+    types::{
+        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, StatementDigest,
+        SubmitProof, TransactionZKVM, TxParamsV2, H256,
+    },
+    zkvm::traits::ZKVMEnv,
 };
 use anyhow::{anyhow, Error};
-use risc0_zkvm::guest::env;
-#[cfg(not(feature = "native"))]
-use risc0_zkvm::{guest::env::verify, serde::to_vec};
 use sparse_merkle_tree::traits::Value;
 
-pub struct StateTransitionFunction;
+pub struct StateTransitionFunction<Z: ZKVMEnv> {
+    z: PhantomData<Z>,
+}
 
 //Notes
 //How to check if for a list of data hashes, if the right app ID was updated?
@@ -16,9 +20,9 @@ pub struct StateTransitionFunction;
 //2. All extrinsics have to be processed inside zkvm, and extrinsics root has to be generated.
 //3.
 
-impl StateTransitionFunction {
+impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
     pub fn new() -> Self {
-        StateTransitionFunction {}
+        StateTransitionFunction { z: PhantomData }
     }
     pub fn execute_batch(
         &self,
@@ -110,13 +114,7 @@ impl StateTransitionFunction {
         public_inputs.check_consistency(&pre_state.1.statement)?;
 
         #[cfg(not(feature = "native"))]
-        let public_input_vec = match to_vec(&public_inputs) {
-            Ok(i) => i,
-            Err(e) => return Err(anyhow!("Could not encode public inputs of rollup.")),
-        };
-
-        #[cfg(not(feature = "native"))]
-        match verify(public_inputs.img_id.0, &public_input_vec) {
+        match Z::verify(public_inputs.img_id.0, &public_inputs) {
             Ok(_) => (),
             Err(e) => return Err(anyhow!("Invalid proof")),
         };

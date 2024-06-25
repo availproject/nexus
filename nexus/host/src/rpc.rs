@@ -4,13 +4,16 @@ use nexus_core::db::NodeDB;
 use nexus_core::mempool::{self, Mempool};
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{AvailHeader, HeaderStore, TransactionV2, H256};
+use nexus_core::zkvm::traits::ZKProof;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
+use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{reply::Reply, Filter, Rejection};
 
-pub fn routes(
-    mempool: Mempool,
+pub fn routes<P: ZKProof + Serialize + Clone + DeserializeOwned + Debug + Send>(
+    mempool: Mempool<P>,
     db: Arc<Mutex<NodeDB>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let mempool_clone = mempool.clone();
@@ -19,7 +22,7 @@ pub fn routes(
         .and(warp::post())
         .and(warp::any().map(move || mempool_clone.clone()))
         .and(warp::body::json())
-        .and_then(submit_tx);
+        .and_then(submit_tx::<P>);
 
     let submit_batch = warp::path("range")
         .and(warp::get())
@@ -29,7 +32,10 @@ pub fn routes(
     tx.or(submit_batch)
 }
 
-pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, Infallible> {
+pub async fn submit_tx<P: ZKProof + Serialize + Clone + DeserializeOwned + Debug + Send>(
+    mempool: Mempool<P>,
+    tx: TransactionV2<P>,
+) -> Result<String, Infallible> {
     mempool.add_tx(tx).await;
 
     Ok(String::from("Added tx"))

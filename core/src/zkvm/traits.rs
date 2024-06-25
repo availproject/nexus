@@ -1,5 +1,6 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
+#[cfg(any(feature = "native"))]
 pub trait ZKVMProver<R: ZKProof> {
     fn new(elf: Vec<u8>) -> Self;
     fn add_input<T: Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error>;
@@ -10,4 +11,15 @@ pub trait ZKVMProver<R: ZKProof> {
 pub trait ZKProof {
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error>;
     fn public_inputs<V: DeserializeOwned>(&self) -> Result<V, anyhow::Error>;
+}
+
+// pub trait ZKProof {
+//     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error>;
+//     fn public_inputs<V: DeserializeOwned>(&self) -> Result<V, anyhow::Error>;
+// }
+
+pub trait ZKVMEnv {
+    fn verify<T: Serialize>(img_id: [u8; 32], public_inputs: &T) -> Result<(), anyhow::Error>;
+    fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error>;
+    fn commit<T: Serialize>(data: &T);
 }
