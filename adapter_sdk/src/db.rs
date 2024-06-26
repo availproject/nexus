@@ -1,5 +1,5 @@
 use crate::state::QueueItem;
-use crate::traits::Proof;
+use crate::traits::ValidityProof;
 use crate::types::AdapterPublicInputs;
 use anyhow::Error;
 use nexus_core::db::NodeDB;
@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 
 pub struct DB<P>(NodeDB, PhantomData<P>);
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize> DB<P> {
+impl<P: ValidityProof + Clone + DeserializeOwned + Serialize> DB<P> {
     pub fn from_path(path: String) -> Self {
         Self(NodeDB::from_path(path), PhantomData)
     }

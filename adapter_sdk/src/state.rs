@@ -3,7 +3,7 @@
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
 use crate::db::DB;
-use crate::traits::Proof;
+use crate::traits::ValidityProof;
 use crate::types::{
     AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
 };
@@ -12,17 +12,21 @@ use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
     TxParamsV2, TxSignature, H256,
 };
+use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv};
 use relayer::Relayer;
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
+use std::fmt::Debug as DebugTrait;
+
 
 #[cfg(feature = "sp1")]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
@@ -34,86 +38,15 @@ const ELF: &[u8] = include_bytes!("../../demo_rollup/program/elf/riscv32im-succi
 struct InclusionProof(pub Vec<u8>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct QueueItem<P: Proof + Clone> {
+pub(crate) struct QueueItem<P: ValidityProof + Clone> {
     proof: Option<RollupProof<P>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
 }
 
 
-pub trait ZkVmReceipt {
-    fn dummy(&self) -> Result<(), anyhow::Error> {
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ZkVmReceiptRisc0 {
-    receipt: Receipt,
-}
-
-
-impl ZkVmReceipt for ZkVmReceiptRisc0 {
-    fn dummy(&self) -> Result<(), anyhow::Error> {
-        Ok(())
-    }
-}
-
-
-trait ZkVmAdapter {
-    fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error>;
-
-    fn prove(&mut self) -> Result<(), anyhow::Error>;
-  
-}
-
-pub struct RiscZeroZKVM<'a> {
-    env_builder: ExecutorEnvBuilder<'a>,
-    default_prover: Rc<dyn Prover>,
-    elf: Vec<u8>,
-    receipt: Option<Receipt>,
-    
-}
-
-#[cfg(feature = "sp1")]
-pub struct SpOneZKVM {
-    std_in: SP1Stdin,
-    prover_client: ProverClient,
-}
-
-impl ZkVmAdapter for RiscZeroZKVM<'_> {
-    fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
-        self.env_builder.write(&input).unwrap();
-        // Ok(env)
-        Ok(())
-    }
-
-    fn prove(&mut self) -> Result<(), anyhow::Error> {
-        self.default_prover = default_prover();
-        self.receipt = Some(self.default_prover.prove(self.env_builder.build().unwrap(), &self.elf)?);
-        Ok(())
-    }
-
-    // fn add_assumption<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
-    //     let env = self.env_builder.add_assumption(Receipt::);
-    //     // Ok(env)
-    //     Ok(())
-    // }
-}
-
-#[cfg(feature = "sp1")]
-impl ZkVmAdapter for SpOneZKVM {
-    fn add_input<T: Serialize>(&mut self, input: T) -> Result<(), anyhow::Error> {
-        // let env = self.prover_client.add_input(&input).unwrap();
-        self.std_in.write(&input);
-        // Ok(env)
-        Ok(())
-    }
-}
-
-
 // usage : create an object for this struct and use as a global dependency
-pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
+pub struct AdapterState<P: ValidityProof + Clone + DeserializeOwned + Serialize + 'static, Z: ZKVMEnv, ZP: ZKProof + DebugTrait + Clone> {
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
     pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
@@ -122,13 +55,15 @@ pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'stati
     pub vk: [u8; 32],
     pub app_id: AppId,
     pub db: Arc<Mutex<DB<P>>>,
+    pub p: PhantomData<Z>,
+    pub pp: PhantomData<ZP>,
 }
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
+impl<P: ValidityProof + Clone + DeserializeOwned + Serialize + Send, Z: ZKVMEnv, ZP: ZKProof + DebugTrait + Clone> AdapterState<P, Z, ZP> {
     pub fn new(storage_path: String, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
 
-        AdapterState {
+        AdapterState{
             starting_block_number: config.rollup_start_height,
             queue: Arc::new(Mutex::new(VecDeque::new())),
             previous_adapter_proof: None,
@@ -137,6 +72,8 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             vk: config.vk,
             app_id: config.app_id,
             db: Arc::new(Mutex::new(db)),
+            p: PhantomData,
+            pp: PhantomData,
         }
     }
 
