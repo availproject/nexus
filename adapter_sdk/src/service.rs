@@ -1,21 +1,24 @@
-use crate::traits::ValidityProof;
-use crate::{state::AdapterState, types::RollupProof};
+use crate::traits::RollupProof;
+use crate::{state::AdapterState, types::RollupProofWithPublicInputs};
 use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::fmt::Debug as DebugTrait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{http::StatusCode, reject::Rejection, reply::Reply, Filter};
-use std::fmt::Debug as DebugTrait;
-
 
 async fn health_check_handler() -> Result<impl Reply, Rejection> {
     Ok(warp::reply::with_status("OK", StatusCode::OK))
 }
 
-async fn handle_proof_handler<P: ValidityProof + Clone + Serialize + DeserializeOwned + Send, Z: ZKVMEnv, ZP: ZKProof + DebugTrait + Clone >(
+async fn handle_proof_handler<
+    P: RollupProof + Clone + Serialize + DeserializeOwned + Send,
+    Z: ZKVMEnv,
+    ZP: ZKProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send,
+>(
     state: Arc<Mutex<AdapterState<P, Z, ZP>>>,
-    proof: RollupProof<P>,
+    proof: RollupProofWithPublicInputs<P>,
 ) -> Result<impl Reply, Rejection> {
     let mut locked_state = state.lock().await;
 
@@ -24,7 +27,11 @@ async fn handle_proof_handler<P: ValidityProof + Clone + Serialize + Deserialize
     Ok(warp::reply::with_status("Proof received", StatusCode::OK))
 }
 
-pub async fn server<P: ValidityProof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize, Z: ZKVMEnv, ZP: ZKProof + DebugTrait + Clone>(
+pub async fn server<
+    P: RollupProof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize,
+    Z: ZKVMEnv,
+    ZP: ZKProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send,
+>(
     state: Arc<Mutex<AdapterState<P, Z, ZP>>>,
 ) {
     // Health check route

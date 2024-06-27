@@ -10,7 +10,7 @@ use nexus_core::types::H256;
 //     fn submit_proof_for_blob() -> impl Future<Output = Result<(), anyhow::Error>>;
 // }
 
-pub trait ValidityProof {
+pub trait RollupProof {
     fn verify(&self, vk: &[u8; 32], public_inputs: &RollupPublicInputs) -> Result<(), Error>;
 }
 
