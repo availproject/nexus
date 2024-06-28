@@ -1,5 +1,5 @@
 use crate::traits::RollupProof;
-use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProof};
+use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProofWithPublicInputs};
 use anyhow::{anyhow, Error};
 use nexus_core::traits::Hasher;
 use nexus_core::types::{
@@ -71,7 +71,7 @@ use serde::Serialize;
 /// Ensure that the types `Proof`, `RollupPublicInputs`, `AdapterPublicInputs`, `AdapterPrivateInputs`, `Error`, and `Digest` are properly defined and implemented.
 
 pub fn verify_proof<P: RollupProof>(
-    rollup_proof: Option<RollupProof<P>>,
+    rollup_proof: Option<RollupProofWithPublicInputs<P>>,
     prev_adapter_public_inputs: Option<AdapterPublicInputs>,
     private_inputs: AdapterPrivateInputs,
     img_id: StatementDigest,

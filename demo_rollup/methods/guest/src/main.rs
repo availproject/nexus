@@ -5,7 +5,7 @@
 use adapter_sdk::adapter_zkvm::verify_proof;
 use adapter_sdk::types::AdapterPrivateInputs;
 use adapter_sdk::types::AdapterPublicInputs;
-use adapter_sdk::types::RollupProof;
+use adapter_sdk::types::RollupProofWithPublicInputs;
 use demo_rollup_core::DemoProof;
 use nexus_core::types::StatementDigest;
 use risc0_zkvm::guest::env;
@@ -15,7 +15,7 @@ risc0_zkvm::guest::entry!(main);
 
 fn main() {
     let prev_adapter_public_inputs: Option<AdapterPublicInputs> = env::read();
-    let proof: Option<RollupProof<DemoProof>> = env::read();
+    let proof: Option<RollupProofWithPublicInputs<DemoProof>> = env::read();
     let private_inputs: AdapterPrivateInputs = env::read();
     let img_id: StatementDigest = env::read();
     let vk: [u8; 32] = env::read();
