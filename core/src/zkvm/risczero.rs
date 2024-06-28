@@ -71,7 +71,7 @@ impl ZKVMEnv for ZKVM {
     }
 
     fn verify<T: serde::Serialize>(
-        img_id: [u8; 32],
+        img_id: [u32; 8],
         public_inputs: &T,
     ) -> Result<(), anyhow::Error> {
         let public_input_vec = match to_vec(public_inputs) {

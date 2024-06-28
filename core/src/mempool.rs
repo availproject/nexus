@@ -6,18 +6,18 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
-pub struct Mempool<P: ZKProof + Serialize + Clone + DebugTrait> {
-    tx_list: Arc<Mutex<Vec<TransactionV2<P>>>>,
+pub struct Mempool {
+    tx_list: Arc<Mutex<Vec<TransactionV2>>>,
 }
 
-impl<P: ZKProof + Serialize + Clone + DebugTrait> Mempool<P> {
+impl Mempool {
     pub fn new() -> Self {
         Self {
             tx_list: Arc::new(Mutex::new(vec![])),
         }
     }
 
-    pub async fn get_current_txs(&self) -> (Vec<TransactionV2<P>>, Option<usize>) {
+    pub async fn get_current_txs(&self) -> (Vec<TransactionV2>, Option<usize>) {
         let tx_list = self.tx_list.lock().await;
 
         (
@@ -41,7 +41,7 @@ impl<P: ZKProof + Serialize + Clone + DebugTrait> Mempool<P> {
         }
     }
 
-    pub async fn add_tx(&self, tx: TransactionV2<P>) {
+    pub async fn add_tx(&self, tx: TransactionV2) {
         let mut tx_list = self.tx_list.lock().await;
 
         tx_list.push(tx);

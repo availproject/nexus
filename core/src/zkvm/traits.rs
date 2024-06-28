@@ -19,7 +19,7 @@ pub trait ZKProof {
 // }
 
 pub trait ZKVMEnv {
-    fn verify<T: Serialize>(img_id: [u8; 32], public_inputs: &T) -> Result<(), anyhow::Error>;
+    fn verify<T: Serialize>(img_id: [u32; 8], public_inputs: &T) -> Result<(), anyhow::Error>;
     fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error>;
     fn commit<T: Serialize>(data: &T);
 }
