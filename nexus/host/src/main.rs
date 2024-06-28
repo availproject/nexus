@@ -9,8 +9,8 @@ use nexus_core::{
     state::{merkle_store, MerkleStore, VmState},
     state_machine::StateMachine,
     types::{
-        AvailHeader, HeaderStore, NexusHeader, RollupPublicInputsV2, TransactionV2,
-        TransactionZKVM, TxParamsV2, H256,
+        AvailHeader, HeaderStore, NexusHeader, Proof as NexusProof, RollupPublicInputsV2,
+        TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
     zkvm::{
         risczero::{Proof, RiscZeroProver, ZKVM},
@@ -24,6 +24,7 @@ use risc0_zkvm::{
 };
 use rocksdb::{Options, DB};
 use serde::{Deserialize, Serialize};
+use sp_runtime::DeserializeOwned;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex as StdMutex},
@@ -32,6 +33,7 @@ use tokio::time::{sleep, Duration};
 use tokio::{self, sync::Mutex};
 use warp::Filter;
 
+use serde::ser::StdError;
 use std::fmt::Debug as DebugTrait;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -51,11 +53,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
+    let state_clone = state.clone();
 
     let db = Arc::new(Mutex::new(node_db));
     let db_clone = db.clone();
     let db_clone_2 = db.clone();
-    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
     let relayer_mutex = Arc::new(Mutex::new(Relayer::new()));
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -65,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             relayer.receiver()
         };
-        let mempool = Mempool::<Proof>::new();
+        let mempool = Mempool::new();
         let mempool_clone = mempool.clone();
         let relayer_handle = tokio::spawn(async move {
             let cloned_relayer = relayer_mutex.lock().await;
@@ -120,7 +122,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 match execute_batch::<RiscZeroProver, Proof, ZKVM>(
                     &txs,
-                    &mut state_machine,
+                    state.clone(),
                     &AvailHeader::from(&header),
                     &mut old_headers,
                 ).await {
@@ -128,25 +130,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
 
-                        db_lock.put(b"previous_headers", &old_headers).unwrap();
-                        db_lock.put(
-                            result.avail_header_hash.as_slice(),
-                            &AvailToNexusPointer {
-                                number: header.number,
-                                nexus_hash: nexus_hash.clone(),
-                            },
-                        ).unwrap();
-                        db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+                        // db_lock.put(b"previous_headers", &old_headers).unwrap();
+                        // db_lock.put(
+                        //     result.avail_header_hash.as_slice(),
+                        //     &AvailToNexusPointer {
+                        //         number: header.number,
+                        //         nexus_hash: nexus_hash.clone(),
+                        //     },
+                        // ).unwrap();
+                        // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
 
-                        db_lock.set_current_root(&result.state_root).unwrap();
-                        if let Some(i) = index {
-                            mempool_clone.clear_upto_tx(i).await;
-                        }
+                        // db_lock.set_current_root(&result.state_root).unwrap();
+                        // if let Some(i) = index {
+                        //     mempool_clone.clear_upto_tx(i).await;
+                        // }
 
-                        println!(
-                            "✅ Processed batch: {:?}, avail height: {:?}",
-                            result, header.number
-                        );
+                        // println!(
+                        //     "✅ Processed batch: {:?}, avail height: {:?}",
+                        //     result, header.number
+                        // );
                     }
                     Err(e) => {
                         println!("Breaking because of error {:?}", e);
@@ -159,7 +161,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         //Server part//
-        let routes = routes(mempool, db_clone, state.clone());
+        let routes = routes(mempool, db_clone, state_clone);
         let cors = warp::cors()
             .allow_any_origin()
             .allow_methods(vec!["POST"])
@@ -190,62 +192,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn execute_batch<Z: ZKVMProver<P>, P: ZKProof + Serialize + Clone + DebugTrait, E: ZKVMEnv>(
+async fn execute_batch<
+    Z: ZKVMProver<P>,
+    P: ZKProof + Serialize + Clone + DebugTrait,
+    E: ZKVMEnv,
+>(
     txs: &Vec<TransactionV2>,
-    state_machine: &mut StateMachine<E, P>,
+    state: Arc<Mutex<VmState>>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
 ) -> Result<(P, NexusHeader), Error> {
-    let state_update = state_machine.execute_batch(&header, header_Store, &txs, 0)?;
+    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
-    let mut env_builder = ExecutorEnv::builder();
+    let state_update = state_machine
+        .execute_batch(&header, header_store, &txs, 0)
+        .await?;
+
     let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
-    let zkvm_txs: Vec<TransactionZKVM> = txs
+    let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
         .iter()
         .map(|tx| {
             if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
-                let proof = match &tx.proof {
+                //TODO: Remove transactions that error out from mempool
+                let proof = submit_proof_tx.proof.clone();
+
+                let receipt: P = P::try_from(proof).unwrap();
+                let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
                     Some(i) => i,
-                    None => unreachable!("Proof cannot be empty if submit proof tx."),
+                    None => {
+                        return Err(anyhow!(
+                         "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
+                         submit_proof_tx.app_id
+                     ))
+                    }
                 };
 
-                zkvm_prover.add_proof_for_recursion(proof.clone()).unwrap();
-
-                //env_builder.add_assumption(receipt);
+                zkvm_prover.add_proof_for_recursion(receipt).unwrap();
             }
 
-            TransactionZKVM {
+            Ok(TransactionZKVM {
                 signature: tx.signature.clone(),
                 params: tx.params.clone(),
-            }
+            })
         })
         .collect();
 
+    let zkvm_txs = zkvm_txs?;
+
     zkvm_prover.add_input(&zkvm_txs).unwrap();
-    zkvm_prover.add_input(&state_update).unwrap();
+    zkvm_prover.add_input(&state_update.1).unwrap();
     zkvm_prover.add_input(&header).unwrap();
     zkvm_prover.add_input(&header_store).unwrap();
-    //Proof generation part.
-    // let env = env_builder
-    //     .write(&zkvm_txs)
-    //     .unwrap()
-    //     .write(&state_update)
-    //     .unwrap()
-    //     .write(&header)
-    //     .unwrap()
-    //     .write(&header_store)
-    //     .unwrap()
-    //     .build()
-    //     .unwrap();
 
-    let (result, proof): (NexusHeader, P) = {
-        let proof = zkvm_prover.prove()?;
-        //let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
-        let result: NexusHeader = proof.public_inputs()?;
-
-        (result, proof)
-    };
+    let proof = zkvm_prover.prove()?;
+    //let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
+    let result: NexusHeader = proof.public_inputs()?;
 
     header_store.push_front(&result);
 
@@ -259,6 +261,12 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKProof + Serialize + Clone + DebugTrait, 
     }
 
     Ok((proof, result))
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AvailToNexusPointer {
+    number: u32,
+    nexus_hash: H256,
 }
 
 // #[derive(Clone, Debug)]

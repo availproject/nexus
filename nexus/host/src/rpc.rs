@@ -10,7 +10,7 @@ use nexus_core::types::{
 };
 use nexus_core::zkvm::traits::ZKProof;
 use risc0_zkvm::sha::rust_crypto::Sha256;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -20,8 +20,8 @@ use warp::{reply::Reply, Filter, Rejection};
 
 use crate::AvailToNexusPointer;
 
-pub fn route<P: ZKProof + Serialize + Clone + DeserializeOwned + Debug + Send>(
-    mempool: Mempool<P>,
+pub fn routes(
+    mempool: Mempool,
     db: Arc<Mutex<NodeDB>>,
     vm_state: Arc<Mutex<VmState>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
@@ -33,7 +33,7 @@ pub fn route<P: ZKProof + Serialize + Clone + DeserializeOwned + Debug + Send>(
         .and(warp::post())
         .and(warp::any().map(move || mempool_clone.clone()))
         .and(warp::body::json())
-        .and_then(submit_tx::<P>);
+        .and_then(submit_tx);
 
     let submit_batch = warp::path("range")
         .and(warp::get())
@@ -84,10 +84,7 @@ pub fn route<P: ZKProof + Serialize + Clone + DeserializeOwned + Debug + Send>(
     tx.or(submit_batch).or(header).or(account)
 }
 
-pub async fn submit_tx<P: ZKProof + Serialize + Clone + DeserializeOwned + Debug + Send>(
-    mempool: Mempool<P>,
-    tx: TransactionV2,
-) -> Result<String, Infallible> {
+pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, Infallible> {
     mempool.add_tx(tx).await;
 
     Ok(String::from("Added tx"))

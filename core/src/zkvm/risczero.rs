@@ -1,3 +1,5 @@
+use crate::types::Proof as NexusProof;
+
 use super::traits::ZKVMEnv;
 #[cfg(any(feature = "native"))]
 use super::traits::{ZKProof, ZKVMProver};
@@ -61,8 +63,24 @@ impl ZKProof for Proof {
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
         self.0.verify(img_id).map_err(|e| anyhow!(e))
     }
+
+    fn try_from(value: NexusProof) -> Result<Self, anyhow::Error> {
+        let receipt: Receipt = value.try_into()?;
+
+        Ok(Self(receipt))
+    }
 }
 
+#[cfg(any(feature = "native"))]
+impl TryFrom<NexusProof> for Proof {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NexusProof) -> Result<Self, Self::Error> {
+        let receipt: Receipt = value.try_into()?;
+
+        Ok(Self(receipt))
+    }
+}
 pub struct ZKVM();
 
 impl ZKVMEnv for ZKVM {
