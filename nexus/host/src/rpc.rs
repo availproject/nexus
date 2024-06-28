@@ -14,7 +14,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 use warp::{reply::Reply, Filter, Rejection};
 
@@ -23,7 +23,7 @@ use crate::AvailToNexusPointer;
 pub fn routes(
     mempool: Mempool,
     db: Arc<Mutex<NodeDB>>,
-    vm_state: Arc<Mutex<VmState>>,
+    vm_state: Arc<StdMutex<VmState>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let mempool_clone = mempool.clone();
     let db_clone = db.clone();
@@ -66,7 +66,7 @@ pub fn routes(
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
             |db: Arc<Mutex<NodeDB>>,
-             vm_state: Arc<Mutex<VmState>>,
+             vm_state: Arc<StdMutex<VmState>>,
              params: HashMap<String, String>| async move {
                 match params.get("app_account_id") {
                     Some(hash_str) => {
@@ -92,11 +92,12 @@ pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, In
 
 pub async fn get_state(
     db: Arc<Mutex<NodeDB>>,
-    state: Arc<Mutex<VmState>>,
+    state: Arc<StdMutex<VmState>>,
     app_account_id: &H256,
 ) -> Result<String, Infallible> {
-    let state_lock = state.lock().await;
     let db_lock = db.lock().await;
+    //TODO: remove below unwrap.
+    let state_lock = state.lock().unwrap();
 
     let header_store: HeaderStore = match db_lock.get(b"previous_headers") {
         Ok(Some(i)) => i,

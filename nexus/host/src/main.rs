@@ -23,20 +23,19 @@ use risc0_zkvm::{
     default_executor, default_prover, serde::from_slice, ExecutorEnv, Journal, Receipt,
 };
 use rocksdb::{Options, DB};
+use serde::ser::StdError;
 use serde::{Deserialize, Serialize};
 use sp_runtime::DeserializeOwned;
+use std::fmt::Debug as DebugTrait;
+use std::net::SocketAddr;
+use std::str::FromStr;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex as StdMutex},
 };
+use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
-use tokio::{self, sync::Mutex};
 use warp::Filter;
-
-use serde::ser::StdError;
-use std::fmt::Debug as DebugTrait;
-use std::net::SocketAddr;
-use std::str::FromStr;
 
 use crate::rpc::routes;
 
@@ -52,7 +51,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => H256::zero(),
     };
 
-    let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
+    let state = Arc::new(StdMutex::new(VmState::new(&String::from(
+        "./db/runtime_db",
+    ))));
     let state_clone = state.clone();
 
     let db = Arc::new(Mutex::new(node_db));
@@ -125,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     state.clone(),
                     &AvailHeader::from(&header),
                     &mut old_headers,
-                ).await {
+                ) {
                     Ok((_, result)) => {
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
@@ -192,21 +193,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn execute_batch<
-    Z: ZKVMProver<P>,
-    P: ZKProof + Serialize + Clone + DebugTrait,
-    E: ZKVMEnv,
->(
+fn execute_batch<Z: ZKVMProver<P>, P: ZKProof + Serialize + Clone + DebugTrait, E: ZKVMEnv>(
     txs: &Vec<TransactionV2>,
-    state: Arc<Mutex<VmState>>,
+    state: Arc<StdMutex<VmState>>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
 ) -> Result<(P, NexusHeader), Error> {
     let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
-    let state_update = state_machine
-        .execute_batch(&header, header_store, &txs, 0)
-        .await?;
+    let state_update = state_machine.execute_batch(&header, header_store, &txs, 0)?;
 
     let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
@@ -253,9 +248,7 @@ async fn execute_batch<
 
     match state_update.0 {
         Some(i) => {
-            state_machine
-                .commit_state(&result.state_root, &i.node_batch, 0)
-                .await?;
+            state_machine.commit_state(&result.state_root, &i.node_batch, 0)?;
         }
         None => (),
     }
