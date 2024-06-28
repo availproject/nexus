@@ -466,3 +466,18 @@ impl From<RiscZeroDigest> for StatementDigest {
         Self(new_digest)
     }
 }
+
+impl From<[u32; 8]> for StatementDigest {
+    fn from(item: [u32; 8]) -> Self {
+        //TODO: Convert directly, instead of creating RiscZeroDigest.
+        let digest = RiscZeroDigest::from(item);
+        let bytes = digest.as_bytes();
+        let mut new_digest = [0u8; 32];
+
+        for (i, &element) in bytes.iter().enumerate() {
+            new_digest[i] = element;
+        }
+
+        Self(new_digest)
+    }
+}

@@ -3,18 +3,21 @@ use std::fmt::Debug;
 use adapter_sdk::{state::AdapterState, types::AdapterConfig};
 use demo_rollup_core::DemoProof;
 use methods::{ADAPTER_ELF, ADAPTER_ID};
-use nexus_core::{types::{AppId, StatementDigest}, zkvm::{risczero::{Proof, ZKVM}, traits::{ZKProof, ZKVMEnv, ZKVMProver}}};
+use nexus_core::{
+    types::{AppId, StatementDigest},
+    zkvm::{
+        risczero::{Proof, ZKVM},
+        traits::{ZKProof, ZKVMEnv, ZKVMProver},
+    },
+};
 
 fn main() {
-
-    let zkvm_prover = ZKVMProver::<Proof>::new(ADAPTER_ELF.to_vec());
-
-    let mut adapter: AdapterState<DemoProof, ZKVMEnv: Debug + 'static, ZKProof: Debug + 'static> = AdapterState::new(
+    let mut adapter: AdapterState<DemoProof, ZKVM, Proof> = AdapterState::new(
         String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),
             elf: ADAPTER_ELF.to_vec(),
-            adapter_elf_id: StatementDigest(ADAPTER_ID),
+            adapter_elf_id: StatementDigest::from(ADAPTER_ID),
             vk: [0u8; 32],
             rollup_start_height: 606460,
         },
