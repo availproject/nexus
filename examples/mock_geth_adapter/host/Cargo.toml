@@ -1,25 +1,22 @@
 [package]
-name = "adapter-host"
+name = "geth-adapter-host"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-methods = { path = "../methods" }
-risc0-zkvm = { version = "0.20" }
+geth-methods = { path = "../methods" }
+risc0-zkvm = { version = "0.20", features = ["metal"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = "1.0"
-nexus-core = { path = "../../core"}
+nexus-core = { path = "../../../core"}
 serde_json = "1.0.114"
 tokio = "1.36.0"
 sp-runtime = "33.0.0"
 parity-scale-codec = { version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
-relayer = { path = "../../relayer" }
-adapter_sdk = { path = "../../adapter_sdk" }
-demo_rollup_core = { path = "../core" }
+relayer = { path = "../../../relayer" }
+adapter_sdk = { path = "../../../adapter_sdk" }
+geth-adapter-core = { path = "../core" }
 anyhow = "1.0.80"
 actix-web = "4.5.1"
 warp = "0.3.6"
-
-[features]
-sp1 = ["adapter_sdk/sp1"]
-risc0 = ["adapter_sdk/risc0"]
+web3 = "0.19.0"

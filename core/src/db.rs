@@ -3,6 +3,7 @@ use rocksdb::{Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
 use sparse_merkle_tree::H256;
+use std::fs;
 
 //Wrapper class to RocksDB which is used as backing storage.
 pub struct NodeDB {
@@ -10,7 +11,7 @@ pub struct NodeDB {
 }
 
 impl NodeDB {
-    pub fn from_path(path: String) -> Self {
+    pub fn from_path(path: &str) -> Self {
         let mut db_options = Options::default();
         db_options.create_if_missing(true);
 

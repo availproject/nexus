@@ -2,6 +2,7 @@
 // track the last queried block of the rollup
 // manage a basic data store for the proof generated with the following data: till_avail_block, proof, receipt
 
+use crate::api::NexusAPI;
 use crate::db::DB;
 use crate::traits::RollupProof;
 use crate::types::{
@@ -10,8 +11,8 @@ use crate::types::{
 };
 use anyhow::{anyhow, Error};
 use nexus_core::types::{
-    AppAccountId, AppId, AvailHeader, InitAccount, StatementDigest, SubmitProof, TransactionV2,
-    TxParamsV2, TxSignature, H256,
+    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
+    SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv};
 use relayer::Relayer;
@@ -60,15 +61,15 @@ pub struct AdapterState<
     pub db: Arc<Mutex<DB<P, ZP>>>,
     pub p: PhantomData<Z>,
     pub pp: PhantomData<ZP>,
+    pub nexus_api: NexusAPI,
 }
 
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
         Z: ZKVMEnv,
         ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send,
-    > AdapterState<P, Z, ZP>
-{
-    pub fn new(storage_path: String, config: AdapterConfig) -> Self {
+    > AdapterState<P, Z, ZP> {
+    pub fn new(storage_path: &str, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
 
         AdapterState {
@@ -82,6 +83,7 @@ impl<
             db: Arc::new(Mutex::new(db)),
             p: PhantomData,
             pp: PhantomData,
+            nexus_api: NexusAPI::new(&"http://127.0.0.1:7000"),
         }
     }
 
@@ -113,14 +115,15 @@ impl<
 
         if self.previous_adapter_proof.is_none() {
             let header_hash = relayer.get_header_hash(self.starting_block_number).await;
-            let tx: TransactionV2<ZP> = TransactionV2 {
+
+            let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
+            let tx: TransactionV2<ZP> = TransactionV2<ZP> {
                 signature: TxSignature([0u8; 64]),
                 params: TxParamsV2::InitAccount(InitAccount {
                     app_id: AppAccountId::from(self.app_id.clone()),
                     statement: self.elf_id.clone(),
-                    avail_start_hash: header_hash,
+                    start_nexus_hash: nexus_hash,
                 }),
-                proof: None,
             };
 
             let client = reqwest::Client::new();
@@ -170,8 +173,13 @@ impl<
                     .unwrap();
             }
         });
+        let nexus_api_clone = self.nexus_api.clone();
 
-        let submission_handle = tokio::spawn(Self::manage_submissions(db_clone_2));
+        let submission_handle = tokio::spawn(async move {
+            let nexus_api = nexus_api_clone;
+
+            Self::manage_submissions(db_clone_2, &nexus_api).await
+        });
 
         match self.process_queue().await {
             Ok(_) => (),
@@ -186,8 +194,8 @@ impl<
         Ok(())
     }
 
-    async fn manage_submissions(db: Arc<Mutex<DB<P, ZP>>>) -> Result<P, Error> {
-        loop {
+    async fn manage_submissions(db: Arc<Mutex<DB<P, ZP>>>, nexus_api: &NexusAPI) -> Result<P, Error> {
+    loop {
             thread::sleep(Duration::from_secs(2));
 
             let latest_proof = {
@@ -219,12 +227,15 @@ impl<
                 continue;
             }
 
-            let range: Vec<H256> = response.json().await?;
+            let range: Vec<H256> = match nexus_api.get_range().await {
+                Ok(i) => i,
+                Err(e) => continue,
+            };
 
             let mut is_in_range = false;
 
             for h in range.iter() {
-                if h.clone() == latest_proof.1.header_hash {
+                if h.clone() == latest_proof.1.nexus_hash {
                     is_in_range = true;
                 }
             }
@@ -232,12 +243,15 @@ impl<
             if is_in_range {
                 println!("INside match");
                 let client = reqwest::Client::new();
-                let tx = TransactionV2 {
+                let tx = TransactionV2<Proof> {
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
-                        public_inputs: latest_proof.1.clone(),
+                        proof: ZKProof::try_from(latest_proof.0)?,
+                        height: latest_proof.1.height,
+                        nexus_hash: latest_proof.1.nexus_hash,
+                        state_root: latest_proof.1.state_root,
+                        app_id: latest_proof.1.app_id,
                     }),
-                    proof: Some(latest_proof.0),
                 };
 
                 let response = client
@@ -287,14 +301,12 @@ impl<
                 continue; // Restart the loop
             }
 
-            //todo
-            // let receipt =
-            match self.verify_and_generate_proof(&queue_item) {
+            let receipt = match self.verify_and_generate_proof(&queue_item).await {
                 Err(e) => {
                     return Err(e);
                 }
                 Ok(i) => i,
-            }
+            };
             // TODO]
             // let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
             // self.queue.lock().await.pop_front();
@@ -340,9 +352,16 @@ impl<
     }
 
     // function to generate proof against avail data when proof is received and verified from the rollup
-    fn verify_and_generate_proof(&mut self, queue_item: &QueueItem<P>) -> Result<(), Error> {
+    async fn verify_and_generate_proof(
+        &mut self,
+        queue_item: &QueueItem<P>,
+    ) -> Result<ZP, Error> {
+        let nexus_header: NexusHeader =
+            self.nexus_api.get_header(&queue_item.header.hash()).await?;
+
         let private_inputs = AdapterPrivateInputs {
-            header: queue_item.header.clone(),
+            nexus_header,
+            avail_header: queue_item.header.clone(),
             app_id: self.app_id.clone(),
         };
 

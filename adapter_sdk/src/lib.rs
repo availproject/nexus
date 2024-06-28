@@ -1,5 +1,7 @@
 pub mod adapter_zkvm;
 #[cfg(any(feature = "native"))]
+pub mod api;
+#[cfg(any(feature = "native"))]
 mod db;
 #[cfg(any(feature = "native"))]
 pub mod service;

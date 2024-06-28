@@ -1,19 +1,31 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 #[cfg(any(feature = "native"))]
 pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
 use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
 #[cfg(any(feature = "native"))]
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
+use jmt::proof::{SparseMerkleLeafNode, SparseMerkleNode, SparseMerkleProof, UpdateMerkleProof};
+use jmt::storage::TreeUpdateBatch;
 use parity_scale_codec::{Decode, Encode};
 use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
 use risc0_zkvm::sha::Digest as RiscZeroDigest;
 #[cfg(any(feature = "native"))]
 use risc0_zkvm::InnerReceipt;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
+use serde_json::{from_slice, to_vec, Error};
+use solabi::{
+    decode::{Decode as SolabiDecode, DecodeError, Decoder},
+    encode::{Encode as SolabiEncode, Encoder, Size},
+};
 use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
+pub use crate::state::types::{AccountState, ShaHasher, StatementDigest};
 use crate::zkvm::traits::ZKProof;
 use core::fmt::Debug as DebugTrait;
 pub use sparse_merkle_tree::H256;
@@ -27,8 +39,17 @@ pub struct AppId(#[codec(compact)] pub u32);
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct TxSignature(#[serde(with = "BigArray")] pub [u8; 64]);
 
-#[derive(Default)]
-pub struct ShaHasher(pub Sha256);
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AccountWithProof {
+    pub account: AccountState,
+    pub proof: Vec<[u8; 32]>,
+    pub value_hash: [u8; 32],
+    pub nexus_header: NexusHeader,
+    pub account_encoded: String,
+    pub proof_hex: Vec<String>,
+    pub value_hash_hex: String,
+    pub nexus_state_root_hex: String,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]
 pub struct UpdatedBlob {
@@ -37,15 +58,7 @@ pub struct UpdatedBlob {
     //TODO: messages will be added a bit later.
 }
 
-//TODO: Need to check PartialEq to Eq difference, to ensure there is not security vulnerability.
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
-pub struct AccountState {
-    pub statement: StatementDigest,
-    pub state_root: [u8; 32],
-    pub start_avail_hash: [u8; 32],
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum TxParamsV2 {
     SubmitProof(SubmitProof),
     InitAccount(InitAccount),
@@ -53,10 +66,9 @@ pub enum TxParamsV2 {
 
 #[cfg(any(feature = "native"))]
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct TransactionV2<P: ZKProof + Serialize + Clone + Serialize + DebugTrait> {
+pub struct TransactionV2 {
     pub signature: TxSignature,
     pub params: TxParamsV2,
-    pub proof: Option<P>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -65,37 +77,42 @@ pub struct TransactionZKVM {
     pub params: TxParamsV2,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct SubmitProof {
-    //Disabled for now.
-    //pub proof: risc0_zkvm::InnerReceipt,
-    pub public_inputs: RollupPublicInputsV2,
+    pub proof: Proof,
+    pub nexus_hash: H256,
+    pub state_root: H256,
+    pub height: u32,
+    pub app_id: AppAccountId,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+pub struct Proof(Vec<u8>);
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct InitAccount {
     pub app_id: AppAccountId,
     pub statement: StatementDigest,
-    pub avail_start_hash: H256,
+    pub start_nexus_hash: H256,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
-pub struct StatementDigest(pub [u8; 32]);
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RollupPublicInputsV2 {
-    pub header_hash: H256,
+    pub nexus_hash: H256,
     pub state_root: H256,
-    pub avail_start_hash: H256,
+    pub height: u32,
+    pub start_nexus_hash: H256,
     pub app_id: AppAccountId,
     pub img_id: StatementDigest,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct NexusHeader {
+    pub parent_hash: H256,
     pub prev_state_root: H256,
     pub state_root: H256,
     pub avail_header_hash: H256,
+    pub number: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -106,28 +123,17 @@ pub struct SimpleNexusHeader {
     pub avail_blob_root: H256,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StateUpdate {
     pub pre_state_root: H256,
     pub post_state_root: H256,
-    pub pre_state: Vec<(AppAccountId, AccountState)>,
-    pub post_state: Vec<(AppAccountId, AccountState)>,
-    pub proof: Option<MerkleProof>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SimpleStateUpdate {
-    pub pre_state_root: H256,
-    pub post_state_root: H256,
-    pub pre_state: Vec<(AppAccountId, AccountState)>,
-    pub post_state: Vec<(AppAccountId, AccountState)>,
-    pub proof: Option<MerkleProof>,
+    pub pre_state: HashMap<[u8; 32], (Option<AccountState>, SparseMerkleProof<Sha256>)>,
 }
 
 //TODO: Store on hash list, instead of headers.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeaderStore {
-    inner: Vec<AvailHeader>,
+    inner: Vec<NexusHeader>,
     max_size: usize,
 }
 
@@ -342,34 +348,6 @@ impl AvailHeader {
     }
 }
 
-impl StatementDigest {
-    fn zero() -> Self {
-        Self([0u8; 32])
-    }
-}
-
-impl Value for AccountState {
-    fn to_h256(&self) -> H256 {
-        if self.statement == StatementDigest::zero() {
-            return H256::zero();
-        }
-
-        let mut hasher = ShaHasher::new();
-        let serialized = self.encode();
-        hasher.0.update(&serialized);
-
-        hasher.finish()
-    }
-
-    fn zero() -> Self {
-        Self {
-            state_root: [0; 32],
-            statement: StatementDigest::zero(),
-            start_avail_hash: [0; 32],
-        }
-    }
-}
-
 impl HeaderStore {
     pub fn new(max_size: usize) -> Self {
         Self {
@@ -378,7 +356,7 @@ impl HeaderStore {
         }
     }
 
-    pub fn push_front(&mut self, header: &AvailHeader) -> () {
+    pub fn push_front(&mut self, header: &NexusHeader) -> () {
         if self.inner.len() == self.max_size {
             self.inner.remove(self.max_size - 1); // Remove the last element if size is at max
         }
@@ -389,11 +367,14 @@ impl HeaderStore {
         self.inner.is_empty()
     }
 
-    pub fn first(&self) -> &AvailHeader {
-        return &self.inner[0];
+    pub fn first(&self) -> Option<&NexusHeader> {
+        if self.is_empty() {
+            return None;
+        }
+        return Some(&self.inner[0]);
     }
 
-    pub fn inner(&self) -> &Vec<AvailHeader> {
+    pub fn inner(&self) -> &Vec<NexusHeader> {
         &self.inner
     }
 }
@@ -454,30 +435,32 @@ impl RollupPublicInputsV2 {
     }
 }
 
-impl From<RiscZeroDigest> for StatementDigest {
-    fn from(item: RiscZeroDigest) -> Self {
-        let bytes = item.as_bytes();
-        let mut new_digest = [0u8; 32];
+#[cfg(any(feature = "native"))]
+impl TryFrom<risc0_zkvm::Receipt> for Proof {
+    type Error = Error;
 
-        for (i, &element) in bytes.iter().enumerate() {
-            new_digest[i] = element;
-        }
-
-        Self(new_digest)
+    fn try_from(value: risc0_zkvm::Receipt) -> Result<Self, Self::Error> {
+        Ok(Self(to_vec(&value)?))
     }
 }
 
-impl From<[u32; 8]> for StatementDigest {
-    fn from(item: [u32; 8]) -> Self {
-        //TODO: Convert directly, instead of creating RiscZeroDigest.
-        let digest = RiscZeroDigest::from(item);
-        let bytes = digest.as_bytes();
-        let mut new_digest = [0u8; 32];
+#[cfg(any(feature = "native"))]
+impl TryInto<risc0_zkvm::Receipt> for Proof {
+    type Error = Error;
 
-        for (i, &element) in bytes.iter().enumerate() {
-            new_digest[i] = element;
-        }
+    fn try_into(self) -> Result<risc0_zkvm::Receipt, Self::Error> {
+        Ok(from_slice(&self.0)?)
+    }
+}
 
-        Self(new_digest)
+impl NexusHeader {
+    pub fn hash(&self) -> H256 {
+        let serialized = self.encode();
+
+        let mut hasher = ShaHasher::new();
+
+        hasher.0.update(&serialized);
+
+        hasher.finish()
     }
 }
