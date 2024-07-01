@@ -15,6 +15,7 @@ use nexus_core::types::{
     SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv};
+use nexus_core::types::{Proof};
 use relayer::Relayer;
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
@@ -112,38 +113,35 @@ impl<
             Some(i) => i.2,
             None => self.starting_block_number,
         };
+        if self.previous_adapter_proof.is_none() {
+            let header_hash = relayer.get_header_hash(self.starting_block_number).await;
 
-// TODO fix parenthensis
+            let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
+            let tx = TransactionV2{
+                signature: TxSignature([0u8; 64]),
+                params: TxParamsV2::InitAccount(InitAccount {
+                    app_id: AppAccountId::from(self.app_id.clone()),
+                    statement: self.elf_id.clone(),
+                    start_nexus_hash: nexus_hash,
+                }),
+            };
 
-        // if self.previous_adapter_proof.is_none() {
-        //     let header_hash = relayer.get_header_hash(self.starting_block_number).await;
+            let client = reqwest::Client::new();
 
-        //     let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
-        //     let tx: TransactionV2<ZP> = TransactionV2<ZP> {
-        //         signature: TxSignature([0u8; 64]),
-        //         params: TxParamsV2::InitAccount(InitAccount {
-        //             app_id: AppAccountId::from(self.app_id.clone()),
-        //             statement: self.elf_id.clone(),
-        //             start_nexus_hash: nexus_hash,
-        //         }),
-        //     };
+            let response = client
+                .post("http://127.0.0.1:7000/tx")
+                .json(&tx)
+                .send()
+                .await?;
 
-        //     let client = reqwest::Client::new();
-
-        //     let response = client
-        //         .post("http://127.0.0.1:7000/tx")
-        //         .json(&tx)
-        //         .send()
-        //         .await?;
-
-        //     // Check if the request was successful
-        //     if response.status().is_success() {
-        //         let body = response.text().await?;
-        //         println!("✅ Initiated rollup {}", body);
-        //     } else {
-        //         println!("❌ Failed to initiate rollup {}", response.status());
-        //     }
-        // }
+            // Check if the request was successful
+            if response.status().is_success() {
+                let body = response.text().await?;
+                println!("✅ Initiated rollup {}", body);
+            } else {
+                println!("❌ Failed to initiate rollup {}", response.status());
+            }
+        }
 
         let relayer_handle = tokio::spawn(async move {
             println!("Start height {}", start_height);
