@@ -11,7 +11,7 @@ use crate::types::{
 };
 use anyhow::{anyhow, Error};
 use nexus_core::types::{
-    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
+    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, StatementDigest,
     SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv};
@@ -113,35 +113,37 @@ impl<
             None => self.starting_block_number,
         };
 
-        if self.previous_adapter_proof.is_none() {
-            let header_hash = relayer.get_header_hash(self.starting_block_number).await;
+// TODO fix parenthensis
 
-            let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
-            let tx: TransactionV2<ZP> = TransactionV2<ZP> {
-                signature: TxSignature([0u8; 64]),
-                params: TxParamsV2::InitAccount(InitAccount {
-                    app_id: AppAccountId::from(self.app_id.clone()),
-                    statement: self.elf_id.clone(),
-                    start_nexus_hash: nexus_hash,
-                }),
-            };
+        // if self.previous_adapter_proof.is_none() {
+        //     let header_hash = relayer.get_header_hash(self.starting_block_number).await;
 
-            let client = reqwest::Client::new();
+        //     let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
+        //     let tx: TransactionV2<ZP> = TransactionV2<ZP> {
+        //         signature: TxSignature([0u8; 64]),
+        //         params: TxParamsV2::InitAccount(InitAccount {
+        //             app_id: AppAccountId::from(self.app_id.clone()),
+        //             statement: self.elf_id.clone(),
+        //             start_nexus_hash: nexus_hash,
+        //         }),
+        //     };
 
-            let response = client
-                .post("http://127.0.0.1:7000/tx")
-                .json(&tx)
-                .send()
-                .await?;
+        //     let client = reqwest::Client::new();
 
-            // Check if the request was successful
-            if response.status().is_success() {
-                let body = response.text().await?;
-                println!("✅ Initiated rollup {}", body);
-            } else {
-                println!("❌ Failed to initiate rollup {}", response.status());
-            }
-        }
+        //     let response = client
+        //         .post("http://127.0.0.1:7000/tx")
+        //         .json(&tx)
+        //         .send()
+        //         .await?;
+
+        //     // Check if the request was successful
+        //     if response.status().is_success() {
+        //         let body = response.text().await?;
+        //         println!("✅ Initiated rollup {}", body);
+        //     } else {
+        //         println!("❌ Failed to initiate rollup {}", response.status());
+        //     }
+        // }
 
         let relayer_handle = tokio::spawn(async move {
             println!("Start height {}", start_height);
@@ -239,45 +241,45 @@ impl<
                     is_in_range = true;
                 }
             }
+// TODO fix parenthensis
+            // if is_in_range {
+            //     println!("INside match");
+            //     let client = reqwest::Client::new();
+            //     let tx = TransactionV2<Proof> {
+            //         signature: TxSignature([0u8; 64]),
+            //         params: TxParamsV2::SubmitProof(SubmitProof {
+            //             proof: ZKProof::try_from(latest_proof.0)?,
+            //             height: latest_proof.1.height,
+            //             nexus_hash: latest_proof.1.nexus_hash,
+            //             state_root: latest_proof.1.state_root,
+            //             app_id: latest_proof.1.app_id,
+            //         }),
+            //     };
 
-            if is_in_range {
-                println!("INside match");
-                let client = reqwest::Client::new();
-                let tx = TransactionV2<Proof> {
-                    signature: TxSignature([0u8; 64]),
-                    params: TxParamsV2::SubmitProof(SubmitProof {
-                        proof: ZKProof::try_from(latest_proof.0)?,
-                        height: latest_proof.1.height,
-                        nexus_hash: latest_proof.1.nexus_hash,
-                        state_root: latest_proof.1.state_root,
-                        app_id: latest_proof.1.app_id,
-                    }),
-                };
+            //     let response = client
+            //         .post("http://127.0.0.1:7000/tx")
+            //         .json(&tx)
+            //         .send()
+            //         .await?;
 
-                let response = client
-                    .post("http://127.0.0.1:7000/tx")
-                    .json(&tx)
-                    .send()
-                    .await?;
-
-                // Check if the request was successful
-                if response.status().is_success() {
-                    let body = response.text().await?;
-                    println!(
-                        "✅ Posted proof for avail height: {:?}, state root: {:?}",
-                        &latest_proof.2, &latest_proof.1.state_root
-                    );
-                } else {
-                    println!(
-                        "❌ Request failed with status: {}, for avail height: {:?}, state root: {:?}",
-                        response.status(),
-                        &latest_proof.2,
-                        &latest_proof.1.state_root
-                    );
-                }
-            } else {
-                println!("⏳ Not in range yet. Rollup at height: {}", latest_proof.2);
-            }
+            //     // Check if the request was successful
+            //     if response.status().is_success() {
+            //         let body = response.text().await?;
+            //         println!(
+            //             "✅ Posted proof for avail height: {:?}, state root: {:?}",
+            //             &latest_proof.2, &latest_proof.1.state_root
+            //         );
+            //     } else {
+            //         println!(
+            //             "❌ Request failed with status: {}, for avail height: {:?}, state root: {:?}",
+            //             response.status(),
+            //             &latest_proof.2,
+            //             &latest_proof.1.state_root
+            //         );
+            //     }
+            // } else {
+            //     println!("⏳ Not in range yet. Rollup at height: {}", latest_proof.2);
+            // }
         }
     }
 
@@ -355,7 +357,8 @@ impl<
     async fn verify_and_generate_proof(
         &mut self,
         queue_item: &QueueItem<P>,
-    ) -> Result<ZP, Error> {
+        // TODO change the return type to ZP
+    ) -> Result<(), Error> {
         let nexus_header: NexusHeader =
             self.nexus_api.get_header(&queue_item.header.hash()).await?;
 
