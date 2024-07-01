@@ -6,13 +6,13 @@ use methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::{
     types::{AppId, StatementDigest},
     zkvm::{
-        risczero::{Proof, ZKVM},
+        risczero::{RiscZeroProof, ZKVM},
         traits::{ZKProof, ZKVMEnv, ZKVMProver},
     },
 };
 
 fn main() {
-    let mut adapter: AdapterState<DemoProof, ZKVM, Proof> = AdapterState::new(
+    let mut adapter: AdapterState<DemoProof, ZKVM, RiscZeroProof> = AdapterState::new(
         &String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),

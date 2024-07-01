@@ -87,7 +87,7 @@ pub struct SubmitProof {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
-pub struct Proof(Vec<u8>);
+pub struct Proof(pub Vec<u8>);
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct InitAccount {

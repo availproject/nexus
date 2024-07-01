@@ -20,7 +20,7 @@ pub struct RiscZeroProver<'a> {
 }
 
 #[cfg(any(feature = "native"))]
-impl<'a> ZKVMProver<Proof> for RiscZeroProver<'a> {
+impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     fn new(elf: Vec<u8>) -> Self {
         let env_builder = ExecutorEnv::builder();
 
@@ -33,29 +33,29 @@ impl<'a> ZKVMProver<Proof> for RiscZeroProver<'a> {
         Ok(())
     }
 
-    fn add_proof_for_recursion(&mut self, proof: Proof) -> Result<(), anyhow::Error> {
+    fn add_proof_for_recursion(&mut self, proof: RiscZeroProof) -> Result<(), anyhow::Error> {
         self.env_builder.add_assumption(proof.0);
 
         Ok(())
     }
 
-    fn prove(&mut self) -> Result<Proof, anyhow::Error> {
+    fn prove(&mut self) -> Result<RiscZeroProof, anyhow::Error> {
         let env: ExecutorEnv = self.env_builder.build().map_err(|e| anyhow!(e))?;
 
         let prover = default_prover();
 
         let receipt = prover.prove(env, &self.elf).map_err(|e| anyhow!(e))?;
 
-        Ok(Proof(receipt))
+        Ok(RiscZeroProof(receipt))
     }
 }
 
 #[cfg(any(feature = "native"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Proof(pub Receipt);
+pub struct RiscZeroProof(pub Receipt);
 
 #[cfg(any(feature = "native"))]
-impl ZKProof for Proof {
+impl ZKProof for RiscZeroProof {
     fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
         from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
     }
@@ -72,13 +72,30 @@ impl ZKProof for Proof {
 }
 
 #[cfg(any(feature = "native"))]
-impl TryFrom<NexusProof> for Proof {
+impl TryFrom<NexusProof> for RiscZeroProof {
     type Error = anyhow::Error;
 
     fn try_from(value: NexusProof) -> Result<Self, Self::Error> {
         let receipt: Receipt = value.try_into()?;
 
         Ok(Self(receipt))
+    }
+}
+
+#[cfg(any(feature = "native"))]
+impl TryInto<NexusProof> for RiscZeroProof {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<NexusProof, Self::Error> {
+        let encoded_u32: Vec<u32> = to_vec(&self)
+            .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
+
+        // Convert Vec<u32> to Vec<u8>
+        let encoded_u8: Vec<u8> = encoded_u32
+            .into_iter()
+            .flat_map(|x| x.to_ne_bytes().to_vec())
+            .collect();
+        Ok(NexusProof(encoded_u8))
     }
 }
 pub struct ZKVM();

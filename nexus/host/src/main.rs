@@ -13,7 +13,7 @@ use nexus_core::{
         TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
     zkvm::{
-        risczero::{Proof, RiscZeroProver, ZKVM},
+        risczero::{RiscZeroProof, RiscZeroProver, ZKVM},
         traits::{ZKProof, ZKVMEnv, ZKVMProver},
     },
 };
@@ -121,7 +121,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     txs.len()
                 );
 
-                match execute_batch::<RiscZeroProver, Proof, ZKVM>(
+                match execute_batch::<RiscZeroProver, RiscZeroProof, ZKVM>(
                     &txs,
                     state.clone(),
                     &AvailHeader::from(&header),
