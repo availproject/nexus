@@ -1,4 +1,4 @@
-use crate::types::Proof as NexusProof;
+use crate::types::Proof;
 
 use super::traits::ZKVMEnv;
 #[cfg(any(feature = "native"))]
@@ -12,6 +12,7 @@ use risc0_zkvm::{default_prover, ExecutorEnv, ExecutorEnvBuilder};
 #[cfg(any(feature = "native"))]
 use risc0_zkvm::{serde::from_slice, Receipt};
 use serde::{Deserialize, Serialize};
+use anyhow::Error;
 
 #[cfg(any(feature = "native"))]
 pub struct RiscZeroProver<'a> {
@@ -64,7 +65,29 @@ impl ZKProof for RiscZeroProof {
         self.0.verify(img_id).map_err(|e| anyhow!(e))
     }
 
-    fn try_from(value: NexusProof) -> Result<Self, anyhow::Error> {
+    fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
+        let receipt: Receipt = value.try_into()?;
+
+        Ok(Self(receipt))
+    }
+    fn try_into(&self) -> Result<Proof, Error> {
+        let encoded_u32: Vec<u32> = to_vec(&self)
+            .map_err(|e| anyhow!("Serialization error: {}", e))?;
+
+        // Convert Vec<u32> to Vec<u8>
+        let encoded_u8: Vec<u8> = encoded_u32
+            .into_iter()
+            .flat_map(|x| x.to_ne_bytes().to_vec())
+            .collect();
+        Ok(Proof(encoded_u8))
+    }
+}
+
+#[cfg(any(feature = "native"))]
+impl TryFrom<Proof> for RiscZeroProof {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Proof) -> Result<Self, Self::Error> {
         let receipt: Receipt = value.try_into()?;
 
         Ok(Self(receipt))
@@ -72,21 +95,10 @@ impl ZKProof for RiscZeroProof {
 }
 
 #[cfg(any(feature = "native"))]
-impl TryFrom<NexusProof> for RiscZeroProof {
+impl TryInto<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
-    fn try_from(value: NexusProof) -> Result<Self, Self::Error> {
-        let receipt: Receipt = value.try_into()?;
-
-        Ok(Self(receipt))
-    }
-}
-
-#[cfg(any(feature = "native"))]
-impl TryInto<NexusProof> for RiscZeroProof {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<NexusProof, Self::Error> {
+    fn try_into(self) -> Result<Proof, Self::Error> {
         let encoded_u32: Vec<u32> = to_vec(&self)
             .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
 
@@ -95,7 +107,7 @@ impl TryInto<NexusProof> for RiscZeroProof {
             .into_iter()
             .flat_map(|x| x.to_ne_bytes().to_vec())
             .collect();
-        Ok(NexusProof(encoded_u8))
+        Ok(Proof(encoded_u8))
     }
 }
 pub struct ZKVM();

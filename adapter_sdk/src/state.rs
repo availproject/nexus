@@ -240,44 +240,44 @@ impl<
                 }
             }
 // TODO fix parenthensis
-            // if is_in_range {
-            //     println!("INside match");
-            //     let client = reqwest::Client::new();
-            //     let tx = TransactionV2<Proof> {
-            //         signature: TxSignature([0u8; 64]),
-            //         params: TxParamsV2::SubmitProof(SubmitProof {
-            //             proof: ZKProof::try_from(latest_proof.0)?,
-            //             height: latest_proof.1.height,
-            //             nexus_hash: latest_proof.1.nexus_hash,
-            //             state_root: latest_proof.1.state_root,
-            //             app_id: latest_proof.1.app_id,
-            //         }),
-            //     };
+            if is_in_range {
+                println!("INside match");
+                let client = reqwest::Client::new();
+                let tx = TransactionV2{
+                    signature: TxSignature([0u8; 64]),
+                    params: TxParamsV2::SubmitProof(SubmitProof {
+                        proof: latest_proof.0.try_into()?,
+                        height: latest_proof.1.height,
+                        nexus_hash: latest_proof.1.nexus_hash,
+                        state_root: latest_proof.1.state_root,
+                        app_id: latest_proof.1.app_id,
+                    }),
+                };
 
-            //     let response = client
-            //         .post("http://127.0.0.1:7000/tx")
-            //         .json(&tx)
-            //         .send()
-            //         .await?;
+                let response = client
+                    .post("http://127.0.0.1:7000/tx")
+                    .json(&tx)
+                    .send()
+                    .await?;
 
-            //     // Check if the request was successful
-            //     if response.status().is_success() {
-            //         let body = response.text().await?;
-            //         println!(
-            //             "✅ Posted proof for avail height: {:?}, state root: {:?}",
-            //             &latest_proof.2, &latest_proof.1.state_root
-            //         );
-            //     } else {
-            //         println!(
-            //             "❌ Request failed with status: {}, for avail height: {:?}, state root: {:?}",
-            //             response.status(),
-            //             &latest_proof.2,
-            //             &latest_proof.1.state_root
-            //         );
-            //     }
-            // } else {
-            //     println!("⏳ Not in range yet. Rollup at height: {}", latest_proof.2);
-            // }
+                // Check if the request was successful
+                if response.status().is_success() {
+                    let body = response.text().await?;
+                    println!(
+                        "✅ Posted proof for avail height: {:?}, state root: {:?}",
+                        &latest_proof.2, &latest_proof.1.state_root
+                    );
+                } else {
+                    println!(
+                        "❌ Request failed with status: {}, for avail height: {:?}, state root: {:?}",
+                        response.status(),
+                        &latest_proof.2,
+                        &latest_proof.1.state_root
+                    );
+                }
+            } else {
+                println!("⏳ Not in range yet. Rollup at height: {}", latest_proof.2);
+            }
         }
     }
 

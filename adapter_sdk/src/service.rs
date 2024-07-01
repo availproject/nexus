@@ -12,20 +12,20 @@ async fn health_check_handler() -> Result<impl Reply, Rejection> {
     Ok(warp::reply::with_status("OK", StatusCode::OK))
 }
 
-async fn handle_proof_handler<
-    P: RollupProof + Clone + Serialize + DeserializeOwned + Send,
-    Z: ZKVMEnv,
-    ZP: ZKProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send,
->(
-    state: Arc<Mutex<AdapterState<P, Z, ZP>>>,
-    proof: RollupProofWithPublicInputs<P>,
-) -> Result<impl Reply, Rejection> {
-    let mut locked_state = state.lock().await;
+// async fn handle_proof_handler<
+//     P: RollupProof + Clone + Serialize + DeserializeOwned + Send,
+//     Z: ZKVMEnv,
+//     ZP: ZKProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send,
+// >(
+//     state: Arc<Mutex<AdapterState<P, Z, ZP>>>,
+//     proof: RollupProofWithPublicInputs<P>,
+// ) -> Result<impl Reply, Rejection> {
+//     let mut locked_state = state.lock().await;
 
-    locked_state.add_proof(proof).await;
+//     locked_state.add_proof(proof).await;
 
-    Ok(warp::reply::with_status("Proof received", StatusCode::OK))
-}
+//     Ok(warp::reply::with_status("Proof received", StatusCode::OK))
+// }
 
 // pub async fn server<
 //     P: RollupProof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize,

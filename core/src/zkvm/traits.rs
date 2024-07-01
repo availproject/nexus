@@ -13,6 +13,7 @@ pub trait ZKProof: Sized {
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error>;
     fn public_inputs<V: DeserializeOwned>(&self) -> Result<V, anyhow::Error>;
     fn try_from(proof: NexusProof) -> Result<Self, anyhow::Error>;
+    fn try_into(&self) -> Result<NexusProof, anyhow::Error>;
 }
 
 // pub trait ZKProof {
