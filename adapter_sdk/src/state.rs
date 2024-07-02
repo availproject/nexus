@@ -29,6 +29,7 @@ use std::sync::Arc;
 use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
+use std::fmt::Debug;
 
 #[cfg(feature = "sp1")]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
@@ -46,12 +47,13 @@ pub(crate) struct QueueItem<P: RollupProof + Clone> {
     header: AvailHeader,
 }
 
+
 // usage : create an object for this struct and use as a global dependency
 pub struct AdapterState<
     P: RollupProof + Clone + DeserializeOwned + Serialize + 'static,
     Z: ZKVMEnv + 'static,
-    ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + 'static,
-> {
+    ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug+ 'static,
+> where <ZP as TryInto<Proof>>::Error: Debug + Send + Sync{
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
     pub previous_adapter_proof: Option<(ZP, AdapterPublicInputs, u32)>,
@@ -68,8 +70,8 @@ pub struct AdapterState<
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
         Z: ZKVMEnv,
-        ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send,
-    > AdapterState<P, Z, ZP> {
+        ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send+ TryInto<Proof> + Debug,
+    > AdapterState<P, Z, ZP> where <ZP as TryInto<Proof>>::Error: Debug + Send + Sync {
     pub fn new(storage_path: &str, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
 
@@ -194,7 +196,8 @@ impl<
         Ok(())
     }
 
-    async fn manage_submissions(db: Arc<Mutex<DB<P, ZP>>>, nexus_api: &NexusAPI) -> Result<P, Error> {
+    async fn manage_submissions(db: Arc<Mutex<DB<P, ZP>>>, nexus_api: &NexusAPI) -> Result<P, Error> 
+    {
     loop {
             thread::sleep(Duration::from_secs(2));
 
@@ -246,7 +249,7 @@ impl<
                 let tx = TransactionV2{
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
-                        proof: latest_proof.0.try_into()?,
+                        proof: latest_proof.0.try_into().unwrap(),
                         height: latest_proof.1.height,
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,
