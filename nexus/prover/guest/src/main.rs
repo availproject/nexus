@@ -28,6 +28,5 @@ fn main() {
 
     // let after_stf = env::cycle_count();
     // eprintln!("after STF {}", after_stf);
-
     env::commit(&zkvm_result);
 }

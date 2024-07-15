@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 pub struct DB<P>(NodeDB, PhantomData<P>);
 
 impl<P: Proof + Clone + DeserializeOwned + Serialize> DB<P> {
-    pub fn from_path(path: String) -> Self {
+    pub fn from_path(path: &str) -> Self {
         Self(NodeDB::from_path(path), PhantomData)
     }
 

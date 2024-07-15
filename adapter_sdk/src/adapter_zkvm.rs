@@ -88,7 +88,12 @@ pub fn verify_proof<P: Proof>(
     8. Allow verification of empty proof - ✅
     */
 
-    let current_avail_hash: H256 = private_inputs.header.hash();
+    let current_avail_hash: H256 = private_inputs.avail_header.hash();
+    let nexus_hash: H256 = private_inputs.nexus_header.hash();
+
+    if current_avail_hash != private_inputs.nexus_header.avail_header_hash {
+        return Err(anyhow!("Incorrect Nexus Header provided."));
+    }
     //TODO: Check inclusion proof for data blob, app index check, and empty block check.
     let mut hasher = ShaHasher::new();
 
@@ -100,7 +105,7 @@ pub fn verify_proof<P: Proof>(
     let (proof, rollup_public_inputs) = match rollup_proof {
         Some(i) => (i.proof, i.public_inputs),
         None => {
-            let app_lookup = match private_inputs.header.extension {
+            let app_lookup = match private_inputs.avail_header.extension {
                 Extension::V3(extension) => extension.app_lookup,
                 _ => unreachable!("Other headers not expected"),
             };
@@ -119,16 +124,18 @@ pub fn verify_proof<P: Proof>(
 
             return Ok(match prev_adapter_public_inputs {
                 Some(i) => AdapterPublicInputs {
-                    header_hash: current_avail_hash,
+                    nexus_hash,
+                    height: i.height,
                     state_root: i.state_root,
-                    avail_start_hash: i.avail_start_hash,
+                    start_nexus_hash: i.start_nexus_hash,
                     app_id: app_account_id,
                     img_id: i.img_id,
                 },
                 None => AdapterPublicInputs {
-                    header_hash: current_avail_hash,
+                    nexus_hash: nexus_hash.clone(),
+                    height: 0,
                     state_root: H256::zero(),
-                    avail_start_hash: current_avail_hash,
+                    start_nexus_hash: nexus_hash,
                     app_id: app_account_id,
                     img_id: img_id.clone(),
                 },
@@ -151,9 +158,10 @@ pub fn verify_proof<P: Proof>(
                     Err(anyhow::anyhow!("Previous proof not submitted"))
                 } else {
                     Ok(AdapterPublicInputs {
-                        header_hash: current_avail_hash,
+                        height: 0,
+                        nexus_hash: nexus_hash.clone(),
                         state_root: post_state_root,
-                        avail_start_hash: current_avail_hash,
+                        start_nexus_hash: nexus_hash,
                         app_id: app_account_id,
                         img_id: img_id.clone(),
                     })
@@ -166,7 +174,7 @@ pub fn verify_proof<P: Proof>(
         return Err(anyhow::anyhow!("Not sequential proof"));
     }
 
-    if prev_public_input.header_hash != private_inputs.header.parent_hash {
+    if prev_public_input.nexus_hash != private_inputs.nexus_header.parent_hash {
         return Err(anyhow::anyhow!(
             "Proof for previous avail height not provided."
         ));
@@ -181,9 +189,10 @@ pub fn verify_proof<P: Proof>(
     }
 
     Ok(AdapterPublicInputs {
-        header_hash: current_avail_hash,
+        nexus_hash,
+        height: rollup_public_inputs.height,
         state_root: rollup_public_inputs.post_state_root,
-        avail_start_hash: prev_public_input.avail_start_hash,
+        start_nexus_hash: prev_public_input.start_nexus_hash,
         app_id: app_account_id,
         img_id: img_id.clone(),
     })

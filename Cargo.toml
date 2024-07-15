@@ -5,11 +5,15 @@ members = [
     "core",
     "nexus/host",
     "nexus/prover",
-    "demo_rollup/host", 
-    "demo_rollup/methods",
-    "demo_rollup/core",
+    "examples/demo_rollup/host", 
+    "examples/demo_rollup/methods",
+    "examples/demo_rollup/core",
+    "examples/mock_geth_adapter/host",
+    "examples/mock_geth_adapter/methods",
+    "examples/mock_geth_adapter/core",
     "adapter_sdk",
-    "old_demo_rollup"
+    "old_demo_rollup", 
+    "smt_playground",
 ]
 
 [patch.crates-io]
