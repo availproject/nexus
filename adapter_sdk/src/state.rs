@@ -242,7 +242,7 @@ impl<
                     is_in_range = true;
                 }
             }
-// TODO fix parenthensis
+
             if is_in_range {
                 println!("INside match");
                 let client = reqwest::Client::new();
