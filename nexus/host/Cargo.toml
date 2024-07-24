@@ -21,3 +21,8 @@ bincode = "1.3.3"
 rocksdb = {version = "0.22.0"}
 jmt = { git = "https://github.com/vibhurajeev/jmt.git", features = ["mocks"]}
 hex = "0.4.3"
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
+
+
+[features]
+spone = ["sp1-sdk"]

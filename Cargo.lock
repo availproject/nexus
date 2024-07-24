@@ -4109,6 +4109,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-runtime 33.0.0",
+ "sp1-sdk",
  "tokio",
  "tracing-subscriber 0.3.18",
  "warp",

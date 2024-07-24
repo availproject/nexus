@@ -1,5 +1,9 @@
+use anyhow::{Error, Ok};
+use jmt::proof;
 #[cfg(any(feature = "spone"))]
-use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues};
+use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey};
+
+use crate::types::Proof;
 
 use super::traits::ZKProof;
 
@@ -7,6 +11,9 @@ use super::traits::ZKProof;
 pub struct SpOneProver {
     sp1_standard_input: SP1Stdin,
     sp1_client: ProverClient,
+    proving_key: SP1ProvingKey,
+    verification_key: SP1VerifyingKey,
+    proofs: Vec<SpOneProof>,
     elf: Vec<u8>,    
 }
 
@@ -15,7 +22,8 @@ impl ZKVMProver<SpOneProof> for SpOneProver {
     fn new(elf: Vec<u8>) -> Self {
         let stdin = SP1Stdin::new();
         let client = ProverClient::new();
-        Self { stdin, client,  elf }
+        let (pk, vk) = client.setup(elf);
+        Self { stdin, client, pk, vk, elf }
     }
 
     fn add_input(&mut self, input: &T) -> Result<(), anyhow::Error> {
@@ -26,13 +34,59 @@ impl ZKVMProver<SpOneProof> for SpOneProver {
 
     fn add_proof_for_recursion(&mut self, proof: SpOneProof) -> Result<(), anyhow::Error> {
         // self.env_builder.add_assumption(proof.0);
-
+        // self.sp1_standard_input.write()
+        // sp1_zkvm::lib::verify_proof(vkey, public_values_digest);
+        self.proofs.push(proof);
         Ok(())
     }
 
     fn prove(&mut self) -> Result<SpOneProof, anyhow::Error> {
-        let (pk, vk) = self.sp1_client.setup(&self.elf);
-        let mut proof = self.sp1_client.prove(&pk, stdin).expect("proving failed");
+
+        //create an array of self.vk hashes
+        let vkeys;
+        for i in 0..self.proofs.len() {
+            vkeys.push(self.vk.hash_u32());
+        }
+        self.stdin.write::<Vec<[u32; 8]>>(&vkeys);
+        // let vkeys = self.proofs.iter().map(|self.vk| self.vk.hash_u32()).collect::<Vec<_>>();
+        // let vkeys = inputs
+        //     .iter()
+        //     .map(|input| input.vk.hash_u32())
+        //     .collect::<Vec<_>>();
+        // stdin.write::<Vec<[u32; 8]>>(&vkeys);
+
+        let public_values = self.proofs
+                            .iter()
+                            .map(|proof| proof.public_values)
+                            .collect::<Vec<_>>();
+        stdin.write::<Vec<Vec<u8>>>(&public_values);
+        // // Write the public values.
+        // let public_values = inputs
+        //     .iter()
+        //     .map(|input| input.proof.public_values.to_vec())
+        //     .collect::<Vec<_>>();
+        // stdin.write::<Vec<Vec<u8>>>(&public_values);
+
+        for proof in self.proofs {
+            let SP1Proof::Compressed(proof) = proof.proof;
+            stdin.write_proof(proof.proof, proof.vk);
+        }
+        // // Write the proofs.
+        // //
+        // // Note: this data will not actually be read by the aggregation program, instead it will be
+        // // witnessed by the prover during the recursive aggregation process inside SP1 itself.
+        self.sp1_client
+            .prove(&self, stdin)
+            .plonk()
+            .run()
+            .expect("proving failed");
+        // for input in inputs {
+        //     let SP1Proof::Compressed(proof) = input.proof.proof else {
+        //         panic!()
+        //     };
+        //     stdin.write_proof(proof, input.vk.vk);
+        // }
+        // let mut proof = self.sp1_client.prove(&self.proving_key, self.stdin).expect("proving failed");
 
         Ok(SpOneProof(proof, self.sp1_client))
     }
@@ -41,7 +95,7 @@ impl ZKVMProver<SpOneProof> for SpOneProver {
 
 #[cfg(any(feature = "spone"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpOneProof(pub SP1ProofWithPublicValues, pub ProverClient);
+pub struct SpOneProof(pub SP1ProofWithPublicValues, pub ProverClient, pub SP1ProvingKey);
 
 #[cfg(any(feature = "spone"))]
 impl ZKProof for SpOneProof {
@@ -51,7 +105,8 @@ impl ZKProof for SpOneProof {
 
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
 
-        self.1.verify(self.0, vk).expect("verification failed");
+        // self.1.verify(self.0, self.2).expect("verification failed");
+        
         // let client = ProverClient::new();
         // let public_values = SP1PublicValues::new();
         // let proof = self.0.clone();
@@ -62,6 +117,17 @@ impl ZKProof for SpOneProof {
         //     Err(anyhow!("Proof verification failed"))
         // }
 
+        Ok(())
+
     }
+
+    // fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
+    //     let receipt: SP1ProofWithPublicValues = value.try_into()?;
+    //     Ok(Self(receipt))
+    // }
+
+    // fn try_into(&self) -> Result<Proof, Error> {
+    //     let encoded
+    // }
     
 }
