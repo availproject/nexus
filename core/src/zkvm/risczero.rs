@@ -47,7 +47,7 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
 
         let receipt = prover.prove(env, &self.elf).map_err(|e| anyhow!(e))?;
 
-        Ok(RiscZeroProof(receipt))
+        Ok(RiscZeroProof(receipt.receipt))
     }
 }
 

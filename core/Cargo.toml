@@ -12,7 +12,7 @@ avail-core = { version = "0.5", git = "https://github.com/availproject/avail-cor
 serde = "1.0.196"
 sparse-merkle-tree = { git = "https://github.com/vibhurajeev/sparse-merkle-tree.git", rev = "a2f94a7", optional = true, default-features = false }
 rocksdb = {version = "0.22.0", optional = true }
-risc0-zkvm = { version = "0.20", default-features = false, features = ["std"]}
+risc0-zkvm = { version = "1.0.1", default-features = false, features = ["std"]}
 serde_json = "1.0.114"
 parity-scale-codec = { version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
 scale-info = { version = "2", default-features = false, features = ["derive"] }
