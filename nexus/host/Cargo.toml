@@ -23,6 +23,8 @@ jmt = { git = "https://github.com/vibhurajeev/jmt.git", features = ["mocks"]}
 hex = "0.4.3"
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
 
-
 [features]
 spone = ["sp1-sdk"]
+
+[patch.crates-io]
+serde = { version = "1.0.204" }

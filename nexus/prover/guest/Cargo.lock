@@ -754,6 +754,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_static"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
+
+[[package]]
 name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -819,6 +825,7 @@ version = "0.1.0"
 dependencies = [
  "nexus-core",
  "risc0-zkvm",
+ "sp1-zkvm",
 ]
 
 [[package]]
@@ -1312,9 +1319,9 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "serde"
-version = "1.0.203"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7253ab4de971e72fb7be983802300c30b5a7f0c2e56fab8abfc6a214307c0094"
+checksum = "bc76f558e0cbb2a839d37354c575f1dc3fdc6546b5be373ba43d95f231bf7c12"
 dependencies = [
  "serde_derive",
 ]
@@ -1330,9 +1337,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.203"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "500cbc0ebeb6f46627f50f3f5811ccf6bf00643be300b4c3eabc0ef55dc5b5ba"
+checksum = "e0cd7e117be63d3c3678776753929474f3b04a43a080c744d6b0ae2a8c28e222"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1385,6 +1392,34 @@ checksum = "a05e216e6d7e93fcd8bda50df6c57960998b22bd926638fd9aa14b786bc53bf2"
 dependencies = [
  "ethprim",
  "serde",
+]
+
+[[package]]
+name = "sp1-lib"
+version = "1.0.1"
+source = "git+https://github.com/succinctlabs/sp1.git#dd032eb23949828d244d1ad1f1569aa78155837c"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "cfg-if",
+ "serde",
+]
+
+[[package]]
+name = "sp1-zkvm"
+version = "1.0.1"
+source = "git+https://github.com/succinctlabs/sp1.git#dd032eb23949828d244d1ad1f1569aa78155837c"
+dependencies = [
+ "bincode",
+ "cfg-if",
+ "getrandom",
+ "lazy_static",
+ "libm",
+ "once_cell",
+ "rand",
+ "serde",
+ "sha2",
+ "sp1-lib",
 ]
 
 [[package]]
