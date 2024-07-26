@@ -1,11 +1,19 @@
+
+
 use anyhow::{Error, Ok};
 use jmt::proof;
+
+use sha2::Digest;
+use sha2::Sha256;
+
+
+use serde::{de::DeserializeOwned, Serialize};
 #[cfg(any(feature = "spone"))]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey};
 
 use crate::types::Proof;
 
-use super::traits::ZKProof;
+use super::traits::{ZKProof, ZKVMEnv};
 
 #[cfg(any(feature = "spone"))]
 pub struct SpOneProver {
@@ -130,4 +138,28 @@ impl ZKProof for SpOneProof {
     //     let encoded
     // }
     
+}
+
+
+#[cfg(any(feature = "spone"))]
+pub struct SZKVM();
+#[cfg(any(feature = "spone"))]
+impl ZKVMEnv for SZKVM{
+    fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error> {
+        let vks = sp1_zkvm::io::read::<Vec<[u32; 8]>>();
+        let public_inputs = sp1_zkvm::io::read::<Vec<Vec<u8>>>();
+        Ok((vks, public_inputs))
+    }
+
+    fn verify<T: Serialize>(img_id: [u32; 8], public_inputs: &T) -> Result<(), anyhow::Error> {
+       for (vk, public_input) in img_id.iter().zip(public_inputs.iter()) {
+            let public_values_digest = Sha256::digest(public_values);
+            sp1_zkvm::lib::verify::verify_sp1_proof(vkey, &public_values_digest.into());
+       }
+       Ok()
+    }
+
+    fn commit<T: Serialize>(data: &T) {
+        sp1_zkvm::io::commit_slice(data);
+    }
 }

@@ -24,10 +24,13 @@ solabi = "0.2.0"
 jmt = { git = "https://github.com/vibhurajeev/jmt.git", features = ["mocks"]}
 ethabi = "18.0.0"
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
+sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git", optional = true}
+sp1-helper = { git = "https://github.com/succinctlabs/sp1.git", optional = true}
+sha2 = "0.10.8"
 
 
 [features]
 default = ["native"]
 native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio", "risc0-zkvm/default"]
 zkvm = ["sparse-merkle-tree/arch-32", "sparse-merkle-tree/std"]
-spone = ["sp1-sdk"]
+spone = ["sp1-sdk", "sp1-zkvm", "sp1-helper"]
