@@ -9,5 +9,9 @@ use nexus_core::zkvm::spone::SZKVM;
 sp1_zkvm::entrypoint!(main);
 
 fn main() {
-    run::<ZKVM>()
+    #[cfg(any(feature = "native"))]
+    run::<ZKVM>();
+
+    #[cfg(any(feature = "spone"))]
+    run::<SZKVM>();
 }

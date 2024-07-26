@@ -2,19 +2,14 @@
 
 use anyhow::{Error, Ok};
 use jmt::proof;
-
 use sha2::Digest;
 use sha2::Sha256;
-
-
 use serde::{de::DeserializeOwned, Serialize};
 #[cfg(any(feature = "spone"))]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey};
 
 use crate::types::Proof;
-
 use super::traits::{ZKProof, ZKVMEnv};
-
 #[cfg(any(feature = "spone"))]
 pub struct SpOneProver {
     sp1_standard_input: SP1Stdin,
@@ -99,8 +94,6 @@ impl ZKVMProver<SpOneProof> for SpOneProver {
         Ok(SpOneProof(proof, self.sp1_client))
     }
 }
-
-
 #[cfg(any(feature = "spone"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpOneProof(pub SP1ProofWithPublicValues, pub ProverClient, pub SP1ProvingKey);
@@ -140,26 +133,39 @@ impl ZKProof for SpOneProof {
     
 }
 
+struct SerializedData(Vec<u8>);
 
-#[cfg(any(feature = "spone"))]
+impl AsRef<[u8]> for SerializedData {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+fn serialize_to_data<T: Serialize>(input: &T) -> Result<SerializedData, Error> {
+    let serialized = bincode::serialize(input)?;
+    Ok(SerializedData(serialized))
+}
+
 pub struct SZKVM();
-#[cfg(any(feature = "spone"))]
+
 impl ZKVMEnv for SZKVM{
     fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error> {
-        let vks = sp1_zkvm::io::read::<Vec<[u32; 8]>>();
-        let public_inputs = sp1_zkvm::io::read::<Vec<Vec<u8>>>();
-        Ok((vks, public_inputs))
+        Ok(sp1_zkvm::io::read())
     }
 
-    fn verify<T: Serialize>(img_id: [u32; 8], public_inputs: &T) -> Result<(), anyhow::Error> {
-       for (vk, public_input) in img_id.iter().zip(public_inputs.iter()) {
-            let public_values_digest = Sha256::digest(public_values);
-            sp1_zkvm::lib::verify::verify_sp1_proof(vkey, &public_values_digest.into());
-       }
-       Ok()
+    fn verify<T: Serialize>(img_id: [u32; 8], public_input: &T) -> Result<(), anyhow::Error> {
+        let serialized_data = serialize_to_data(public_input)?;
+        let byte_slice: &[u8] = serialized_data.as_ref();
+        let public_values_digest = Sha256::digest(byte_slice);
+        unsafe {
+            sp1_zkvm::lib::syscall_verify_sp1_proof(&img_id, public_values_digest)
+        }
+       Ok(())
     }
 
     fn commit<T: Serialize>(data: &T) {
-        sp1_zkvm::io::commit_slice(data);
+        let serialized_data = serialize_to_data(data).unwrap();
+        let byte_slice: &[u8] = serialized_data.as_ref();
+        sp1_zkvm::io::commit_slice(byte_slice);
     }
 }

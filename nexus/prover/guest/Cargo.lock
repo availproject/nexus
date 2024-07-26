@@ -816,6 +816,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "solabi",
+ "sp1-zkvm",
  "sparse-merkle-tree",
 ]
 
