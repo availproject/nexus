@@ -13,10 +13,14 @@ use nexus_core::{
         TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
     zkvm::{
-        risczero::{RiscZeroProof, RiscZeroProver, ZKVM},
+        risczero::{RiscZeroProof, RiscZeroProver, ZKVM},        
         traits::{ZKProof, ZKVMEnv, ZKVMProver},
     },
 };
+
+#[cfg(any(feature = "spone"))]
+use nexus_core::zkvm::spone::{SpOneProver, SpOneProof, SZKVM};
+
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
 use risc0_zkvm::{
@@ -121,7 +125,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     txs.len()
                 );
 
-                match execute_batch::<RiscZeroProver, RiscZeroProof, ZKVM>(
+                // match execute_batch::<RiscZeroProver, RiscZeroProof, ZKVM>(
+                //     &txs,
+                //     state.clone(),
+                //     &AvailHeader::from(&header),
+                //     &mut old_headers,
+                // ) {
+                //     Ok((_, result)) => {
+                //         let db_lock = db.lock().await;
+                //         let nexus_hash: H256 = result.hash();
+
+                //         // db_lock.put(b"previous_headers", &old_headers).unwrap();
+                //         // db_lock.put(
+                //         //     result.avail_header_hash.as_slice(),
+                //         //     &AvailToNexusPointer {
+                //         //         number: header.number,
+                //         //         nexus_hash: nexus_hash.clone(),
+                //         //     },
+                //         // ).unwrap();
+                //         // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+
+                //         // db_lock.set_current_root(&result.state_root).unwrap();
+                //         // if let Some(i) = index {
+                //         //     mempool_clone.clear_upto_tx(i).await;
+                //         // }
+
+                //         // println!(
+                //         //     "✅ Processed batch: {:?}, avail height: {:?}",
+                //         //     result, header.number
+                //         // );
+                //     }
+                //     Err(e) => {
+                //         println!("Breaking because of error {:?}", e);
+                //         break;
+                //     }
+                // };
+                // SpOneProver, SpOneProof, SZKVM
+                #[cfg(any(feature = "spone"))]
+                match execute_batch::<SpOneProver, SpOneProof, SZKVM>(
                     &txs,
                     state.clone(),
                     &AvailHeader::from(&header),

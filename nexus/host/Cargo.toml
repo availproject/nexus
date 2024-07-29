@@ -24,7 +24,7 @@ hex = "0.4.3"
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
 
 [features]
-spone = ["sp1-sdk"]
+spone = ["sp1-sdk", "nexus-core/spone"]
 
 [patch.crates-io]
 serde = { version = "1.0.204" }

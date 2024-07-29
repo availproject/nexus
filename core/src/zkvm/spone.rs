@@ -4,9 +4,11 @@ use anyhow::{Error, Ok};
 use jmt::proof;
 use sha2::Digest;
 use sha2::Sha256;
-use serde::{de::DeserializeOwned, Serialize};
+use super::traits::{ZKProof, ZKVMProver};
+use serde::{de::DeserializeOwned, Serialize, Deserialize};
+use anyhow::anyhow;
 #[cfg(any(feature = "spone"))]
-use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey};
+use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey, SP1ProvingKey};
 
 use crate::types::Proof;
 use super::traits::{ZKProof, ZKVMEnv};
@@ -25,14 +27,13 @@ impl ZKVMProver<SpOneProof> for SpOneProver {
     fn new(elf: Vec<u8>) -> Self {
         let stdin = SP1Stdin::new();
         let client = ProverClient::new();
-        let (pk, vk) = client.setup(elf);
+        let (pk, vk) = client.setup(&elf);
         Self { stdin, client, pk, vk, elf }
     }
 
-    fn add_input(&mut self, input: &T) -> Result<(), anyhow::Error> {
-        self.stdin.write(input).map_err(|e| anyhow!(e))?;
+    fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
+        self.sp1_standard_input.write(input).map_err(|e| anyhow!(e))?;
         Ok(())
-    
     }
 
     fn add_proof_for_recursion(&mut self, proof: SpOneProof) -> Result<(), anyhow::Error> {
@@ -122,14 +123,14 @@ impl ZKProof for SpOneProof {
 
     }
 
-    // fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
-    //     let receipt: SP1ProofWithPublicValues = value.try_into()?;
-    //     Ok(Self(receipt))
-    // }
+    fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
+        let receipt: SP1ProofWithPublicValues = value.try_into()?;
+        Ok(Self(receipt))
+    }
 
-    // fn try_into(&self) -> Result<Proof, Error> {
-    //     let encoded
-    // }
+    fn try_into(&self) -> Result<Proof, Error> {
+        // let encoded
+    }
     
 }
 
@@ -146,8 +147,10 @@ fn serialize_to_data<T: Serialize>(input: &T) -> Result<SerializedData, Error> {
     Ok(SerializedData(serialized))
 }
 
+#[cfg(any(feature = "spone"))]
 pub struct SZKVM();
 
+#[cfg(any(feature = "spone"))]
 impl ZKVMEnv for SZKVM{
     fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error> {
         Ok(sp1_zkvm::io::read())
