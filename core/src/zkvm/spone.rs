@@ -10,29 +10,23 @@ use serde_json::to_vec;
 use anyhow::anyhow;
 #[cfg(any(feature = "spone"))]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey, SP1ProvingKey};
-
 use crate::types::Proof;
-use super::traits::{ZKVMEnv};
+use super::traits::ZKVMEnv;
 #[cfg(any(feature = "spone"))]
 pub struct SpOneProver {
     sp1_standard_input: SP1Stdin,
     sp1_client: ProverClient,
-    // proving_key: SP1ProvingKey,
-    // verification_key: SP1VerifyingKey,
     elf: Vec<u8>,    
 }
 
 #[cfg(any(feature = "spone"))]
 impl ZKVMProver<SpOneProof> for SpOneProver {
     fn new(elf: Vec<u8>) -> Self {
-        // let stdin = SP1Stdin::new();
-        // let client = ProverClient::new();
-        // let (pk, vk) = client.setup(&elf);
         Self { sp1_standard_input: SP1Stdin::new(), sp1_client: ProverClient::new(), elf }
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
-        // self.sp1_standard_input.write(input).map_err(|e| anyhow!(e))?;
+        self.sp1_standard_input.write(input);
         Ok(())
     }
 
@@ -45,20 +39,14 @@ impl ZKVMProver<SpOneProof> for SpOneProver {
     }
 
     fn prove(&mut self) -> Result<SpOneProof, anyhow::Error> {
-
         let (pk, vk) = self.sp1_client.setup(&self.elf);
-
         let proof = self.sp1_client.prove(&pk, self.sp1_standard_input.clone()).run().expect("proof generation failed");
-       
         Ok(SpOneProof(proof))
     }
 }
 #[cfg(any(feature = "spone"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct SpOneProof(pub SP1ProofWithPublicValues, pub ProverClient, pub SP1ProvingKey);
 pub struct SpOneProof(pub SP1ProofWithPublicValues);
-
-// pub struct SpOneProof(pub SP1ProofWithPublicValues);
 
 #[cfg(any(feature = "spone"))]
 impl ZKProof for SpOneProof {
@@ -94,29 +82,8 @@ impl ZKProof for SpOneProof {
     fn try_into(&self) -> Result<Proof, Error> {
         let encoded_u8: Vec<u8> = to_vec(&self)
             .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
-
-        // // Convert Vec<u8> to Vec<u32>
-        // let encoded_u32: Vec<u32> = encoded_u8
-        //     .chunks(4) // Split the u8 bytes into chunks of 4 bytes
-        //     .map(|chunk| {
-        //         let mut array = [0u8; 4];
-        //         for (i, byte) in chunk.iter().enumerate() {
-        //             array[i] = *byte;
-        //         }
-        //         u32::from_ne_bytes(array)
-        //     })
-        //     .collect();
-        // let encoded_u32: Vec<u32> = to_vec(&encoded_u32)
-        //     .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
-
-        // Convert Vec<u32> to Vec<u8>
-        // let encoded_u8: Vec<u8> = encoded_u32
-        //     .into_iter()
-        //     .flat_map(|x| x.to_ne_bytes().to_vec())
-        //     .collect();
         Ok(Proof(encoded_u8))
     }
-    
 }
 
 #[cfg(any(feature = "spone"))]
@@ -136,14 +103,6 @@ impl TryInto<Proof> for SP1ProofWithPublicValues {
     fn try_into(self) -> Result<Proof, Self::Error> {
         let encoded_u8: Vec<u8> = to_vec(&self)
             .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
-        // let encoded_u32: Vec<u32> = to_vec(&self)
-        //     .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
-
-        // // Convert Vec<u32> to Vec<u8>
-        // let encoded_u8: Vec<u8> = encoded_u32
-        //     .into_iter()
-        //     .flat_map(|x| x.to_ne_bytes().to_vec())
-        //     .collect();
         Ok(Proof(encoded_u8))
     }
 }
