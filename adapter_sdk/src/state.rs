@@ -400,7 +400,7 @@ where
         let prover = default_prover();
 
         #[cfg(feature = "spone")]
-        let zkvm = SponeProvider::new(self.elf);
+        let mut zkvm = SpOneProver::new(self.elf);
 
         #[cfg(feature = "native")]
         let mut zkvm = RiscZeroProver::new(self.elf.clone());
