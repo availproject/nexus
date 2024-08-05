@@ -24,29 +24,23 @@ pub struct RiscZeroProver<'a> {
 impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     fn new(elf: Vec<u8>) -> Self {
         let env_builder = ExecutorEnv::builder();
-
         Self { env_builder, elf }
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
         self.env_builder.write(input).map_err(|e| anyhow!(e))?;
-
         Ok(())
     }
 
     fn add_proof_for_recursion(&mut self, proof: RiscZeroProof) -> Result<(), anyhow::Error> {
         self.env_builder.add_assumption(proof.0);
-
         Ok(())
     }
 
     fn prove(&mut self) -> Result<RiscZeroProof, anyhow::Error> {
         let env: ExecutorEnv = self.env_builder.build().map_err(|e| anyhow!(e))?;
-
         let prover = default_prover();
-
         let receipt = prover.prove(env, &self.elf).map_err(|e| anyhow!(e))?;
-
         Ok(RiscZeroProof(receipt.receipt))
     }
 }

@@ -10,12 +10,15 @@ use crate::types::{
     RollupPublicInputs,
 };
 use anyhow::{anyhow, Error};
+use nexus_core::types::Proof;
 use nexus_core::types::{
-    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, StatementDigest,
-    SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
+    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, StatementDigest, SubmitProof,
+    TransactionV2, TxParamsV2, TxSignature, H256,
 };
-use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv};
-use nexus_core::types::{Proof};
+use nexus_core::zkvm::risczero::RiscZeroProver;
+#[cfg(any(feature = "spone"))]
+use nexus_core::zkvm::spone::SpOneProver;
+use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv, ZKVMProver};
 use relayer::Relayer;
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
@@ -23,18 +26,18 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt::Debug as DebugTrait;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
-use std::fmt::Debug;
 
-#[cfg(feature = "sp1")]
+#[cfg(feature = "spone")]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
 
-#[cfg(feature = "sp1")]
+#[cfg(feature = "spone")]
 const ELF: &[u8] = include_bytes!("../../demo_rollup/program/elf/riscv32im-succinct-zkvm-elf");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,13 +50,22 @@ pub(crate) struct QueueItem<P: RollupProof + Clone> {
     header: AvailHeader,
 }
 
-
 // usage : create an object for this struct and use as a global dependency
 pub struct AdapterState<
     P: RollupProof + Clone + DeserializeOwned + Serialize + 'static,
     Z: ZKVMEnv + 'static,
-    ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug+ 'static,
-> where <ZP as TryInto<Proof>>::Error: Debug + Send + Sync{
+    ZP: ZKProof
+        + DebugTrait
+        + Clone
+        + DeserializeOwned
+        + Serialize
+        + Send
+        + TryInto<Proof>
+        + Debug
+        + 'static,
+> where
+    <ZP as TryInto<Proof>>::Error: Debug + Send + Sync,
+{
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
     pub previous_adapter_proof: Option<(ZP, AdapterPublicInputs, u32)>,
@@ -70,8 +82,11 @@ pub struct AdapterState<
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
         Z: ZKVMEnv,
-        ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send+ TryInto<Proof> + Debug,
-    > AdapterState<P, Z, ZP> where <ZP as TryInto<Proof>>::Error: Debug + Send + Sync {
+        ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug,
+    > AdapterState<P, Z, ZP>
+where
+    <ZP as TryInto<Proof>>::Error: Debug + Send + Sync,
+{
     pub fn new(storage_path: &str, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
 
@@ -119,7 +134,7 @@ impl<
             let header_hash = relayer.get_header_hash(self.starting_block_number).await;
 
             let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
-            let tx = TransactionV2{
+            let tx = TransactionV2 {
                 signature: TxSignature([0u8; 64]),
                 params: TxParamsV2::InitAccount(InitAccount {
                     app_id: AppAccountId::from(self.app_id.clone()),
@@ -196,9 +211,11 @@ impl<
         Ok(())
     }
 
-    async fn manage_submissions(db: Arc<Mutex<DB<P, ZP>>>, nexus_api: &NexusAPI) -> Result<P, Error> 
-    {
-    loop {
+    async fn manage_submissions(
+        db: Arc<Mutex<DB<P, ZP>>>,
+        nexus_api: &NexusAPI,
+    ) -> Result<P, Error> {
+        loop {
             thread::sleep(Duration::from_secs(2));
 
             let latest_proof = {
@@ -246,7 +263,7 @@ impl<
             if is_in_range {
                 println!("INside match");
                 let client = reqwest::Client::new();
-                let tx = TransactionV2{
+                let tx = TransactionV2 {
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
                         proof: latest_proof.0.try_into().unwrap(),
@@ -382,23 +399,11 @@ impl<
 
         let prover = default_prover();
 
-        // let zkvm;
-        #[cfg(feature = "sp1")]
-        let zkvm = SpOneZKVM {
-            std_in: SP1Stdin::new(),
-            prover_client: ProverClient::new(),
-        };
+        #[cfg(feature = "spone")]
+        let zkvm = SponeProvider::new(self.elf);
 
-        // #[cfg(feature = "sp1")]
-        // zkvm_sp1.prover_client.setup(ELF);
-        // let mut env_builder = ExecutorEnv::builder();
-        #[cfg(feature = "risc0")]
-        let mut zkvm = RiscZeroZKVM {
-            env_builder: ExecutorEnv::builder(),
-            default_prover: default_prover(),
-            elf: self.elf.clone(),
-            receipt: None,
-        };
+        #[cfg(feature = "native")]
+        let mut zkvm = RiscZeroProver::new(self.elf.clone());
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
             None => None,
@@ -408,41 +413,17 @@ impl<
                 Some(pi)
             }
         };
-
-        #[cfg(feature = "risc0")]
+        #[cfg(feature = "native")] 
         {
             zkvm.add_input(&prev_pi);
             zkvm.add_input(&queue_item.proof);
             zkvm.add_input(&private_inputs);
             zkvm.add_input(&self.elf_id);
             zkvm.add_input(&self.vk);
-
+    
             zkvm.prove();
         }
 
         Ok(())
-
-        // let env = zkvm.env_builder
-        //     .write(&prev_pi)
-        //     .unwrap()
-        //     .write(&queue_item.proof)
-        //     .unwrap()
-        //     .write(&private_inputs)
-        //     .unwrap()
-        //     .write(&self.elf_id)
-        //     .unwrap()
-        //     .write(&self.vk)
-        //     .unwrap()
-        //     .build()
-        //     .unwrap();
-
-        // let prover = zkvm.default_prover;
-
-        // let receipt = zkvm.prove(env, &self.elf);
-
-        // let receipt = prover.prove(env, &self.elf);
-
-        //return
-        // Ok(ZkVmReceipt::<T>::new(zkvm.receipt.unwrap()))
     }
 }
