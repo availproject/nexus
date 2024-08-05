@@ -240,7 +240,7 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKProof + Serialize + Clone + DebugTrait, 
     header: &AvailHeader,
     header_store: &mut HeaderStore,
 ) -> Result<(P, NexusHeader), Error> {
-    let mut state_machine = StateMachine::<ZKVM, RiscZeroProof>::new(state.clone());
+    let mut state_machine = StateMachine::<ZKVM, P>::new(state.clone());
 
     let state_update = state_machine.execute_batch(&header, header_store, &txs, 0)?;
 

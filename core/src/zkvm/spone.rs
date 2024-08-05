@@ -57,21 +57,7 @@ impl ZKProof for SpOneProof {
     }
 
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
-
-        // self.1.verify(self.0, self.2).expect("verification failed");
-        
-        // let client = ProverClient::new();
-        // let public_values = SP1PublicValues::new();
-        // let proof = self.0.clone();
-        // let result = client.verify_proof(proof, public_values, img_id);
-        // if result {
-        //     Ok(())
-        // } else {
-        //     Err(anyhow!("Proof verification failed"))
-        // }
-
-        Ok(())
-
+        panic!("Not implemented since sp1 proof doesn't contain verify method");
     }
 
     fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
@@ -124,9 +110,9 @@ fn serialize_to_data<T: Serialize>(input: &T) -> Result<SerializedData, Error> {
 pub struct SZKVM();
 
 #[cfg(any(feature = "spone"))]
-impl ZKVMEnv for SZKVM{
+impl ZKVMEnv for SZKVM {
     fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error> {
-        Ok(sp1_zkvm::io::read())
+        Ok(sp1_zkvm::io::read::<T>())
     }
 
     fn verify<T: Serialize>(img_id: [u32; 8], public_input: &T) -> Result<(), anyhow::Error> {

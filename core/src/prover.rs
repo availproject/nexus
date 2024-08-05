@@ -9,10 +9,10 @@ pub fn run<Z: ZKVMEnv>() {
     // let start = env::cycle_count();
     // eprintln!("Start cycle {}", start);
 
-    let txs: Vec<TransactionZKVM> = Z::read_input().unwrap();
-    let touched_states: StateUpdate = Z::read_input().unwrap();
-    let header: AvailHeader = Z::read_input().unwrap();
-    let mut header_store: HeaderStore = Z::read_input().unwrap();
+    let txs: Vec<TransactionZKVM> = Z::read_input::<Vec<TransactionZKVM>>().unwrap();
+    let touched_states: StateUpdate = Z::read_input::<StateUpdate>().unwrap();
+    let header: AvailHeader = Z::read_input::<AvailHeader>().unwrap();
+    let mut header_store: HeaderStore = Z::read_input::<HeaderStore>().unwrap();
 
     let zkvm_state_machine = ZKVMStateMachine::<Z>::new();
     let zkvm_result = zkvm_state_machine
