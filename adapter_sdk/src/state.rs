@@ -13,7 +13,7 @@ use anyhow::{anyhow, Error};
 use nexus_core::types::Proof;
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, StatementDigest, SubmitProof,
-    TransactionV2, TxParamsV2, TxSignature, H256,
+    TransactionV2, TxParamsV2, TxSignature, H256, Proof as ZKProof
 };
 use nexus_core::zkvm::risczero::RiscZeroProver;
 #[cfg(any(feature = "spone"))]
@@ -132,7 +132,6 @@ where
         };
         if self.previous_adapter_proof.is_none() {
             let header_hash = relayer.get_header_hash(self.starting_block_number).await;
-
             let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
             let tx = TransactionV2 {
                 signature: TxSignature([0u8; 64]),
@@ -191,13 +190,10 @@ where
             }
         });
         let nexus_api_clone = self.nexus_api.clone();
-
         let submission_handle = tokio::spawn(async move {
             let nexus_api = nexus_api_clone;
-
             Self::manage_submissions(db_clone_2, &nexus_api).await
         });
-
         match self.process_queue().await {
             Ok(_) => (),
             Err(e) => println!("Exiting because of error: {:?}", e),
@@ -266,7 +262,7 @@ where
                 let tx = TransactionV2 {
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
-                        proof: latest_proof.0.try_into().unwrap(),
+                        proof: ZKProof::try_from(latest_proof.0)?,
                         height: latest_proof.1.height,
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,

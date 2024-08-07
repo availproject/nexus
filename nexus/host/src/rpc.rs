@@ -17,7 +17,6 @@ use std::fmt::Debug;
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 use warp::{reply::Reply, Filter, Rejection};
-
 use crate::AvailToNexusPointer;
 
 pub fn routes(
@@ -84,6 +83,7 @@ pub fn routes(
     tx.or(submit_batch).or(header).or(account)
 }
 
+//TODO: Better status codes and error handling.
 pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, Infallible> {
     mempool.add_tx(tx).await;
 

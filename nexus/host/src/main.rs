@@ -172,6 +172,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
 
+
                         // db_lock.put(b"previous_headers", &old_headers).unwrap();
                         // db_lock.put(
                         //     result.avail_header_hash.as_slice(),
@@ -181,7 +182,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         //     },
                         // ).unwrap();
                         // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
-
                         // db_lock.set_current_root(&result.state_root).unwrap();
                         // if let Some(i) = index {
                         //     mempool_clone.clear_upto_tx(i).await;
