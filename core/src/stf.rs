@@ -8,7 +8,6 @@ use crate::{
     zkvm::traits::ZKVMEnv,
 };
 use anyhow::{anyhow, Error};
-use std::collections::HashMap;
 pub struct StateTransitionFunction<Z: ZKVMEnv> {
     z: PhantomData<Z>,
 }
