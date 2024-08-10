@@ -30,9 +30,10 @@ sha2 = "0.10.8"
 
 [features]
 default = ["native"]
-native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio", "risc0-zkvm/default"]
+native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio" ]
 zkvm = ["sparse-merkle-tree/arch-32", "sparse-merkle-tree/std"]
-spone = ["sp1-sdk", "sp1-helper"]
+sp1 = ["sp1-sdk", "sp1-helper"]
+risc0 = ["risc0-zkvm/default"]
 
 [patch.crates-io]
 sp1-lib = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }

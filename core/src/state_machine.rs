@@ -7,7 +7,7 @@ use crate::types::{
     AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, StateUpdate, SubmitProof,
     TransactionV2, TransactionZKVM, TxParamsV2, H256,
 };
-use crate::zkvm::traits::{ZKProof, ZKVMEnv};
+use crate::zkvm::traits::{ZKVMProof, ZKVMEnv};
 use anyhow::{anyhow, Error};
 use avail_subxt::config::Header as HeaderTrait;
 use jmt::storage::{NodeBatch, TreeUpdateBatch};
@@ -18,13 +18,13 @@ use sparse_merkle_tree::traits::Value;
 use std::fmt::Debug as DebugTrait;
 use std::sync::{Arc, Mutex};
 
-pub struct StateMachine<Z: ZKVMEnv, P: ZKProof + DebugTrait + Clone> {
+pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
     stf: StateTransitionFunction<Z>,
     state: Arc<Mutex<VmState>>,
     p: PhantomData<P>, //db: NodeDB,
 }
 
-impl<Z: ZKVMEnv, P: ZKProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
+impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
     pub fn new(state: Arc<Mutex<VmState>>) -> Self {
         // let chain_state_path = format!("{}/chain_state", path);
         // let state = VmState::new(root, &chain_state_path);

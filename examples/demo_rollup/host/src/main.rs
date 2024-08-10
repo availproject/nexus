@@ -7,11 +7,12 @@ use nexus_core::{
     types::{AppId, StatementDigest},
     zkvm::{
         risczero::{RiscZeroProof, ZKVM},
-        traits::{ZKProof, ZKVMEnv, ZKVMProver},
+        traits::{ZKVMProof, ZKVMEnv, ZKVMProver},
     },
 };
 
 fn main() {
+    //! TODO: need to configure it for sp1
     let mut adapter: AdapterState<DemoProof, ZKVM, RiscZeroProof> = AdapterState::new(
         &String::from("adapter_store"),
         AdapterConfig {

@@ -1,6 +1,6 @@
 use crate::traits::RollupProof;
 use crate::{state::AdapterState, types::RollupProofWithPublicInputs};
-use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv};
+use nexus_core::zkvm::traits::{ZKVMProof, ZKVMEnv};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug as DebugTrait;

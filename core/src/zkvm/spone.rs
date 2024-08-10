@@ -4,23 +4,23 @@ use anyhow::{Error, Ok};
 use jmt::proof;
 use sha2::Digest;
 use sha2::Sha256;
-use super::traits::{ZKProof, ZKVMProver};
+use super::traits::{ZKVMProof, ZKVMProver};
 use serde::{de::DeserializeOwned, Serialize, Deserialize};
 use serde_json::to_vec;
 use anyhow::anyhow;
-#[cfg(any(feature = "spone"))]
+#[cfg(any(feature = "sp1"))]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey, SP1ProvingKey};
 use crate::types::Proof;
 use super::traits::ZKVMEnv;
-#[cfg(any(feature = "spone"))]
-pub struct SpOneProver {
+#[cfg(any(feature = "sp1"))]
+pub struct Sp1Prover {
     sp1_standard_input: SP1Stdin,
     sp1_client: ProverClient,
     elf: Vec<u8>,    
 }
 
-#[cfg(any(feature = "spone"))]
-impl ZKVMProver<SpOneProof> for SpOneProver {
+#[cfg(any(feature = "sp1"))]
+impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn new(elf: Vec<u8>) -> Self {
         Self { sp1_standard_input: SP1Stdin::new(), sp1_client: ProverClient::new(), elf }
     }
@@ -35,21 +35,22 @@ impl ZKVMProver<SpOneProof> for SpOneProver {
         // self.sp1_standard_input.write()
         // sp1_zkvm::lib::verify_proof(vkey, public_values_digest);
         // self.proofs.push(proof);
+        unimplemented!();
         Ok(())
     }
 
-    fn prove(&mut self) -> Result<SpOneProof, anyhow::Error> {
+    fn prove(&mut self) -> Result<Sp1Proof, anyhow::Error> {
         let (pk, vk) = self.sp1_client.setup(&self.elf);
         let proof = self.sp1_client.prove(&pk, self.sp1_standard_input.clone()).run().expect("proof generation failed");
         Ok(SpOneProof(proof))
     }
 }
-#[cfg(any(feature = "spone"))]
+#[cfg(any(feature = "sp1"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpOneProof(pub SP1ProofWithPublicValues);
+pub struct Sp1Proof(pub SP1ProofWithPublicValues);
 
-#[cfg(any(feature = "spone"))]
-impl ZKProof for SpOneProof {
+#[cfg(any(feature = "sp1"))]
+impl ZKVMProof for Sp1Proof {
     fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
         let json = serde_json::to_string(&self.0.public_values)?;
         let deserialized = serde_json::from_str(&json)?;
@@ -57,7 +58,7 @@ impl ZKProof for SpOneProof {
     }
 
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
-        panic!("Not implemented since sp1 proof doesn't contain verify method");
+        panic!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
     }
 
     fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
@@ -72,7 +73,7 @@ impl ZKProof for SpOneProof {
     }
 }
 
-#[cfg(any(feature = "spone"))]
+#[cfg(any(feature = "sp1"))]
 impl TryFrom<Proof> for SP1ProofWithPublicValues {
     type Error = anyhow::Error;
 
@@ -82,7 +83,7 @@ impl TryFrom<Proof> for SP1ProofWithPublicValues {
     }
 }
 
-#[cfg(any(feature = "spone"))]
+#[cfg(any(feature = "sp1"))]
 impl TryInto<Proof> for SP1ProofWithPublicValues {
     type Error = anyhow::Error;
 
@@ -106,11 +107,11 @@ fn serialize_to_data<T: Serialize>(input: &T) -> Result<SerializedData, Error> {
     Ok(SerializedData(serialized))
 }
 
-#[cfg(any(feature = "spone"))]
-pub struct SZKVM();
+#[cfg(any(feature = "sp1"))]
+pub struct SP1ZKVM();
 
-#[cfg(any(feature = "spone"))]
-impl ZKVMEnv for SZKVM {
+#[cfg(any(feature = "sp1"))]
+impl ZKVMEnv for SP1ZKVM {
     fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error> {
         Ok(sp1_zkvm::io::read::<T>())
     }

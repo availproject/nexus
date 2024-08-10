@@ -8,8 +8,8 @@ use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
     AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256,
 };
-use nexus_core::zkvm::traits::ZKProof;
-use risc0_zkvm::sha::rust_crypto::Sha256;
+use nexus_core::zkvm::traits::ZKVMProof;
+use jmt::TransparentHasher as Sha256;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;

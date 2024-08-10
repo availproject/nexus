@@ -13,16 +13,20 @@ use nexus_core::{
         TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
     zkvm::{
-        risczero::{RiscZeroProof, RiscZeroProver, ZKVM},        
-        traits::{ZKProof, ZKVMEnv, ZKVMProver},
+        traits::{ZKVMProof, ZKVMEnv, ZKVMProver},
     },
 };
 
-#[cfg(any(feature = "spone"))]
-use nexus_core::zkvm::spone::{SpOneProver, SpOneProof, SZKVM};
+#[cfg(any(feature = "risc0"))]
+use nexus_core::zkvm::risczero::{RiscZeroProver, RiscZeroProof, ZKVM};
+
+#[cfg(any(feature = "sp1"))]
+use nexus_core::zkvm::sp1::{Sp1Prover, Sp1Proof, SP1ZKVM};
 
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
+
+#[cfg(any(feature = "risc0"))]
 use risc0_zkvm::{
     default_executor, default_prover, serde::from_slice, ExecutorEnv, Journal, Receipt,
 };
@@ -124,45 +128,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     header.number,
                     txs.len()
                 );
-
-                // match execute_batch::<RiscZeroProver, RiscZeroProof, ZKVM>(
-                //     &txs,
-                //     state.clone(),
-                //     &AvailHeader::from(&header),
-                //     &mut old_headers,
-                // ) {
-                //     Ok((_, result)) => {
-                //         let db_lock = db.lock().await;
-                //         let nexus_hash: H256 = result.hash();
-
-                //         // db_lock.put(b"previous_headers", &old_headers).unwrap();
-                //         // db_lock.put(
-                //         //     result.avail_header_hash.as_slice(),
-                //         //     &AvailToNexusPointer {
-                //         //         number: header.number,
-                //         //         nexus_hash: nexus_hash.clone(),
-                //         //     },
-                //         // ).unwrap();
-                //         // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
-
-                //         // db_lock.set_current_root(&result.state_root).unwrap();
-                //         // if let Some(i) = index {
-                //         //     mempool_clone.clear_upto_tx(i).await;
-                //         // }
-
-                //         // println!(
-                //         //     "✅ Processed batch: {:?}, avail height: {:?}",
-                //         //     result, header.number
-                //         // );
-                //     }
-                //     Err(e) => {
-                //         println!("Breaking because of error {:?}", e);
-                //         break;
-                //     }
-                // };
-                // SpOneProver, SpOneProof, SZKVM
-                #[cfg(any(feature = "spone"))]
-                match execute_batch::<SpOneProver, SpOneProof, SZKVM>(
+                
+                #[cfg(any(feature = "risc0"))]
+                match execute_batch::<RiscZeroProver, RiscZeroProof, ZKVM>(
                     &txs,
                     state.clone(),
                     &AvailHeader::from(&header),
@@ -171,7 +139,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok((_, result)) => {
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
-
 
                         // db_lock.put(b"previous_headers", &old_headers).unwrap();
                         // db_lock.put(
@@ -182,6 +149,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         //     },
                         // ).unwrap();
                         // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+
                         // db_lock.set_current_root(&result.state_root).unwrap();
                         // if let Some(i) = index {
                         //     mempool_clone.clear_upto_tx(i).await;
@@ -234,13 +202,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn execute_batch<Z: ZKVMProver<P>, P: ZKProof + Serialize + Clone + DebugTrait, E: ZKVMEnv>(
+
+fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait, E: ZKVMEnv>(
     txs: &Vec<TransactionV2>,
     state: Arc<StdMutex<VmState>>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
 ) -> Result<(P, NexusHeader), Error> {
-    let mut state_machine = StateMachine::<ZKVM, P>::new(state.clone());
+    let mut state_machine = StateMachine::<E, P>::new(state.clone());
 
     let state_update = state_machine.execute_batch(&header, header_store, &txs, 0)?;
 

@@ -12,4 +12,4 @@ nexus-core = { path = "../../../core", default-features = false, features = ["zk
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git", optional = true}
 
 [features]
-spone = ["sp1-zkvm"]
+sp1 = ["sp1-zkvm"]

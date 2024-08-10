@@ -26,7 +26,7 @@ use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
 pub use crate::state::types::{AccountState, ShaHasher, StatementDigest};
-use crate::zkvm::traits::ZKProof;
+use crate::zkvm::traits::ZKVMProof;
 use core::fmt::Debug as DebugTrait;
 pub use sparse_merkle_tree::H256;
 

@@ -16,9 +16,9 @@ use nexus_core::types::{
     TransactionV2, TxParamsV2, TxSignature, H256, Proof as ZKProof
 };
 use nexus_core::zkvm::risczero::RiscZeroProver;
-#[cfg(any(feature = "spone"))]
-use nexus_core::zkvm::spone::SpOneProver;
-use nexus_core::zkvm::traits::{ZKProof, ZKVMEnv, ZKVMProver};
+#[cfg(any(feature = "sp1"))]
+use nexus_core::zkvm::sp1::SpOneProver;
+use nexus_core::zkvm::traits::{ZKVMProof, ZKVMEnv, ZKVMProver};
 use relayer::Relayer;
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
@@ -34,10 +34,10 @@ use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
-#[cfg(feature = "spone")]
+#[cfg(feature = "sp1")]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
 
-#[cfg(feature = "spone")]
+#[cfg(feature = "sp1")]
 const ELF: &[u8] = include_bytes!("../../demo_rollup/program/elf/riscv32im-succinct-zkvm-elf");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,7 +54,7 @@ pub(crate) struct QueueItem<P: RollupProof + Clone> {
 pub struct AdapterState<
     P: RollupProof + Clone + DeserializeOwned + Serialize + 'static,
     Z: ZKVMEnv + 'static,
-    ZP: ZKProof
+    ZP: ZKVMProof
         + DebugTrait
         + Clone
         + DeserializeOwned
@@ -82,7 +82,7 @@ pub struct AdapterState<
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
         Z: ZKVMEnv,
-        ZP: ZKProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug,
+        ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug,
     > AdapterState<P, Z, ZP>
 where
     <ZP as TryInto<Proof>>::Error: Debug + Send + Sync,
@@ -262,7 +262,7 @@ where
                 let tx = TransactionV2 {
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
-                        proof: ZKProof::try_from(latest_proof.0)?,
+                        proof: ZKVMProof::try_from(latest_proof.0)?,
                         height: latest_proof.1.height,
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,
@@ -395,7 +395,7 @@ where
 
         let prover = default_prover();
 
-        #[cfg(feature = "spone")]
+        #[cfg(feature = "sp1")]
         let mut zkvm = SpOneProver::new(self.elf);
 
         #[cfg(feature = "native")]

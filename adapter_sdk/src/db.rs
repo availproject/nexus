@@ -3,7 +3,7 @@ use crate::traits::RollupProof;
 use crate::types::AdapterPublicInputs;
 use anyhow::Error;
 use nexus_core::db::NodeDB;
-use nexus_core::zkvm::traits::ZKProof;
+use nexus_core::zkvm::traits::ZKVMProof;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::VecDeque;
@@ -13,7 +13,7 @@ pub struct DB<P, ZP>(NodeDB, PhantomData<P>, PhantomData<ZP>);
 
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize,
-        ZP: ZKProof + DeserializeOwned + Serialize + Clone,
+        ZP: ZKVMProof + DeserializeOwned + Serialize + Clone,
     > DB<P, ZP>
 {
     pub fn from_path(path: &String) -> Self {
