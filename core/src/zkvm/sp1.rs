@@ -12,6 +12,7 @@ use anyhow::anyhow;
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey, SP1ProvingKey};
 use crate::types::Proof;
 use super::traits::ZKVMEnv;
+
 #[cfg(any(feature = "sp1"))]
 pub struct Sp1Prover {
     sp1_standard_input: SP1Stdin,
@@ -28,7 +29,8 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
-        self.sp1_standard_input.write(input);
+        let mut sp1_input = self.sp1_standard_input.clone();
+        sp1_input.write(input);
         Ok(())
     }
 
@@ -39,7 +41,8 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
 
     fn prove(&mut self) -> Result<Sp1Proof, anyhow::Error> {
         let (pk, vk) = self.sp1_client.setup(&self.elf);
-        let proof = self.sp1_client.prove(&pk, self.sp1_standard_input.clone()).run().expect("proof generation failed");
+        let mut sp1_input = self.sp1_standard_input.clone();
+        let proof = self.sp1_client.prove(&pk, sp1_input).run().expect("proof generation failed");
         Ok(Sp1Proof(proof))
     }
 }

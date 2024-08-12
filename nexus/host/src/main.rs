@@ -23,6 +23,7 @@ use nexus_core::zkvm::risczero::{RiscZeroProver, RiscZeroProof, ZKVM};
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::{Sp1Prover, Sp1Proof, SP1ZKVM};
 
+#[cfg(any(feature = "risc0"))]
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
 
@@ -249,7 +250,13 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait
     let mut state_machine = StateMachine::<E, P>::new(state.clone());
 
     let state_update = state_machine.execute_batch(&header, header_store, &txs, 0)?;
+    println!("State update: {:?}", state_update);
+    #[cfg(any(feature = "risc0"))]
+    let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
+    #[cfg(any(feature = "sp1"))]
+    let NEXUS_RUNTIME_ELF: &[u8] = include_bytes!("../../prover/program/elf/riscv32im-succinct-zkvm-elf");
+    #[cfg(any(feature = "sp1"))]
     let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
     let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
