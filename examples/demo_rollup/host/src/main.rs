@@ -12,7 +12,7 @@ use nexus_core::{
 };
 
 fn main() {
-    //! TODO: need to configure it for sp1
+    //! TODO: we can it to configure it for sp1 as well
     let mut adapter: AdapterState<DemoProof, ZKVM, RiscZeroProof> = AdapterState::new(
         &String::from("adapter_store"),
         AdapterConfig {

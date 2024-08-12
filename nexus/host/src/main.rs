@@ -166,6 +166,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 };
 
+                #[cfg(any(feature = "sp1"))]
+                match execute_batch::<Sp1Prover, Sp1Proof, SP1ZKVM>(
+                    &txs,
+                    state.clone(),
+                    &AvailHeader::from(&header),
+                    &mut old_headers,
+                ) {
+                    Ok((_, result)) => {
+                        let db_lock = db.lock().await;
+                        let nexus_hash: H256 = result.hash();
+
+                        // db_lock.put(b"previous_headers", &old_headers).unwrap();
+                        // db_lock.put(
+                        //     result.avail_header_hash.as_slice(),
+                        //     &AvailToNexusPointer {
+                        //         number: header.number,
+                        //         nexus_hash: nexus_hash.clone(),
+                        //     },
+                        // ).unwrap();
+                        // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+
+                        // db_lock.set_current_root(&result.state_root).unwrap();
+                        // if let Some(i) = index {
+                        //     mempool_clone.clear_upto_tx(i).await;
+                        // }
+
+                        // println!(
+                        //     "✅ Processed batch: {:?}, avail height: {:?}",
+                        //     result, header.number
+                        // );
+                    }
+                    Err(e) => {
+                        println!("Breaking because of error {:?}", e);
+                        break;
+                    }
+                };
+
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         });
@@ -221,7 +258,6 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait
             if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
                 //TODO: Remove transactions that error out from mempool
                 let proof = submit_proof_tx.proof.clone();
-
                 let receipt: P = P::try_from(proof).unwrap();
                 let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
                     Some(i) => i,
@@ -244,12 +280,10 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait
         .collect();
 
     let zkvm_txs = zkvm_txs?;
-
     zkvm_prover.add_input(&zkvm_txs).unwrap();
     zkvm_prover.add_input(&state_update.1).unwrap();
     zkvm_prover.add_input(&header).unwrap();
     zkvm_prover.add_input(&header_store).unwrap();
-
     let proof = zkvm_prover.prove()?;
     //let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
     let result: NexusHeader = proof.public_inputs()?;

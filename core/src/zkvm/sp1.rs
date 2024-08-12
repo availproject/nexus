@@ -22,7 +22,9 @@ pub struct Sp1Prover {
 #[cfg(any(feature = "sp1"))]
 impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn new(elf: Vec<u8>) -> Self {
-        Self { sp1_standard_input: SP1Stdin::new(), sp1_client: ProverClient::new(), elf }
+        let mut sp1_standard_input = SP1Stdin::new();
+        let sp1_client = ProverClient::new();
+        Self { sp1_standard_input, sp1_client, elf }
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
@@ -30,11 +32,7 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         Ok(())
     }
 
-    fn add_proof_for_recursion(&mut self, proof: SpOneProof) -> Result<(), anyhow::Error> {
-        // self.env_builder.add_assumption(proof.0);
-        // self.sp1_standard_input.write()
-        // sp1_zkvm::lib::verify_proof(vkey, public_values_digest);
-        // self.proofs.push(proof);
+    fn add_proof_for_recursion(&mut self, proof: Sp1Proof) -> Result<(), anyhow::Error> {
         unimplemented!();
         Ok(())
     }
@@ -42,7 +40,7 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn prove(&mut self) -> Result<Sp1Proof, anyhow::Error> {
         let (pk, vk) = self.sp1_client.setup(&self.elf);
         let proof = self.sp1_client.prove(&pk, self.sp1_standard_input.clone()).run().expect("proof generation failed");
-        Ok(SpOneProof(proof))
+        Ok(Sp1Proof(proof))
     }
 }
 #[cfg(any(feature = "sp1"))]
