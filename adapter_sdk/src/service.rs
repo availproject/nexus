@@ -1,6 +1,7 @@
 use crate::traits::RollupProof;
 use crate::{state::AdapterState, types::RollupProofWithPublicInputs};
-use nexus_core::zkvm::traits::{ZKVMProof, ZKVMEnv};
+use nexus_core::types::Proof;
+use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug as DebugTrait;
@@ -15,11 +16,14 @@ async fn health_check_handler() -> Result<impl Reply, Rejection> {
 async fn handle_proof_handler<
     P: RollupProof + Clone + Serialize + DeserializeOwned + Send,
     Z: ZKVMEnv,
-    ZP: ZKProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send,
+    ZP: ZKVMProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send + TryInto<Proof>,
 >(
     state: Arc<Mutex<AdapterState<P, Z, ZP>>>,
     proof: RollupProofWithPublicInputs<P>,
-) -> Result<impl Reply, Rejection> {
+) -> Result<impl Reply, Rejection>
+where
+    <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
+{
     let mut locked_state = state.lock().await;
 
     locked_state.add_proof(proof).await;
@@ -28,12 +32,14 @@ async fn handle_proof_handler<
 }
 
 pub async fn server<
-    P: RollupProof + Send + Clone + Sync + 'static + DeserializeOwned + Serialize,
+    P: RollupProof + Send + Clone + Sync + DeserializeOwned + Serialize,
     Z: ZKVMEnv,
-    ZP: ZKProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send,
+    ZP: ZKVMProof + DebugTrait + Clone + Serialize + DeserializeOwned + Send + TryInto<Proof>,
 >(
     state: Arc<Mutex<AdapterState<P, Z, ZP>>>,
-) {
+) where
+    <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
+{
     // Health check route
     let health_check_route = warp::get()
         .and(warp::path("health"))
@@ -46,7 +52,7 @@ pub async fn server<
         .and(warp::body::json())
         .and_then(handle_proof_handler);
 
-    // // Combined routes
+    // Combined routes
     let routes = health_check_route.or(proof_route);
 
     // Start the server

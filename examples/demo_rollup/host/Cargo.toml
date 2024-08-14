@@ -19,7 +19,3 @@ demo_rollup_core = { path = "../core" }
 anyhow = "1.0.80"
 actix-web = "4.5.1"
 warp = "0.3.6"
-
-[features]
-sp1 = ["adapter_sdk/sp1"]
-risc0 = ["adapter_sdk/risc0"]
