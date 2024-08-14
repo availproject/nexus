@@ -24,11 +24,6 @@ use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as Z
 #[cfg(any(feature = "risc0"))]
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
-
-#[cfg(any(feature = "risc0"))]
-use risc0_zkvm::{
-    default_executor, default_prover, serde::from_slice, ExecutorEnv, Journal, Receipt,
-};
 use rocksdb::{Options, DB};
 use serde::ser::StdError;
 use serde::{Deserialize, Serialize};
@@ -212,51 +207,53 @@ async fn execute_batch<
         .execute_batch(&header, header_store, &txs, 0)
         .await?;
 
-    #[cfg(any(feature = "risc0"))]
-    let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
+    let (proof, result) = {
+        #[cfg(any(feature = "risc0"))]
+        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
-    #[cfg(any(feature = "sp1"))]
-    let NEXUS_RUNTIME_ELF: &[u8] =
-        include_bytes!("../../prover/program/elf/riscv32im-succinct-zkvm-elf");
-    #[cfg(any(feature = "sp1"))]
-    let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
+        #[cfg(any(feature = "sp1"))]
+        let NEXUS_RUNTIME_ELF: &[u8] =
+            include_bytes!("../../prover/program/elf/riscv32im-succinct-zkvm-elf");
+        #[cfg(any(feature = "sp1"))]
+        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
-    let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
-        .iter()
-        .map(|tx| {
-            if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
-                //TODO: Remove transactions that error out from mempool
-                let proof = submit_proof_tx.proof.clone();
-                let receipt: P = P::try_from(proof).unwrap();
-                let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
-                    Some(i) => i,
-                    None => {
-                        return Err(anyhow!(
-                     "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
-                     submit_proof_tx.app_id
-                 ))
-                    }
-                };
+        let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
+            .iter()
+            .map(|tx| {
+                if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
+                    //TODO: Remove transactions that error out from mempool
+                    let proof = submit_proof_tx.proof.clone();
+                    let receipt: P = P::try_from(proof).unwrap();
+                    let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
+                        Some(i) => i,
+                        None => {
+                            return Err(anyhow!(
+                         "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
+                         submit_proof_tx.app_id
+                     ))
+                        }
+                    };
 
-                zkvm_prover.add_proof_for_recursion(receipt).unwrap();
-            }
+                    zkvm_prover.add_proof_for_recursion(receipt).unwrap();
+                }
 
-            Ok(TransactionZKVM {
-                signature: tx.signature.clone(),
-                params: tx.params.clone(),
+                Ok(TransactionZKVM {
+                    signature: tx.signature.clone(),
+                    params: tx.params.clone(),
+                })
             })
-        })
-        .collect();
+            .collect();
 
-    let zkvm_txs = zkvm_txs?;
+        let zkvm_txs = zkvm_txs?;
 
-    zkvm_prover.add_input(&zkvm_txs).unwrap();
-    zkvm_prover.add_input(&state_update.1).unwrap();
-    zkvm_prover.add_input(&header).unwrap();
-    zkvm_prover.add_input(&header_store).unwrap();
-    let proof = zkvm_prover.prove()?;
-    //let result: NexusHeader = from_slice(&receipt.journal.bytes).unwrap();
-    let result: NexusHeader = proof.public_inputs()?;
+        zkvm_prover.add_input(&zkvm_txs).unwrap();
+        zkvm_prover.add_input(&state_update.1).unwrap();
+        zkvm_prover.add_input(&header).unwrap();
+        zkvm_prover.add_input(&header_store).unwrap();
+        let proof = zkvm_prover.prove()?;
+        let result: NexusHeader = proof.public_inputs()?;
+        (proof, result)
+    };
 
     header_store.push_front(&result);
 

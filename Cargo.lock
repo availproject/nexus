@@ -5487,7 +5487,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "solabi",
- "sp1-helper",
+ "sp1-helper 1.1.1 (git+https://github.com/succinctlabs/sp1.git)",
  "sp1-sdk",
  "sp1-zkvm",
  "sparse-merkle-tree",
@@ -6786,6 +6786,7 @@ name = "prover"
 version = "0.1.0"
 dependencies = [
  "risc0-build",
+ "sp1-helper 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -10767,6 +10768,18 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65c9c5c2628b485693b6c2e5ba89f1af7ce5cfede39a6a4b041afd2e5b838480"
+dependencies = [
+ "anyhow",
+ "cargo_metadata 0.18.1",
+ "clap 4.5.14",
+ "dirs",
+]
+
+[[package]]
+name = "sp1-build"
+version = "1.1.1"
 source = "git+https://github.com/succinctlabs/sp1.git#5f3b8d74beabe6029669f5972d9515666f628560"
 dependencies = [
  "anyhow",
@@ -10850,11 +10863,22 @@ dependencies = [
 [[package]]
 name = "sp1-helper"
 version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec6177089127a447ea26b258f722050c0c4f874eba5df7934b246b59088c8f72"
+dependencies = [
+ "cargo_metadata 0.18.1",
+ "chrono",
+ "sp1-build 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp1-helper"
+version = "1.1.1"
 source = "git+https://github.com/succinctlabs/sp1.git#5f3b8d74beabe6029669f5972d9515666f628560"
 dependencies = [
  "cargo_metadata 0.18.1",
  "chrono",
- "sp1-build",
+ "sp1-build 1.1.1 (git+https://github.com/succinctlabs/sp1.git)",
 ]
 
 [[package]]
