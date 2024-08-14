@@ -1,7 +1,7 @@
 pub mod traits;
 
-#[cfg(any(feature = "risc0"))]
+#[cfg(any(feature = "risc0-native", feature = "zkvm-risc0"))]
 pub mod risczero;
 
-#[cfg(any(feature = "sp1"))]
-pub mod sp1;
+// #[cfg(any(feature = "sp1-native", feature = "zkvm-sp1"))]
+// pub mod sp1;

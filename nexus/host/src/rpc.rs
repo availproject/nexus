@@ -1,28 +1,26 @@
 use core::convert::Infallible;
 use jmt::ValueHash;
 use nexus_core::db::NodeDB;
-use nexus_core::mempool::{self, Mempool};
-use nexus_core::state::sparse_merkle_tree::MerkleProof;
-use nexus_core::state::{sparse_merkle_tree::traits::Value, VmState};
+use nexus_core::mempool::Mempool;
+use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
     AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256,
 };
-use nexus_core::zkvm::traits::ZKVMProof;
-use jmt::TransparentHasher as Sha256;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use nexus_core::utils::hasher::Sha256;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use std::fmt::Debug;
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{reply::Reply, Filter, Rejection};
+
 use crate::AvailToNexusPointer;
 
 pub fn routes(
     mempool: Mempool,
     db: Arc<Mutex<NodeDB>>,
-    vm_state: Arc<StdMutex<VmState>>,
+    vm_state: Arc<Mutex<VmState>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let mempool_clone = mempool.clone();
     let db_clone = db.clone();
@@ -65,7 +63,7 @@ pub fn routes(
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
             |db: Arc<Mutex<NodeDB>>,
-             vm_state: Arc<StdMutex<VmState>>,
+             vm_state: Arc<Mutex<VmState>>,
              params: HashMap<String, String>| async move {
                 match params.get("app_account_id") {
                     Some(hash_str) => {
@@ -92,12 +90,11 @@ pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, In
 
 pub async fn get_state(
     db: Arc<Mutex<NodeDB>>,
-    state: Arc<StdMutex<VmState>>,
+    state: Arc<Mutex<VmState>>,
     app_account_id: &H256,
 ) -> Result<String, Infallible> {
+    let state_lock = state.lock().await;
     let db_lock = db.lock().await;
-    //TODO: remove below unwrap.
-    let state_lock = state.lock().unwrap();
 
     let header_store: HeaderStore = match db_lock.get(b"previous_headers") {
         Ok(Some(i)) => i,

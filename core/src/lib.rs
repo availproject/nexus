@@ -12,5 +12,6 @@ pub mod mempool;
 pub mod prover;
 pub mod stf;
 pub mod types;
+pub mod utils;
 pub mod zkvm;
 pub mod zkvm_state_machine;

@@ -12,16 +12,14 @@ use nexus_core::{
         AvailHeader, HeaderStore, NexusHeader, Proof as NexusProof, RollupPublicInputsV2,
         TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
-    zkvm::{
-        traits::{ZKVMProof, ZKVMEnv, ZKVMProver},
-    },
+    zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
 };
 
 #[cfg(any(feature = "risc0"))]
-use nexus_core::zkvm::risczero::{RiscZeroProver, RiscZeroProof, ZKVM};
+use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
 #[cfg(any(feature = "sp1"))]
-use nexus_core::zkvm::sp1::{Sp1Prover, Sp1Proof, SP1ZKVM};
+use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
 
 #[cfg(any(feature = "risc0"))]
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
@@ -38,10 +36,7 @@ use sp_runtime::DeserializeOwned;
 use std::fmt::Debug as DebugTrait;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex as StdMutex},
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 use warp::Filter;
@@ -60,15 +55,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => H256::zero(),
     };
 
-    let state = Arc::new(StdMutex::new(VmState::new(&String::from(
-        "./db/runtime_db",
-    ))));
-    let state_clone = state.clone();
+    let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
 
     let db = Arc::new(Mutex::new(node_db));
     let db_clone = db.clone();
     let db_clone_2 = db.clone();
+    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
+
     let relayer_mutex = Arc::new(Mutex::new(Relayer::new()));
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
@@ -129,74 +125,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     header.number,
                     txs.len()
                 );
-                
-                #[cfg(any(feature = "risc0"))]
-                match execute_batch::<RiscZeroProver, RiscZeroProof, ZKVM>(
+
+                match execute_batch::<Prover, Proof, ZKVM>(
                     &txs,
-                    state.clone(),
+                    &mut state_machine,
                     &AvailHeader::from(&header),
                     &mut old_headers,
-                ) {
+                ).await {
                     Ok((_, result)) => {
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
 
-                        // db_lock.put(b"previous_headers", &old_headers).unwrap();
-                        // db_lock.put(
-                        //     result.avail_header_hash.as_slice(),
-                        //     &AvailToNexusPointer {
-                        //         number: header.number,
-                        //         nexus_hash: nexus_hash.clone(),
-                        //     },
-                        // ).unwrap();
-                        // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+                        db_lock.put(b"previous_headers", &old_headers).unwrap();
+                        db_lock.put(
+                            result.avail_header_hash.as_slice(),
+                            &AvailToNexusPointer {
+                                number: header.number,
+                                nexus_hash: nexus_hash.clone(),
+                            },
+                        ).unwrap();
+                        db_lock.put(nexus_hash.as_slice(), &result).unwrap();
 
-                        // db_lock.set_current_root(&result.state_root).unwrap();
-                        // if let Some(i) = index {
-                        //     mempool_clone.clear_upto_tx(i).await;
-                        // }
+                        db_lock.set_current_root(&result.state_root).unwrap();
+                        if let Some(i) = index {
+                            mempool_clone.clear_upto_tx(i).await;
+                        }
 
-                        // println!(
-                        //     "✅ Processed batch: {:?}, avail height: {:?}",
-                        //     result, header.number
-                        // );
-                    }
-                    Err(e) => {
-                        println!("Breaking because of error {:?}", e);
-                        break;
-                    }
-                };
-
-                #[cfg(any(feature = "sp1"))]
-                match execute_batch::<Sp1Prover, Sp1Proof, SP1ZKVM>(
-                    &txs,
-                    state.clone(),
-                    &AvailHeader::from(&header),
-                    &mut old_headers,
-                ) {
-                    Ok((_, result)) => {
-                        let db_lock = db.lock().await;
-                        let nexus_hash: H256 = result.hash();
-
-                        // db_lock.put(b"previous_headers", &old_headers).unwrap();
-                        // db_lock.put(
-                        //     result.avail_header_hash.as_slice(),
-                        //     &AvailToNexusPointer {
-                        //         number: header.number,
-                        //         nexus_hash: nexus_hash.clone(),
-                        //     },
-                        // ).unwrap();
-                        // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
-
-                        // db_lock.set_current_root(&result.state_root).unwrap();
-                        // if let Some(i) = index {
-                        //     mempool_clone.clear_upto_tx(i).await;
-                        // }
-
-                        // println!(
-                        //     "✅ Processed batch: {:?}, avail height: {:?}",
-                        //     result, header.number
-                        // );
+                        println!(
+                            "✅ Processed batch: {:?}, avail height: {:?}",
+                            result, header.number
+                        );
                     }
                     Err(e) => {
                         println!("Breaking because of error {:?}", e);
@@ -209,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         //Server part//
-        let routes = routes(mempool, db_clone, state_clone);
+        let routes = routes(mempool, db_clone, state.clone());
         let cors = warp::cors()
             .allow_any_origin()
             .allow_methods(vec!["POST"])
@@ -240,22 +198,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
-fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait, E: ZKVMEnv>(
+async fn execute_batch<
+    Z: ZKVMProver<P>,
+    P: ZKVMProof + Serialize + Clone + DebugTrait,
+    E: ZKVMEnv,
+>(
     txs: &Vec<TransactionV2>,
-    state: Arc<StdMutex<VmState>>,
+    state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
 ) -> Result<(P, NexusHeader), Error> {
-    let mut state_machine = StateMachine::<E, P>::new(state.clone());
+    let state_update = state_machine
+        .execute_batch(&header, header_store, &txs, 0)
+        .await?;
 
-    let state_update = state_machine.execute_batch(&header, header_store, &txs, 0)?;
-    println!("State update: {:?}", state_update);
     #[cfg(any(feature = "risc0"))]
     let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
     #[cfg(any(feature = "sp1"))]
-    let NEXUS_RUNTIME_ELF: &[u8] = include_bytes!("../../prover/program/elf/riscv32im-succinct-zkvm-elf");
+    let NEXUS_RUNTIME_ELF: &[u8] =
+        include_bytes!("../../prover/program/elf/riscv32im-succinct-zkvm-elf");
     #[cfg(any(feature = "sp1"))]
     let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
@@ -270,9 +232,9 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait
                     Some(i) => i,
                     None => {
                         return Err(anyhow!(
-                         "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
-                         submit_proof_tx.app_id
-                     ))
+                     "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
+                     submit_proof_tx.app_id
+                 ))
                     }
                 };
 
@@ -287,6 +249,7 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait
         .collect();
 
     let zkvm_txs = zkvm_txs?;
+
     zkvm_prover.add_input(&zkvm_txs).unwrap();
     zkvm_prover.add_input(&state_update.1).unwrap();
     zkvm_prover.add_input(&header).unwrap();
@@ -299,7 +262,9 @@ fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait
 
     match state_update.0 {
         Some(i) => {
-            state_machine.commit_state(&result.state_root, &i.node_batch, 0)?;
+            state_machine
+                .commit_state(&result.state_root, &i.node_batch, 0)
+                .await?;
         }
         None => (),
     }

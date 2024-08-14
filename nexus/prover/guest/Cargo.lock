@@ -814,9 +814,7 @@ dependencies = [
  "serde",
  "serde-big-array",
  "serde_json",
- "sha2",
  "solabi",
- "sp1-zkvm",
  "sparse-merkle-tree",
 ]
 
@@ -1398,7 +1396,7 @@ dependencies = [
 [[package]]
 name = "sp1-lib"
 version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git#5f3b8d74beabe6029669f5972d9515666f628560"
+source = "git+https://github.com/succinctlabs/sp1.git#57867346f086a0c15e0503d693d897bda6bf06b0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1409,7 +1407,7 @@ dependencies = [
 [[package]]
 name = "sp1-zkvm"
 version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git#5f3b8d74beabe6029669f5972d9515666f628560"
+source = "git+https://github.com/succinctlabs/sp1.git#57867346f086a0c15e0503d693d897bda6bf06b0"
 dependencies = [
  "bincode",
  "cfg-if",

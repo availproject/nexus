@@ -1,20 +1,24 @@
 use crate::types::Proof;
 
 use super::traits::ZKVMEnv;
+#[cfg(any(feature = "risc0-native"))]
 use super::traits::{ZKVMProof, ZKVMProver};
 use anyhow::anyhow;
 use anyhow::Error;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
+#[cfg(any(feature = "risc0-native"))]
 use risc0_zkvm::{default_prover, ExecutorEnv, ExecutorEnvBuilder};
 use risc0_zkvm::{serde::from_slice, Receipt};
 use serde::{Deserialize, Serialize};
 
+#[cfg(any(feature = "risc0-native"))]
 pub struct RiscZeroProver<'a> {
     env_builder: ExecutorEnvBuilder<'a>,
     elf: Vec<u8>,
 }
 
+#[cfg(any(feature = "risc0-native"))]
 impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     fn new(elf: Vec<u8>) -> Self {
         let env_builder = ExecutorEnv::builder();
@@ -39,9 +43,11 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     }
 }
 
+#[cfg(any(feature = "risc0-native"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiscZeroProof(pub Receipt);
 
+#[cfg(any(feature = "risc0-native"))]
 impl ZKVMProof for RiscZeroProof {
     fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
         from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
@@ -69,16 +75,7 @@ impl ZKVMProof for RiscZeroProof {
     }
 }
 
-impl TryFrom<Proof> for RiscZeroProof {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Proof) -> Result<Self, Self::Error> {
-        let receipt: Receipt = value.try_into()?;
-
-        Ok(Self(receipt))
-    }
-}
-
+#[cfg(any(feature = "risc0-native"))]
 impl TryInto<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
@@ -94,6 +91,18 @@ impl TryInto<Proof> for RiscZeroProof {
         Ok(Proof(encoded_u8))
     }
 }
+
+#[cfg(any(feature = "risc0-native"))]
+impl TryFrom<Proof> for RiscZeroProof {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Proof) -> Result<Self, Self::Error> {
+        let receipt: Receipt = value.try_into()?;
+
+        Ok(Self(receipt))
+    }
+}
+
 pub struct ZKVM();
 
 impl ZKVMEnv for ZKVM {

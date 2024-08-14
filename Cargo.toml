@@ -12,7 +12,6 @@ members = [
     "examples/mock_geth_adapter/methods",
     "examples/mock_geth_adapter/core",
     "adapter_sdk",
-    "old_demo_rollup", 
     "smt_playground",
 ]
 

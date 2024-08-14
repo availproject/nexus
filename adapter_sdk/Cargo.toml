@@ -22,6 +22,6 @@ sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", optional = true }
 [features]
 default = ["native"]
 native = ["nexus-core/native", "relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp"]
-zkvm = ["nexus-core/zkvm"]
+zkvm = ["nexus-core/zkvm-risc0"]
 sp1 = ["sp1-sdk"]
 risc0 = ["risc0-zkvm/default"]
