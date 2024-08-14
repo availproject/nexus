@@ -1,22 +1,20 @@
 use std::collections::HashMap;
-use std::marker::PhantomData;
-use crate::db::NodeDB;
+
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
 use crate::types::{
-    AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, StateUpdate, SubmitProof,
-    TransactionV2, TransactionZKVM, TxParamsV2, H256,
+    AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, TransactionV2,
+    TransactionZKVM, TxParamsV2, H256,
 };
-use crate::zkvm::traits::{ZKVMProof, ZKVMEnv};
+use crate::zkvm::traits::{ZKVMEnv, ZKVMProof};
 use anyhow::{anyhow, Error};
-use avail_subxt::config::Header as HeaderTrait;
 use jmt::storage::{NodeBatch, TreeUpdateBatch};
-use jmt::{KeyHash, Version};
-use parity_scale_codec::{Decode, Encode};
+use jmt::Version;
 use serde::Serialize;
-use sparse_merkle_tree::traits::Value;
 use std::fmt::Debug as DebugTrait;
-use std::sync::{Arc, Mutex};
+use std::marker::PhantomData;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
     stf: StateTransitionFunction<Z>,
@@ -37,16 +35,13 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         }
     }
 
-    pub fn commit_state(
+    pub async fn commit_state(
         &mut self,
         state_root: &H256,
         node_batch: &NodeBatch,
         version: Version,
     ) -> Result<(), Error> {
-        let mut state_lock = match self.state.lock() {
-            Ok(i) => i,
-            Err(e) => return Err(anyhow!("{:?}", e)),
-        };
+        let mut state_lock = self.state.lock().await;
         state_lock.commit(node_batch)?;
 
         let root = state_lock.get_root(version)?;
@@ -59,7 +54,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         Ok(())
     }
 
-    pub fn execute_batch(
+    pub async fn execute_batch(
         &mut self,
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
@@ -71,10 +66,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
 
         let result = {
-            let mut state_lock = match self.state.lock() {
-                Ok(i) => i,
-                Err(e) => return Err(anyhow!("{:?}", e)),
-            };
+            let state_lock = self.state.lock().await;
             txs.iter().try_for_each(|tx| {
                 let app_account_id: AppAccountId = match &tx.params {
                     TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
@@ -114,10 +106,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
             self.stf
                 .execute_batch(avail_header, old_nexus_headers, &zkvm_txs, &pre_state)?;
 
-        let mut state_lock = match self.state.lock() {
-            Ok(i) => i,
-            Err(e) => return Err(anyhow!("{:?}", e)),
-        };
+        let mut state_lock = self.state.lock().await;
 
         if !stf_result.is_empty() {
             let result = state_lock.update_set(

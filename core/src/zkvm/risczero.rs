@@ -1,26 +1,20 @@
 use crate::types::Proof;
 
 use super::traits::ZKVMEnv;
-#[cfg(any(feature = "risc0"))]
 use super::traits::{ZKVMProof, ZKVMProver};
-#[cfg(any(feature = "risc0"))]
 use anyhow::anyhow;
+use anyhow::Error;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
-#[cfg(any(feature = "risc0"))]
 use risc0_zkvm::{default_prover, ExecutorEnv, ExecutorEnvBuilder};
-#[cfg(any(feature = "risc0"))]
 use risc0_zkvm::{serde::from_slice, Receipt};
 use serde::{Deserialize, Serialize};
-use anyhow::Error;
 
-#[cfg(any(feature = "risc0"))]
 pub struct RiscZeroProver<'a> {
     env_builder: ExecutorEnvBuilder<'a>,
     elf: Vec<u8>,
 }
 
-#[cfg(any(feature = "risc0"))]
 impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     fn new(elf: Vec<u8>) -> Self {
         let env_builder = ExecutorEnv::builder();
@@ -45,11 +39,9 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     }
 }
 
-#[cfg(any(feature = "risc0"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiscZeroProof(pub Receipt);
 
-#[cfg(any(feature = "risc0"))]
 impl ZKVMProof for RiscZeroProof {
     fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
         from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
@@ -65,8 +57,8 @@ impl ZKVMProof for RiscZeroProof {
         Ok(Self(receipt))
     }
     fn try_into(&self) -> Result<Proof, Error> {
-        let encoded_u32: Vec<u32> = to_vec(&self)
-            .map_err(|e| anyhow!("Serialization error: {}", e))?;
+        let encoded_u32: Vec<u32> =
+            to_vec(&self).map_err(|e| anyhow!("Serialization error: {}", e))?;
 
         // Convert Vec<u32> to Vec<u8>
         let encoded_u8: Vec<u8> = encoded_u32
@@ -77,7 +69,6 @@ impl ZKVMProof for RiscZeroProof {
     }
 }
 
-#[cfg(any(feature = "risc0"))]
 impl TryFrom<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
@@ -88,13 +79,12 @@ impl TryFrom<Proof> for RiscZeroProof {
     }
 }
 
-#[cfg(any(feature = "risc0"))]
 impl TryInto<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<Proof, Self::Error> {
-        let encoded_u32: Vec<u32> = to_vec(&self)
-            .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
+        let encoded_u32: Vec<u32> =
+            to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
 
         // Convert Vec<u32> to Vec<u8>
         let encoded_u8: Vec<u8> = encoded_u32

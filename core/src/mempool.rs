@@ -1,7 +1,4 @@
-use crate::{agg_types::InitTransaction, types::TransactionV2, zkvm::traits::ZKVMProof};
-use anyhow::{anyhow, Error};
-use serde::Serialize;
-use std::fmt::Debug as DebugTrait;
+use crate::types::TransactionV2;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
