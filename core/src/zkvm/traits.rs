@@ -9,6 +9,7 @@ pub trait ZKVMProver<R: ZKVMProof> {
     fn prove(&mut self) -> Result<R, anyhow::Error>;
 }
 
+#[cfg(any(feature = "native"))]
 pub trait ZKVMProof: Sized {
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error>;
     fn public_inputs<V: DeserializeOwned>(&self) -> Result<V, anyhow::Error>;

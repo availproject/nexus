@@ -5,11 +5,11 @@ edition = "2021"
 
 [dependencies]
 avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = ["std"]}
-prover = { path = "../prover" }
-risc0-zkvm = { version = "0.20", optional = true }
+prover = { path = "../prover", optional = true }
+risc0-zkvm = { version = "0.20", default-features = false, optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = "1.0"
-nexus-core = { path = "../../core"}
+nexus-core = { path = "../../core", optional = true }
 serde_json = "1.0.114"
 tokio = "1.36.0"
 sp-runtime = "33.0.0"
@@ -24,8 +24,9 @@ hex = "0.4.3"
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
 
 [features]
-sp1 = ["sp1-sdk", "nexus-core/sp1"]
-risc0 = ["risc0-zkvm/default", "nexus-core/risc0"]
+default = ["risc0"]
+sp1 = ["sp1-sdk", "nexus-core/native-sp1", "prover/sp1"]
+risc0 = ["risc0-zkvm/std", "nexus-core/native-risc0", "prover/risc0"]
 
 [patch.crates-io]
 serde = { version = "1.0.204" }

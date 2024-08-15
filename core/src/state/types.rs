@@ -1,6 +1,5 @@
+use crate::utils::hasher::Sha256;
 use ethabi::{decode, encode, ParamType, Token};
-use risc0_zkvm::sha::rust_crypto::Sha256;
-use risc0_zkvm::sha::Digest as RiscZeroDigest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
@@ -125,15 +124,15 @@ impl StatementDigest {
     }
 }
 
-impl From<RiscZeroDigest> for StatementDigest {
-    fn from(item: RiscZeroDigest) -> Self {
-        let words = item.as_words();
-        let mut new_digest = [0u32; 8];
+// impl From<RiscZeroDigest> for StatementDigest {
+//     fn from(item: RiscZeroDigest) -> Self {
+//         let words = item.as_words();
+//         let mut new_digest = [0u32; 8];
 
-        for (i, &element) in words.iter().take(8).enumerate() {
-            new_digest[i] = element;
-        }
+//         for (i, &element) in words.iter().take(8).enumerate() {
+//             new_digest[i] = element;
+//         }
 
-        Self(new_digest)
-    }
-}
+//         Self(new_digest)
+//     }
+// }

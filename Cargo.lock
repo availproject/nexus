@@ -2282,18 +2282,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
-name = "demo_rollup"
-version = "0.1.0"
-dependencies = [
- "adapter_sdk",
- "anyhow",
- "nexus-core",
- "reqwest 0.11.27",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "demo_rollup_core"
 version = "0.1.0"
 dependencies = [

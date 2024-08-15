@@ -1,31 +1,37 @@
-
-
-use anyhow::{Error, Ok};
+use super::traits::ZKVMEnv;
+#[cfg(any(feature = "native-risc0"))]
+use super::traits::{ZKVMProof, ZKVMProver};
+use crate::types::Proof;
+use anyhow::anyhow;
+use anyhow::Error;
 use jmt::proof;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::to_vec;
 use sha2::Digest;
 use sha2::Sha256;
-use super::traits::{ZKVMProof, ZKVMProver};
-use serde::{de::DeserializeOwned, Serialize, Deserialize};
-use serde_json::to_vec;
-use anyhow::anyhow;
-#[cfg(any(feature = "sp1"))]
-use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin, SP1ProofWithPublicValues, SP1VerifyingKey, SP1ProvingKey};
-use crate::types::Proof;
-use super::traits::ZKVMEnv;
+#[cfg(any(feature = "native-risc0"))]
+use sp1_sdk::{
+    utils, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1PublicValues, SP1Stdin,
+    SP1VerifyingKey,
+};
 
-#[cfg(any(feature = "sp1"))]
+#[cfg(any(feature = "native-risc0"))]
 pub struct Sp1Prover {
     sp1_standard_input: SP1Stdin,
     sp1_client: ProverClient,
-    elf: Vec<u8>,    
+    elf: Vec<u8>,
 }
 
-#[cfg(any(feature = "sp1"))]
+#[cfg(any(feature = "native-risc0"))]
 impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn new(elf: Vec<u8>) -> Self {
         let mut sp1_standard_input = SP1Stdin::new();
         let sp1_client = ProverClient::new();
-        Self { sp1_standard_input, sp1_client, elf }
+        Self {
+            sp1_standard_input,
+            sp1_client,
+            elf,
+        }
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
@@ -42,15 +48,19 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn prove(&mut self) -> Result<Sp1Proof, anyhow::Error> {
         let (pk, vk) = self.sp1_client.setup(&self.elf);
         let mut sp1_input = self.sp1_standard_input.clone();
-        let proof = self.sp1_client.prove(&pk, sp1_input).run().expect("proof generation failed");
+        let proof = self
+            .sp1_client
+            .prove(&pk, sp1_input)
+            .run()
+            .expect("proof generation failed");
         Ok(Sp1Proof(proof))
     }
 }
-#[cfg(any(feature = "sp1"))]
+#[cfg(any(feature = "native-risc0"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sp1Proof(pub SP1ProofWithPublicValues);
 
-#[cfg(any(feature = "sp1"))]
+#[cfg(any(feature = "native-risc0"))]
 impl ZKVMProof for Sp1Proof {
     fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
         let json = serde_json::to_string(&self.0.public_values)?;
@@ -68,13 +78,13 @@ impl ZKVMProof for Sp1Proof {
     }
 
     fn try_into(&self) -> Result<Proof, Error> {
-        let encoded_u8: Vec<u8> = to_vec(&self)
-            .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
+        let encoded_u8: Vec<u8> =
+            to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
         Ok(Proof(encoded_u8))
     }
 }
 
-#[cfg(any(feature = "sp1"))]
+#[cfg(any(feature = "native-risc0"))]
 impl TryFrom<Proof> for SP1ProofWithPublicValues {
     type Error = anyhow::Error;
 
@@ -84,13 +94,13 @@ impl TryFrom<Proof> for SP1ProofWithPublicValues {
     }
 }
 
-#[cfg(any(feature = "sp1"))]
+#[cfg(any(feature = "native-risc0"))]
 impl TryInto<Proof> for SP1ProofWithPublicValues {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<Proof, Self::Error> {
-        let encoded_u8: Vec<u8> = to_vec(&self)
-            .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
+        let encoded_u8: Vec<u8> =
+            to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
         Ok(Proof(encoded_u8))
     }
 }
@@ -108,10 +118,8 @@ fn serialize_to_data<T: Serialize>(input: &T) -> Result<SerializedData, Error> {
     Ok(SerializedData(serialized))
 }
 
-#[cfg(any(feature = "sp1"))]
 pub struct SP1ZKVM();
 
-#[cfg(any(feature = "sp1"))]
 impl ZKVMEnv for SP1ZKVM {
     fn read_input<T: DeserializeOwned>() -> Result<T, anyhow::Error> {
         Ok(sp1_zkvm::io::read::<T>())
@@ -124,7 +132,7 @@ impl ZKVMEnv for SP1ZKVM {
         // unsafe {
         //     sp1_zkvm::lib::syscall_verify_sp1_proof(&img_id, public_values_digest)
         // }
-       Ok(())
+        Ok(())
     }
 
     fn commit<T: Serialize>(data: &T) {

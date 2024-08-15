@@ -16,7 +16,7 @@ impl<
         ZP: ZKVMProof + DeserializeOwned + Serialize + Clone,
     > DB<P, ZP>
 {
-    pub fn from_path(path: &String) -> Self {
+    pub fn from_path(path: &str) -> Self {
         Self(NodeDB::from_path(path), PhantomData, PhantomData)
     }
 

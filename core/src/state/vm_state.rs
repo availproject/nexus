@@ -1,3 +1,4 @@
+use crate::utils::hasher::Sha256;
 use crate::{
     state::{types::AccountState, MerkleStore},
     traits::Leaf,
@@ -9,7 +10,6 @@ use jmt::{
     storage::{NodeBatch, TreeUpdateBatch, TreeWriter},
     JellyfishMerkleTree, KeyHash, SimpleHasher, Version,
 };
-use risc0_zkvm::sha::rust_crypto::Sha256;
 use rocksdb::{Options, DB};
 use sparse_merkle_tree::H256;
 use std::{

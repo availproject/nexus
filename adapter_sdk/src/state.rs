@@ -12,13 +12,13 @@ use crate::types::{
 use anyhow::{anyhow, Error};
 use nexus_core::types::Proof;
 use nexus_core::types::{
-    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, StatementDigest, SubmitProof,
-    TransactionV2, TxParamsV2, TxSignature, H256, Proof as ZKProof
+    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
+    SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use nexus_core::zkvm::risczero::RiscZeroProver;
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::SpOneProver;
-use nexus_core::zkvm::traits::{ZKVMProof, ZKVMEnv, ZKVMProver};
+use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use relayer::Relayer;
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
@@ -64,7 +64,7 @@ pub struct AdapterState<
         + Debug
         + 'static,
 > where
-    <ZP as TryInto<Proof>>::Error: Debug + Send + Sync,
+    <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
 {
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
@@ -82,10 +82,17 @@ pub struct AdapterState<
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
         Z: ZKVMEnv,
-        ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug,
+        ZP: ZKVMProof
+            + DebugTrait
+            + Clone
+            + DeserializeOwned
+            + Serialize
+            + Send
+            + TryInto<Proof>
+            + Debug,
     > AdapterState<P, Z, ZP>
 where
-    <ZP as TryInto<Proof>>::Error: Debug + Send + Sync,
+    <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
 {
     pub fn new(storage_path: &str, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
@@ -262,7 +269,10 @@ where
                 let tx = TransactionV2 {
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
-                        proof: ZKVMProof::try_from(latest_proof.0)?,
+                        proof: match latest_proof.0.try_into() {
+                            Ok(i) => i,
+                            Err(e) => return Err(anyhow!(e)),
+                        },
                         height: latest_proof.1.height,
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,
@@ -409,14 +419,14 @@ where
                 Some(pi)
             }
         };
-        #[cfg(feature = "native")] 
+        #[cfg(feature = "native")]
         {
             zkvm.add_input(&prev_pi);
             zkvm.add_input(&queue_item.proof);
             zkvm.add_input(&private_inputs);
             zkvm.add_input(&self.elf_id);
             zkvm.add_input(&self.vk);
-    
+
             zkvm.prove();
         }
 
