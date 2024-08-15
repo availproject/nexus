@@ -32,7 +32,7 @@ sha2 = { version = "0.10.8", optional = true }
 default = ["native-risc0"]
 native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio" ]
 zkvm = ["sparse-merkle-tree/arch-32", "sparse-merkle-tree/std"]
-native-sp1 = ["sp1-sdk", "sp1-helper", "sha2", "native"]
+native-sp1 = ["sp1-sdk", "sp1-helper", "sp1-zkvm", "sha2", "native"]
 native-risc0 = ["risc0-zkvm/default", "native"]
 zkvm-sp1 = ["sp1-zkvm", "zkvm", "sha2"]
 zkvm-risc0 = ["risc0-zkvm/std", "zkvm"]

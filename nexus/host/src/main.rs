@@ -213,7 +213,7 @@ async fn execute_batch<
 
         #[cfg(any(feature = "sp1"))]
         let NEXUS_RUNTIME_ELF: &[u8] =
-            include_bytes!("../../prover/program/elf/riscv32im-succinct-zkvm-elf");
+            include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
         #[cfg(any(feature = "sp1"))]
         let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 

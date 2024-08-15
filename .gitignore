@@ -6,4 +6,5 @@ target/
 **/runtime_db
 **/db
 **/adapter_store
+**/elf
 Cargo.lock
