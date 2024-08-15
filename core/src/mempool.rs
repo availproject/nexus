@@ -1,5 +1,4 @@
-use crate::{agg_types::InitTransaction, types::TransactionV2};
-use anyhow::{anyhow, Error};
+use crate::types::TransactionV2;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

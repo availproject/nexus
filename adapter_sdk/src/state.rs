@@ -4,50 +4,96 @@
 
 use crate::api::NexusAPI;
 use crate::db::DB;
-use crate::traits::Proof;
+use crate::traits::RollupProof;
 use crate::types::{
-    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProof, RollupPublicInputs,
+    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProofWithPublicInputs,
+    RollupPublicInputs,
 };
 use anyhow::{anyhow, Error};
+use nexus_core::types::Proof;
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
     SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
+use nexus_core::zkvm::risczero::RiscZeroProver;
+#[cfg(any(feature = "sp1"))]
+use nexus_core::zkvm::sp1::SpOneProver;
+use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use relayer::Relayer;
-use risc0_zkvm::{default_prover, Receipt};
+use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::fmt::Debug as DebugTrait;
+use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::rc::Rc;
 use std::sync::Arc;
-use std::thread;
+use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
+
+#[cfg(feature = "sp1")]
+use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
+
+#[cfg(feature = "sp1")]
+const ELF: &[u8] = include_bytes!("../../demo_rollup/program/elf/riscv32im-succinct-zkvm-elf");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InclusionProof(pub Vec<u8>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct QueueItem<P: Proof + Clone> {
-    proof: Option<RollupProof<P>>,
+pub(crate) struct QueueItem<P: RollupProof + Clone> {
+    proof: Option<RollupProofWithPublicInputs<P>>,
     blob: Option<(H256, InclusionProof)>,
     header: AvailHeader,
 }
 
 // usage : create an object for this struct and use as a global dependency
-pub struct AdapterState<P: Proof + Clone + DeserializeOwned + Serialize + 'static> {
+pub struct AdapterState<
+    P: RollupProof + Clone + DeserializeOwned + Serialize + 'static,
+    Z: ZKVMEnv + 'static,
+    ZP: ZKVMProof
+        + DebugTrait
+        + Clone
+        + DeserializeOwned
+        + Serialize
+        + Send
+        + TryInto<Proof>
+        + Debug
+        + 'static,
+> where
+    <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
+{
     pub starting_block_number: u32,
     pub queue: Arc<Mutex<VecDeque<QueueItem<P>>>>,
-    pub previous_adapter_proof: Option<(Receipt, AdapterPublicInputs, u32)>,
+    pub previous_adapter_proof: Option<(ZP, AdapterPublicInputs, u32)>,
     pub elf: Vec<u8>,
     pub elf_id: StatementDigest,
     pub vk: [u8; 32],
     pub app_id: AppId,
-    pub db: Arc<Mutex<DB<P>>>,
+    pub db: Arc<Mutex<DB<P, ZP>>>,
+    pub p: PhantomData<Z>,
+    pub pp: PhantomData<ZP>,
     pub nexus_api: NexusAPI,
 }
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
+impl<
+        P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
+        Z: ZKVMEnv,
+        ZP: ZKVMProof
+            + DebugTrait
+            + Clone
+            + DeserializeOwned
+            + Serialize
+            + Send
+            + TryInto<Proof>
+            + Debug,
+    > AdapterState<P, Z, ZP>
+where
+    <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
+{
     pub fn new(storage_path: &str, config: AdapterConfig) -> Self {
         let db = DB::from_path(storage_path);
 
@@ -60,6 +106,8 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             vk: config.vk,
             app_id: config.app_id,
             db: Arc::new(Mutex::new(db)),
+            p: PhantomData,
+            pp: PhantomData,
             nexus_api: NexusAPI::new(&"http://127.0.0.1:7000"),
         }
     }
@@ -89,11 +137,9 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             Some(i) => i.2,
             None => self.starting_block_number,
         };
-
         if self.previous_adapter_proof.is_none() {
             let header_hash = relayer.get_header_hash(self.starting_block_number).await;
             let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
-
             let tx = TransactionV2 {
                 signature: TxSignature([0u8; 64]),
                 params: TxParamsV2::InitAccount(InitAccount {
@@ -151,13 +197,10 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             }
         });
         let nexus_api_clone = self.nexus_api.clone();
-
         let submission_handle = tokio::spawn(async move {
             let nexus_api = nexus_api_clone;
-
             Self::manage_submissions(db_clone_2, &nexus_api).await
         });
-
         match self.process_queue().await {
             Ok(_) => (),
             Err(e) => println!("Exiting because of error: {:?}", e),
@@ -172,9 +215,9 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     }
 
     async fn manage_submissions(
-        db: Arc<Mutex<DB<P>>>,
+        db: Arc<Mutex<DB<P, ZP>>>,
         nexus_api: &NexusAPI,
-    ) -> Result<Receipt, Error> {
+    ) -> Result<P, Error> {
         loop {
             thread::sleep(Duration::from_secs(2));
 
@@ -226,7 +269,10 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                 let tx = TransactionV2 {
                     signature: TxSignature([0u8; 64]),
                     params: TxParamsV2::SubmitProof(SubmitProof {
-                        proof: ZKProof::try_from(latest_proof.0)?,
+                        proof: match latest_proof.0.try_into() {
+                            Ok(i) => i,
+                            Err(e) => return Err(anyhow!(e)),
+                        },
                         height: latest_proof.1.height,
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,
@@ -279,7 +325,7 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                 thread::sleep(Duration::from_secs(10));
 
                 continue; // Restart the loop
-            };
+            }
 
             let receipt = match self.verify_and_generate_proof(&queue_item).await {
                 Err(e) => {
@@ -287,24 +333,24 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
                 }
                 Ok(i) => i,
             };
+            // TODO]
+            // let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
+            // self.queue.lock().await.pop_front();
 
-            let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
-            self.queue.lock().await.pop_front();
-
-            self.db.lock().await.store_last_proof(&(
-                receipt.clone(),
-                adapter_pi.clone(),
-                queue_item.header.number,
-            ))?;
-            self.previous_adapter_proof = Some((
-                receipt.clone(),
-                adapter_pi.clone(),
-                queue_item.header.number,
-            ));
+            // self.db.lock().await.store_last_proof(&(
+            //     receipt.clone(),
+            //     adapter_pi.clone(),
+            //     queue_item.header.number,
+            // ))?;
+            // self.previous_adapter_proof = Some((
+            //     receipt.clone(),
+            //     adapter_pi.clone(),
+            //     queue_item.header.number,
+            // ));
         }
     }
 
-    pub async fn add_proof(&mut self, proof: RollupProof<P>) -> Result<(), Error> {
+    pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) -> Result<(), Error> {
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -335,7 +381,8 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
     async fn verify_and_generate_proof(
         &mut self,
         queue_item: &QueueItem<P>,
-    ) -> Result<Receipt, Error> {
+        // TODO change the return type to ZP
+    ) -> Result<(), Error> {
         let nexus_header: NexusHeader =
             self.nexus_api.get_header(&queue_item.header.hash()).await?;
 
@@ -356,35 +403,33 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize + Send> AdapterState<P> {
             Some(i) => Some(i.clone()),
         };
 
-        let mut env_builder = ExecutorEnv::builder();
+        let prover = default_prover();
+
+        #[cfg(feature = "sp1")]
+        let mut zkvm = SpOneProver::new(self.elf);
+
+        #[cfg(feature = "native")]
+        let mut zkvm = RiscZeroProver::new(self.elf.clone());
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
             None => None,
             Some((receipt, pi, _)) => {
-                env_builder.add_assumption(receipt);
+                // env_builder.add_assumption(receipt);
 
                 Some(pi)
             }
         };
+        #[cfg(feature = "native")]
+        {
+            zkvm.add_input(&prev_pi);
+            zkvm.add_input(&queue_item.proof);
+            zkvm.add_input(&private_inputs);
+            zkvm.add_input(&self.elf_id);
+            zkvm.add_input(&self.vk);
 
-        let env = env_builder
-            .write(&prev_pi)
-            .unwrap()
-            .write(&queue_item.proof)
-            .unwrap()
-            .write(&private_inputs)
-            .unwrap()
-            .write(&self.elf_id)
-            .unwrap()
-            .write(&self.vk)
-            .unwrap()
-            .build()
-            .unwrap();
+            zkvm.prove();
+        }
 
-        let prover = default_prover();
-
-        let receipt = prover.prove(env, &self.elf);
-
-        receipt
+        Ok(())
     }
 }

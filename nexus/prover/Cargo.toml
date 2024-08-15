@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [build-dependencies]
-risc0-build = { version = "0.20" }
+risc0-build = { version = "0.20", optional = true }
+sp1-helper = { version = "1.1.0", optional = true }
 
 [package.metadata.risc0]
-methods = ["guest"]
+methods = ["risc0-guest"]
+
+[features]
+sp1 = ["sp1-helper"]
+risc0 = ["risc0-build"]

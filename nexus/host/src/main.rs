@@ -9,24 +9,32 @@ use nexus_core::{
     state::{merkle_store, MerkleStore, VmState},
     state_machine::StateMachine,
     types::{
-        AvailHeader, HeaderStore, NexusHeader, RollupPublicInputsV2, TransactionV2,
-        TransactionZKVM, TxParamsV2, H256
+        AvailHeader, HeaderStore, NexusHeader, Proof as NexusProof, RollupPublicInputsV2,
+        TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
+    zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
 };
+
+#[cfg(any(feature = "risc0"))]
+use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
+
+#[cfg(any(feature = "sp1"))]
+use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
+
+#[cfg(any(feature = "risc0"))]
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 use relayer::Relayer;
-use risc0_zkvm::{
-    default_executor, default_prover, serde::from_slice, ExecutorEnv, Journal, Receipt,
-};
 use rocksdb::{Options, DB};
+use serde::ser::StdError;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::{Arc, Mutex as StdMutex}};
-use tokio::time::{sleep, Duration};
-use tokio::{self, sync::Mutex};
-use warp::Filter;
-
+use sp_runtime::DeserializeOwned;
+use std::fmt::Debug as DebugTrait;
 use std::net::SocketAddr;
 use std::str::FromStr;
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration};
+use warp::Filter;
 
 use crate::rpc::routes;
 
@@ -42,14 +50,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => H256::zero(),
     };
 
-
-        let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
+    let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
 
     let db = Arc::new(Mutex::new(node_db));
     let db_clone = db.clone();
     let db_clone_2 = db.clone();
-    let mut state_machine = StateMachine::new(state.clone());
+    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
+
     let relayer_mutex = Arc::new(Mutex::new(Relayer::new()));
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
@@ -111,7 +121,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     txs.len()
                 );
 
-                match execute_batch(
+                match execute_batch::<Prover, Proof, ZKVM>(
                     &txs,
                     &mut state_machine,
                     &AvailHeader::from(&header),
@@ -183,19 +193,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn execute_batch(
+async fn execute_batch<
+    Z: ZKVMProver<P>,
+    P: ZKVMProof + Serialize + Clone + DebugTrait,
+    E: ZKVMEnv,
+>(
     txs: &Vec<TransactionV2>,
-    state_machine: &mut StateMachine,
+    state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
-) -> Result<(Receipt, NexusHeader), Error> {
+) -> Result<(P, NexusHeader), Error> {
     let state_update = state_machine
         .execute_batch(&header, header_store, &txs, 0)
         .await?;
 
-    //Proof generation part.
-    let env = {
-        let mut env_builder = ExecutorEnv::builder();
+    let (proof, result) = {
+        #[cfg(any(feature = "risc0"))]
+        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
+
+        #[cfg(any(feature = "sp1"))]
+        let NEXUS_RUNTIME_ELF: &[u8] =
+            include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+        #[cfg(any(feature = "sp1"))]
+        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
 
         let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
             .iter()
@@ -203,61 +223,50 @@ async fn execute_batch(
                 if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
                     //TODO: Remove transactions that error out from mempool
                     let proof = submit_proof_tx.proof.clone();
-    
-                    let receipt: Receipt = proof.try_into()?;
+                    let receipt: P = P::try_from(proof).unwrap();
                     let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
                         Some(i) => i,
                         None => {
                             return Err(anyhow!(
-                            "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
-                            submit_proof_tx.app_id
-                        ))
+                         "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
+                         submit_proof_tx.app_id
+                     ))
                         }
                     };
-    
-                    env_builder.add_assumption(receipt);
+
+                    zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
-    
+
                 Ok(TransactionZKVM {
                     signature: tx.signature.clone(),
                     params: tx.params.clone(),
                 })
             })
             .collect();
-    
-        // Exit the whole process if there was an error during mapping
+
         let zkvm_txs = zkvm_txs?;
-        
-        env_builder
-        .write(&zkvm_txs)
-        .unwrap()
-        .write(&state_update.1)
-        .unwrap()
-        .write(&header)
-        .unwrap()
-        .write(&header_store)
-        .unwrap()
-        .build()
-        .unwrap()
-    };
-    
-    let (result, receipt): (NexusHeader, Receipt) = {
-        let prover = default_prover();
-        let receipt = prover.prove(env, NEXUS_RUNTIME_ELF)?;
-        
-        (from_slice(&receipt.journal.bytes).unwrap(), receipt)
+
+        zkvm_prover.add_input(&zkvm_txs).unwrap();
+        zkvm_prover.add_input(&state_update.1).unwrap();
+        zkvm_prover.add_input(&header).unwrap();
+        zkvm_prover.add_input(&header_store).unwrap();
+        let proof = zkvm_prover.prove()?;
+        let result: NexusHeader = proof.public_inputs()?;
+        (proof, result)
     };
 
     header_store.push_front(&result);
-    
+
     match state_update.0 {
         Some(i) => {
-            state_machine.commit_state(&result.state_root, &i.node_batch, 0).await?;
-        }, 
-        None => ()
+            state_machine
+                .commit_state(&result.state_root, &i.node_batch, 0)
+                .await?;
+        }
+        None => (),
     }
 
-    Ok((receipt, result))
+    Ok((proof, result))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

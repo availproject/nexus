@@ -5,10 +5,11 @@
     "./adapter_sdk/Cargo.toml",
     "./relayer/Cargo.toml",
     "./nexus/host/Cargo.toml",
-    "./nexus/prover/guest/Cargo.toml",
-    "./examples/mock_geth_adapter/host",
-    "./examples/mock_geth_adapter/methods",
-    "./examples/mock_geth_adapter/core",
+    "./nexus/prover/risc0-guest/Cargo.toml",
+    "./nexus/prover/sp1-guest/Cargo.toml",
+    "./examples/mock_geth_adapter/host/Cargo.toml",
+    "./examples/mock_geth_adapter/methods/Cargo.toml",
+    "./examples/mock_geth_adapter/core/Cargo.toml",
     "./smt_playground"
   ]
 }

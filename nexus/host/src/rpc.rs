@@ -1,14 +1,13 @@
 use core::convert::Infallible;
 use jmt::ValueHash;
 use nexus_core::db::NodeDB;
-use nexus_core::mempool::{self, Mempool};
-use nexus_core::state::sparse_merkle_tree::MerkleProof;
-use nexus_core::state::{sparse_merkle_tree::traits::Value, VmState};
+use nexus_core::mempool::Mempool;
+use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
     AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusHeader, TransactionV2, H256,
 };
-use risc0_zkvm::sha::rust_crypto::Sha256;
+use nexus_core::utils::hasher::Sha256;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;

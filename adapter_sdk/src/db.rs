@@ -1,19 +1,23 @@
 use crate::state::QueueItem;
-use crate::traits::Proof;
+use crate::traits::RollupProof;
 use crate::types::AdapterPublicInputs;
 use anyhow::Error;
 use nexus_core::db::NodeDB;
-use risc0_zkvm::Receipt;
+use nexus_core::zkvm::traits::ZKVMProof;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
-pub struct DB<P>(NodeDB, PhantomData<P>);
+pub struct DB<P, ZP>(NodeDB, PhantomData<P>, PhantomData<ZP>);
 
-impl<P: Proof + Clone + DeserializeOwned + Serialize> DB<P> {
+impl<
+        P: RollupProof + Clone + DeserializeOwned + Serialize,
+        ZP: ZKVMProof + DeserializeOwned + Serialize + Clone,
+    > DB<P, ZP>
+{
     pub fn from_path(path: &str) -> Self {
-        Self(NodeDB::from_path(path), PhantomData)
+        Self(NodeDB::from_path(path), PhantomData, PhantomData)
     }
 
     pub(crate) fn get_last_known_queue(&self) -> Result<VecDeque<QueueItem<P>>, Error> {
@@ -34,17 +38,15 @@ impl<P: Proof + Clone + DeserializeOwned + Serialize> DB<P> {
         self.0.put(b"blob_queue", &vec)
     }
 
-    pub(crate) fn get_last_proof(
-        &self,
-    ) -> Result<Option<(Receipt, AdapterPublicInputs, u32)>, Error> {
+    pub(crate) fn get_last_proof(&self) -> Result<Option<(ZP, AdapterPublicInputs, u32)>, Error> {
         Ok(self
             .0
-            .get::<(Receipt, AdapterPublicInputs, u32)>(b"last_proof")?)
+            .get::<(ZP, AdapterPublicInputs, u32)>(b"last_proof")?)
     }
 
     pub(crate) fn store_last_proof(
         &self,
-        proof: &(Receipt, AdapterPublicInputs, u32),
+        proof: &(ZP, AdapterPublicInputs, u32),
     ) -> Result<(), Error> {
         self.0.put(b"last_proof", &proof)
     }

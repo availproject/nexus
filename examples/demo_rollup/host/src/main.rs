@@ -1,10 +1,19 @@
+use std::fmt::Debug;
+
 use adapter_sdk::{state::AdapterState, types::AdapterConfig};
 use demo_rollup_core::DemoProof;
 use methods::{ADAPTER_ELF, ADAPTER_ID};
-use nexus_core::types::{AppId, StatementDigest};
+use nexus_core::{
+    types::{AppId, StatementDigest},
+    zkvm::{
+        risczero::{RiscZeroProof, ZKVM},
+        traits::{ZKVMProof, ZKVMEnv, ZKVMProver},
+    },
+};
 
 fn main() {
-    let mut adapter: AdapterState<DemoProof> = AdapterState::new(
+    //! TODO: we can it to configure it for sp1 as well
+    let mut adapter: AdapterState<DemoProof, ZKVM, RiscZeroProof> = AdapterState::new(
         &String::from("adapter_store"),
         AdapterConfig {
             app_id: AppId(100),

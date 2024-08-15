@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use crate::utils::hasher::{Digest as RiscZeroDigestTrait, Sha256};
 #[cfg(any(feature = "native"))]
 pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
@@ -10,10 +11,7 @@ pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives:
 use jmt::proof::{SparseMerkleLeafNode, SparseMerkleNode, SparseMerkleProof, UpdateMerkleProof};
 use jmt::storage::TreeUpdateBatch;
 use parity_scale_codec::{Decode, Encode};
-use risc0_zkvm::sha::rust_crypto::{Digest as RiscZeroDigestTrait, Sha256};
-use risc0_zkvm::sha::Digest as RiscZeroDigest;
-#[cfg(any(feature = "native"))]
-use risc0_zkvm::InnerReceipt;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use serde_json::{from_slice, to_vec, Error};
@@ -25,6 +23,9 @@ use sparse_merkle_tree::traits::{Hasher, Value};
 use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
 pub use crate::state::types::{AccountState, ShaHasher, StatementDigest};
+#[cfg(any(feature = "native"))]
+use crate::zkvm::traits::ZKVMProof;
+use core::fmt::Debug as DebugTrait;
 pub use sparse_merkle_tree::H256;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
@@ -84,7 +85,7 @@ pub struct SubmitProof {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
-pub struct Proof(Vec<u8>);
+pub struct Proof(pub Vec<u8>);
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct InitAccount {

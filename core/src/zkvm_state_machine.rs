@@ -2,21 +2,15 @@ use std::collections::HashMap;
 
 use crate::state::types::AccountState;
 use crate::stf::StateTransitionFunction;
-use crate::types::{
-    AvailHeader, HeaderStore, NexusHeader, ShaHasher, StateUpdate, TransactionZKVM, H256,
-};
-use anyhow::anyhow;
-use jmt::proof::{SparseMerkleLeafNode, SparseMerkleProof, UpdateMerkleProof};
+use crate::types::{AvailHeader, HeaderStore, NexusHeader, StateUpdate, TransactionZKVM, H256};
+use crate::zkvm::traits::ZKVMEnv;
 use jmt::{KeyHash, RootHash};
-use risc0_zkvm::sha::rust_crypto::Sha256;
-use serde_json::to_vec;
-use sparse_merkle_tree::traits::Value;
 
-pub struct ZKVMStateMachine {
-    stf: StateTransitionFunction,
+pub struct ZKVMStateMachine<Z: ZKVMEnv> {
+    stf: StateTransitionFunction<Z>,
 }
 
-impl ZKVMStateMachine {
+impl<Z: ZKVMEnv> ZKVMStateMachine<Z> {
     pub fn new() -> Self {
         Self {
             stf: StateTransitionFunction::new(),

@@ -1,4 +1,4 @@
-use crate::traits::Proof;
+use crate::traits::RollupProof;
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
 use nexus_core::types::{AppId, AvailHeader, NexusHeader, StatementDigest, H256};
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub struct RollupPublicInputs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RollupProof<P: Proof> {
+pub struct RollupProofWithPublicInputs<P: RollupProof> {
     pub proof: P,
     pub public_inputs: RollupPublicInputs,
 }

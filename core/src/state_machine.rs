@@ -1,35 +1,36 @@
 use std::collections::HashMap;
 
-use crate::db::NodeDB;
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
 use crate::types::{
-    AccountState, AppAccountId, AppId, AvailHeader, HeaderStore, StateUpdate, SubmitProof,
-    TransactionV2, TransactionZKVM, TxParamsV2, H256,
+    AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, TransactionV2,
+    TransactionZKVM, TxParamsV2, H256,
 };
-use anyhow::Error;
-use avail_subxt::config::Header as HeaderTrait;
+use crate::zkvm::traits::{ZKVMEnv, ZKVMProof};
+use anyhow::{anyhow, Error};
 use jmt::storage::{NodeBatch, TreeUpdateBatch};
-use jmt::{KeyHash, Version};
-use parity_scale_codec::{Decode, Encode};
-use risc0_zkvm::{Journal, Receipt};
+use jmt::Version;
 use serde::Serialize;
-use sparse_merkle_tree::traits::Value;
+use std::fmt::Debug as DebugTrait;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub struct StateMachine {
-    stf: StateTransitionFunction,
+pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
+    stf: StateTransitionFunction<Z>,
     state: Arc<Mutex<VmState>>,
+    p: PhantomData<P>, //db: NodeDB,
 }
 
-impl StateMachine {
+impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
     pub fn new(state: Arc<Mutex<VmState>>) -> Self {
         // let chain_state_path = format!("{}/chain_state", path);
         // let state = VmState::new(root, &chain_state_path);
 
         StateMachine {
             stf: StateTransitionFunction::new(),
+            //      db: node_db,
+            p: PhantomData,
             state,
         }
     }
@@ -76,7 +77,7 @@ impl StateMachine {
 
                 let account_state = match state_lock.get(&app_account_id.as_h256(), 0) {
                     Ok(Some(account)) => account,
-                    Err(e) => return Err(anyhow::anyhow!(e)), // Exit and return the error
+                    Err(e) => return Err(anyhow!("{:?}", e)), // Exit and return the error
                     Ok(None) => AccountState::zero(),
                 };
 
