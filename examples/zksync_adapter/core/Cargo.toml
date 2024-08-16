@@ -11,8 +11,14 @@ anyhow = "1.0.81"
 nexus-core = { path = "../../../core", default-features = false }
 serde = "1.0.197"
 zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
+hex = "0.4.3"
+ethers-core = "2.0.14"
 
 [features]
 default = ["native"]
 zkvm = ["nexus-core/zkvm-risc0"]
 native = ["nexus-core/native-risc0"]
+
+[[example]]
+name = "sample"
+path = "src/sample.rs"

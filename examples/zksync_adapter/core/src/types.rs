@@ -1,9 +1,52 @@
-use nexus_core::types::H256;
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
     ethabi::ethereum_types::Bloom as H2048, protocol_version::ProtocolVersionId, Address, H160,
-    U256,
+    U256, ethabi::Bytes, web3::keccak256, H256
 };
+use crate::constants::MAX_NUMBER_OF_BLOBS;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LogProcessingOutput {
+    pub number_of_layer1_txs: U256,
+    pub chained_priority_txs_hash: Bytes,
+    pub previous_batch_hash: H256,
+    pub pubdata_hash: H256,
+    pub state_diff_hash: H256,
+    pub l2_logs_tree_root: H256,
+    pub packed_batch_and_l2_block_timestamp: U256,
+    pub blob_hashes: [H256; MAX_NUMBER_OF_BLOBS as usize]
+}
+
+pub type H256Vec = [H256; MAX_NUMBER_OF_BLOBS as usize];
+
+impl LogProcessingOutput {
+    pub fn new() -> LogProcessingOutput {
+        Self {
+            number_of_layer1_txs: U256::zero(),
+            chained_priority_txs_hash: vec![],
+            previous_batch_hash: H256::zero(),
+            pubdata_hash: H256::zero(),
+            state_diff_hash: H256::zero(),
+            l2_logs_tree_root: H256::zero(),
+            packed_batch_and_l2_block_timestamp: U256::zero(),
+            blob_hashes: [H256::zero(); MAX_NUMBER_OF_BLOBS as usize],
+        }
+    }
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+
+pub struct CommitBatchInfo {
+    pub batch_number: u64,
+    pub timestamp: u64,
+    pub index_repeated_storage_changes: u64,
+    pub new_state_root: H256,
+    pub number_of_layer1_txs: U256,
+    pub priority_operations_hash: H256,
+    pub bootloader_heap_initial_contents_hash: H256,
+    pub events_queue_state_hash: H256,
+    pub system_logs: Bytes,
+    pub pubdata_commitments: Bytes,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct L1BatchWithMetadata {
@@ -38,6 +81,49 @@ pub struct L1BatchHeader {
     /// Version of protocol used for the L1 batch.
     pub protocol_version: Option<ProtocolVersionId>,
     pub pubdata_input: Option<Vec<u8>>,
+}
+
+impl L1BatchHeader {
+    pub fn new(
+        number: L1BatchNumber,
+        timestamp: u64,
+        base_system_contracts_hashes: BaseSystemContractsHashes,
+        protocol_version: ProtocolVersionId,
+    ) -> L1BatchHeader {
+        Self {
+            number,
+            timestamp,
+            l1_tx_count: 0,
+            l2_tx_count: 0,
+            priority_ops_onchain_data: vec![],
+            l2_to_l1_logs: vec![],
+            l2_to_l1_messages: vec![],
+            bloom: H2048::default(),
+            used_contract_hashes: vec![],
+            base_system_contracts_hashes,
+            system_logs: vec![],
+            protocol_version: Some(protocol_version),
+            pubdata_input: Some(vec![]),
+        }
+    }
+
+    /// Creates a hash of the priority ops data.
+    pub fn priority_ops_onchain_data_hash(&self) -> H256 {
+        let mut rolling_hash: H256 = keccak256(&[]).into();
+        for onchain_data in &self.priority_ops_onchain_data {
+            let mut preimage = Vec::new();
+            preimage.extend(rolling_hash.as_bytes());
+            preimage.extend(onchain_data.onchain_data_hash.as_bytes());
+
+            rolling_hash = keccak256(&preimage).into();
+        }
+
+        rolling_hash
+    }
+
+    pub fn tx_count(&self) -> usize {
+        (self.l1_tx_count + self.l2_tx_count) as usize
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
