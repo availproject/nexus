@@ -16,16 +16,18 @@ pub use zksync_types::{
     ethabi::encode,
 };
 use zksync_types::{hasher::{keccak, Hasher}, log, web3::Bytes, U256, U64};
-
+pub use crate::types::L1BatchWithMetadata;
 pub mod constants;
 pub mod types;
 pub mod utils;
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct MockProof(pub ());
 
-pub struct STF();
+pub struct STF {
+    img_id: [u32; 8],
+}
 
-//Add generics for risczero types, so SP1 could be used as well.
+//TODO: Add generics for risczero types, so SP1 could be used as well.
 impl STF {
     // TODO: do we need to implement all constraints checks as well ?
     fn process_l2_logs(
@@ -117,7 +119,11 @@ impl STF {
     }
 
     fn batch_pass_through_data(&self, batch: CommitBatchInfo) -> Bytes {
-        encode(&[Token::Uint(batch.index_repeated_storage_changes), Token::FixedBytes(batch.new_state_root), Token::Uint(U64::zero()), Token::FixedBytes(H256::zero())])
+        encode(&[Token::Uint(batch.index_repeated_storage_changes), Token::FixedBytes(batch.new_state_root), Token::Uint(U64::zero()), Token::FixedBytes(H256::zero())])  
+    }
+
+    pub fn new(img_id: [u32; 8]) -> Self {
+        Self { img_id }
     }
 
     pub fn verify_continuity_and_proof(
@@ -142,7 +148,20 @@ impl STF {
     }
 
     #[cfg(any(feature = "native"))]
-    pub fn create_recursive_proof() -> Result<(RiscZeroProof, AdapterPublicInputs), anyhow::Error> {
+    pub fn create_recursive_proof(
+        &self,
+        //previous_adapter_pi: AdapterPublicInputs,
+        prev_adapter_proof: RiscZeroProof,
+        new_rollup_proof: MockProof,
+        new_rollup_pi: L1BatchWithMetadata,
+    ) -> Result<RiscZeroProof, anyhow::Error> {
+        use nexus_core::zkvm::traits::ZKVMProof;
+        let prev_adapter_pi: AdapterPublicInputs = prev_adapter_proof.public_inputs()?;
+        //prev_adapter_proof.verify(self.img_id);
+        let check =
+            Self::verify_continuity_and_proof(prev_adapter_pi, new_rollup_proof, new_rollup_pi)?;
+
+        //Run elf and generate proof.
         unimplemented!()
     }
 }
