@@ -1,12 +1,13 @@
 use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
-use anyhow::{Context, Error};
-use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
+use anyhow::{anyhow, Context, Error};
 use nexus_core::db::NodeDB;
 use nexus_core::state::sparse_merkle_tree::traits::Value;
 use nexus_core::types::{
     AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2,
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
+use nexus_core::zkvm::risczero::RiscZeroProof;
+use proof_api::ProofAPIResponse;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
@@ -17,6 +18,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use web3::transports::Http;
 use web3::types::BlockId;
 use web3::Web3;
+use zksync_core::{L1BatchWithMetadata, MockProof, STF};
+use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
 mod proof_api;
 // Your NodeDB struct and methods implementation here
@@ -34,16 +37,16 @@ async fn main() -> Result<(), Error> {
 
     if args.len() <= 2 {
         if args.len() == 2 && args[1] == "--dev" {
-            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev]");
             return Ok(());
         }
 
         if args.len() < 2 {
-            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev]");
             return Ok(());
         }
     }
-    let ethereum_node_url = &args[1];
+    let zksync_proof_api_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
@@ -63,8 +66,8 @@ async fn main() -> Result<(), Error> {
         // Initialize with default values if no data found in the database
         let adapter_config = AdapterConfig {
             app_id: AppId(100),
-            elf: ADAPTER_ELF.to_vec(),
-            adapter_elf_id: StatementDigest(ADAPTER_ID),
+            elf: ZKSYNC_ADAPTER_ELF.to_vec(),
+            adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
             vk: [0u8; 32],
             rollup_start_height: 606460,
         };
@@ -77,23 +80,13 @@ async fn main() -> Result<(), Error> {
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash = None;
+    let stf = STF::new(ZKSYNC_ADAPTER_ID);
 
-    let web3 = Web3::new(Http::new(ethereum_node_url).unwrap());
+    let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);
     loop {
-        match web3
-            .eth()
-            .block(BlockId::Number(web3::types::BlockNumber::Latest))
-            .await
-        {
-            Ok(Some(header)) => {
-                let current_height = header.number.unwrap().as_u32();
-                let range = match nexus_api.get_range().await {
-                    Ok(i) => i,
-                    Err(e) => {
-                        println!("{:?}", e);
-                        continue;
-                    }
-                };
+        match proof_api.get_proof_for_l1_batch(last_height + 1) {
+            Ok(ProofAPIResponse::Found((batch_metadata, proof))) => {
+                let current_height = batch_metadata.header.number.0;
 
                 let app_account_id =
                     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
@@ -106,27 +99,24 @@ async fn main() -> Result<(), Error> {
                             continue;
                         }
                     };
+                let height_on_nexus = account_with_proof.account.height;
 
-                last_height = account_with_proof.account.height;
-
-                if range.is_empty() {
-                    println!("Nexus does not have a valid range, retrying.");
-
-                    continue;
-                }
+                //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
+                //last_height = account_with_proof.account.height;
 
                 if account_with_proof.account == AccountState::zero() {
                     let tx = TransactionV2 {
                         signature: TxSignature([0u8; 64]),
                         params: TxParamsV2::InitAccount(InitAccount {
                             app_id: app_account_id.clone(),
-                            statement: StatementDigest(ADAPTER_ID),
-                            start_nexus_hash: range[0],
+                            statement: StatementDigest(ZKSYNC_ADAPTER_ID),
+                            start_nexus_hash: account_with_proof.nexus_header.hash(),
                         }),
                     };
+
                     match nexus_api.send_tx(tx).await {
                         Ok(i) => {
-                            start_nexus_hash = Some(range[0]);
+                            start_nexus_hash = Some(account_with_proof.nexus_header.hash());
                             println!(
                                 "Initiated account on nexus. AppAccountId: {:?} Response: {:?}",
                                 &app_account_id, i,
@@ -139,71 +129,44 @@ async fn main() -> Result<(), Error> {
                         }
                     }
                 }
-                //else {
-                //     let timestamp = SystemTime::now()
-                //         .duration_since(UNIX_EPOCH)
-                //         .expect("Time went backwards")
-                //         .as_secs() as u32;
-                //     let app_id = AppAccountId::from(AppId(timestamp));
 
-                //     let tx = TransactionV2 {
-                //         signature: TxSignature([0u8; 64]),
-                //         params: TxParamsV2::InitAccount(InitAccount {
-                //             app_id: app_id.clone(),
-                //             statement: StatementDigest(ADAPTER_ID),
-                //             start_nexus_hash: range[0],
-                //         }),
-                //     };
-                //     match nexus_api.send_tx(tx).await {
-                //         Ok(i) => {
-                //             println!(
-                //                 "Initiated account on nexus. AppAccountId: {:?} Response: {:?}",
-                //                 &app_id, i,
-                //             )
-                //         }
-                //         Err(e) => {
-                //             println!("Error when iniating account: {:?}", e);
+                let prev_proof_with_pi: RiscZeroProof = match db.get(&last_height.to_be_bytes())? {
+                    Some(i) => i,
+                    None => {
+                        return Err(anyhow!("previous proof and metadata not found for last height as per adapter state"))
+                    }
+                };
 
-                //             continue;
-                //         }
-                //     }
-                //     println!("Account is already initiated.");
-                // }
+                let recursive_proof =
+                    stf.create_recursive_proof(prev_proof_with_pi, proof, batch_metadata.clone())?;
 
-                let height: u32 = header.number.unwrap().as_u32();
+                if current_height > height_on_nexus {
+                    let range = match nexus_api.get_range().await {
+                        Ok(i) => i,
+                        Err(e) => {
+                            println!("{:?}", e);
+                            continue;
+                        }
+                    };
 
-                if current_height > last_height {
+                    if range.is_empty() {
+                        println!("Nexus does not have a valid range, retrying.");
+
+                        continue;
+                    }
+
                     let public_inputs = RollupPublicInputsV2 {
                         nexus_hash: range[0],
-                        state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
+                        state_root: H256::from(
+                            batch_metadata.metadata.root_hash.as_fixed_slice().clone(),
+                        ),
                         //TODO: remove unwrap
-                        height,
+                        height: current_height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| {
                             H256::from(account_with_proof.account.start_nexus_hash)
                         }),
                         app_id: app_account_id.clone(),
-                        img_id: StatementDigest(ADAPTER_ID),
-                    };
-
-                    let public_input_vec = match to_vec(&public_inputs) {
-                        Ok(i) => i,
-                        Err(e) => {
-                            return Err(anyhow::anyhow!(
-                                "Could not encode public inputs of rollup."
-                            ))
-                        }
-                    };
-
-                    let mut env_builder = ExecutorEnv::builder();
-                    let env = env_builder.write(&public_inputs).unwrap().build().unwrap();
-                    let prover = default_prover();
-                    let receipt = match prover.prove(env, ADAPTER_ELF) {
-                        Ok(i) => i,
-                        Err(e) => {
-                            println!("Unable to generate proof due to error: {:?}", e);
-
-                            continue;
-                        }
+                        img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
                     };
 
                     let tx = TransactionV2 {
@@ -212,7 +175,7 @@ async fn main() -> Result<(), Error> {
                             app_id: app_account_id.clone(),
                             nexus_hash: range[0],
                             state_root: public_inputs.state_root.clone(),
-                            proof: match Proof::try_from(receipt) {
+                            proof: match recursive_proof.clone().try_into() {
                                 Ok(i) => i,
                                 Err(e) => {
                                     println!("Unable to serialise proof: {:?}", e);
@@ -236,29 +199,40 @@ async fn main() -> Result<(), Error> {
                             continue;
                         }
                     }
-
-                    last_height = current_height;
                 } else {
                     println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, last_height);
                 }
+
+                // Persist adapter state data to the database
+                db.put(&current_height.to_be_bytes(), &recursive_proof)?;
+                db.put(
+                    b"adapter_state_data",
+                    &AdapterStateData {
+                        last_height: last_height + 1,
+                        adapter_config: adapter_state_data.adapter_config.clone(),
+                    },
+                )?;
+
+                last_height = current_height;
+
+                if last_height < height_on_nexus {
+                    //No need to wait, can continue loop, as still need to catch up with latest height.
+                    continue;
+                }
             }
-            Ok(None) => {
-                println!("Got no header.")
+            Ok(ProofAPIResponse::Pending) => {
+                println!("Got no header, sleeping for 10 seconds to try fetching");
             }
-            Err(err) => {
-                println!("Error fetching latest header: {:?}", err);
+            Ok(ProofAPIResponse::Pruned) => {
+                println!("Error fetching proof - Already pruned. Need to fetch from indexer");
+
+                return Err(anyhow!("Error fetching proof - Already pruned. Need to fetch from indexer which is not implemented, exiting"));
+            }
+            Err(e) => {
+                println!("Err while fetching proof {:?}", e);
             }
         }
 
-        println!("Sleeping for 10 seconds");
         tokio::time::sleep(Duration::from_secs(10)).await;
-        // Persist adapter state data to the database
-        db.put(
-            b"adapter_state_data",
-            &AdapterStateData {
-                last_height,
-                adapter_config: adapter_state_data.adapter_config.clone(),
-            },
-        )?;
     }
 }
