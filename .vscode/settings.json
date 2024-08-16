@@ -10,6 +10,10 @@
     "./examples/mock_geth_adapter/host/Cargo.toml",
     "./examples/mock_geth_adapter/methods/Cargo.toml",
     "./examples/mock_geth_adapter/core/Cargo.toml",
-    "./smt_playground"
+    "./smt_playground/Cargo.toml",
+    "./examples/zksync_adapter/host/Cargo.toml",
+    // "./examples/zksync_adapter/methods/guest/Cargo.toml",
+    "./examples/zksync_adapter/methods/Cargo.toml",
+    "./examples/zksync_adapter/core/Cargo.toml",
   ]
 }
