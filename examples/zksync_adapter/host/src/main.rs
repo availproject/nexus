@@ -15,9 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::env::args;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
-use web3::transports::Http;
-use web3::types::BlockId;
-use web3::Web3;
 use zksync_core::{L1BatchWithMetadata, MockProof, STF};
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
@@ -79,12 +76,12 @@ async fn main() -> Result<(), Error> {
 
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
-    let mut start_nexus_hash = None;
+    let mut start_nexus_hash: Option<H256> = None;
     let stf = STF::new(ZKSYNC_ADAPTER_ID);
 
     let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);
     loop {
-        match proof_api.get_proof_for_l1_batch(last_height + 1) {
+        match proof_api.get_proof_for_l1_batch(last_height + 1).await {
             Ok(ProofAPIResponse::Found((batch_metadata, proof))) => {
                 let current_height = batch_metadata.header.number.0;
 
