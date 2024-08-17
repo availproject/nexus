@@ -1,4 +1,5 @@
-use zksync_basic_types::{Address, H256, U128, U256};
+use zksync_basic_types::{Address, U128, U256};
+use nexus_core::types::H256;
 
 pub fn read_address(bytes: &[u8], start: usize) -> (Address, U256) {
     let mut address = [0u8; 20];

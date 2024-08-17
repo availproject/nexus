@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
     ethabi::ethereum_types::Bloom as H2048, protocol_version::ProtocolVersionId, Address, H160,
-    U256, ethabi::Bytes, web3::keccak256, H256
+    U256, ethabi::Bytes, web3::keccak256
 };
+use nexus_core::types::H256;
 use crate::constants::MAX_NUMBER_OF_BLOBS;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -112,8 +113,8 @@ impl L1BatchHeader {
         let mut rolling_hash: H256 = keccak256(&[]).into();
         for onchain_data in &self.priority_ops_onchain_data {
             let mut preimage = Vec::new();
-            preimage.extend(rolling_hash.as_bytes());
-            preimage.extend(onchain_data.onchain_data_hash.as_bytes());
+            preimage.extend(rolling_hash.as_fixed_slice());
+            preimage.extend(onchain_data.onchain_data_hash.as_fixed_slice());
 
             rolling_hash = keccak256(&preimage).into();
         }
