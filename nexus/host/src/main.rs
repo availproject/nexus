@@ -195,14 +195,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn execute_batch<
     Z: ZKVMProver<P>,
-    P: ZKVMProof + Serialize + Clone + DebugTrait,
+    P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
     E: ZKVMEnv,
 >(
     txs: &Vec<TransactionV2>,
     state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
-) -> Result<(P, NexusHeader), Error> {
+) -> Result<(P, NexusHeader), Error>
+where
+    <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
+{
     let state_update = state_machine
         .execute_batch(&header, header_store, &txs, 0)
         .await?;

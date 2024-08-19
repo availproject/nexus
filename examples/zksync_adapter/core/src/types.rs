@@ -1,10 +1,11 @@
+use crate::constants::MAX_NUMBER_OF_BLOBS;
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
-    ethabi::ethereum_types::Bloom as H2048, protocol_version::ProtocolVersionId, Address, H160,
-    U256, ethabi::Bytes, web3::keccak256
+    ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, protocol_version::ProtocolVersionId,
+    web3::keccak256, Address, H160, H256, U256,
 };
-use nexus_core::types::H256;
-use crate::constants::MAX_NUMBER_OF_BLOBS;
+#[cfg(any(feature = "native"))]
+use zksync_types::commitment::SerializeCommitment;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogProcessingOutput {
@@ -15,7 +16,7 @@ pub struct LogProcessingOutput {
     pub state_diff_hash: H256,
     pub l2_logs_tree_root: H256,
     pub packed_batch_and_l2_block_timestamp: U256,
-    pub blob_hashes: [H256; MAX_NUMBER_OF_BLOBS as usize]
+    pub blob_hashes: [H256; MAX_NUMBER_OF_BLOBS as usize],
 }
 
 pub type H256Vec = [H256; MAX_NUMBER_OF_BLOBS as usize];
@@ -113,8 +114,8 @@ impl L1BatchHeader {
         let mut rolling_hash: H256 = keccak256(&[]).into();
         for onchain_data in &self.priority_ops_onchain_data {
             let mut preimage = Vec::new();
-            preimage.extend(rolling_hash.as_fixed_slice());
-            preimage.extend(onchain_data.onchain_data_hash.as_fixed_slice());
+            preimage.extend(rolling_hash.as_fixed_bytes());
+            preimage.extend(onchain_data.onchain_data_hash.as_fixed_bytes());
 
             rolling_hash = keccak256(&preimage).into();
         }
@@ -196,54 +197,34 @@ pub struct BaseSystemContractsHashes {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq)]
 pub struct SystemL2ToL1Log(pub L2ToL1Log);
 
-// #[derive(
-//     Debug,
-//     Clone,
-//     Copy,
-//     PartialEq,
-//     Eq,
-//     PartialOrd,
-//     Ord,
-//     Hash,
-//     TryFromPrimitive,
-//     Serialize,
-//     Deserialize,
-// )]
-// pub enum ProtocolVersionId {
-//     Version0 = 0,
-//     Version1,
-//     Version2,
-//     Version3,
-//     Version4,
-//     Version5,
-//     Version6,
-//     Version7,
-//     Version8,
-//     Version9,
-//     Version10,
-//     Version11,
-//     Version12,
-//     Version13,
-//     Version14,
-//     Version15,
-//     Version16,
-//     Version17,
-//     Version18,
-//     Version19,
-//     Version20,
-//     Version21,
-//     Version22,
-//     // Version `23` is only present on the internal staging networks.
-//     // All the user-facing environments were switched from 22 to 24 right away.
-//     Version23,
-//     Version24,
-//     Version25,
-// }
+#[cfg(any(feature = "native"))]
+impl SerializeCommitment for L2ToL1Log {
+    const SERIALIZED_SIZE: usize = 88;
 
-// pub type Address = H160;
+    fn serialize_commitment(&self, buffer: &mut [u8]) {
+        buffer[0] = self.shard_id;
+        buffer[1] = self.is_service as u8;
+        buffer[2..4].copy_from_slice(&self.tx_number_in_block.to_be_bytes());
+        buffer[4..24].copy_from_slice(self.sender.as_bytes());
+        buffer[24..56].copy_from_slice(self.key.as_bytes());
+        buffer[56..88].copy_from_slice(self.value.as_bytes());
+    }
+}
 
-// const BLOOM_SIZE: usize = 256;
-// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Eq)]
-// pub struct Bloom(pub [u8; BLOOM_SIZE]);
+#[cfg(any(feature = "native"))]
+impl SerializeCommitment for UserL2ToL1Log {
+    const SERIALIZED_SIZE: usize = L2ToL1Log::SERIALIZED_SIZE;
 
-// pub type H2048 = Bloom;
+    fn serialize_commitment(&self, buffer: &mut [u8]) {
+        self.0.serialize_commitment(buffer);
+    }
+}
+
+#[cfg(any(feature = "native"))]
+impl SerializeCommitment for SystemL2ToL1Log {
+    const SERIALIZED_SIZE: usize = L2ToL1Log::SERIALIZED_SIZE;
+
+    fn serialize_commitment(&self, buffer: &mut [u8]) {
+        self.0.serialize_commitment(buffer);
+    }
+}

@@ -77,10 +77,12 @@ async fn main() -> Result<(), Error> {
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash: Option<H256> = None;
-    let stf = STF::new(ZKSYNC_ADAPTER_ID);
+    let stf = STF::new(ZKSYNC_ADAPTER_ID, ZKSYNC_ADAPTER_ELF.to_vec());
 
     let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);
     loop {
+        println!("Processing L1 batch number: {}", last_height + 1);
+
         match proof_api.get_proof_for_l1_batch(last_height + 1).await {
             Ok(ProofAPIResponse::Found((batch_metadata, proof))) => {
                 let current_height = batch_metadata.header.number.0;
@@ -127,35 +129,53 @@ async fn main() -> Result<(), Error> {
                     }
                 }
 
-                let prev_proof_with_pi: RiscZeroProof = match db.get(&last_height.to_be_bytes())? {
-                    Some(i) => i,
+                let (prev_proof_with_pi, init_account): (
+                    Option<RiscZeroProof>,
+                    Option<InitAccount>,
+                ) = if last_height == 0 {
+                    (
+                        None,
+                        Some(InitAccount {
+                            app_id: app_account_id.clone(),
+                            statement: StatementDigest(ZKSYNC_ADAPTER_ID),
+                            start_nexus_hash: account_with_proof.nexus_header.hash(),
+                        }),
+                    )
+                } else {
+                    match db.get(&last_height.to_be_bytes())? {
+                    Some(i) => (Some(i), None),
                     None => {
                         return Err(anyhow!("previous proof and metadata not found for last height as per adapter state"))
                     }
+                }
                 };
-
-                let recursive_proof =
-                    stf.create_recursive_proof(prev_proof_with_pi, proof, batch_metadata.clone())?;
-
-                if current_height > height_on_nexus {
-                    let range = match nexus_api.get_range().await {
-                        Ok(i) => i,
-                        Err(e) => {
-                            println!("{:?}", e);
-                            continue;
-                        }
-                    };
-
-                    if range.is_empty() {
-                        println!("Nexus does not have a valid range, retrying.");
-
+                let range = match nexus_api.get_range().await {
+                    Ok(i) => i,
+                    Err(e) => {
+                        println!("{:?}", e);
                         continue;
                     }
+                };
 
+                if range.is_empty() {
+                    println!("Nexus does not have a valid range, retrying.");
+
+                    continue;
+                }
+
+                let recursive_proof = stf.create_recursive_proof(
+                    prev_proof_with_pi,
+                    init_account,
+                    proof,
+                    batch_metadata.clone(),
+                    range[0],
+                )?;
+
+                if current_height > height_on_nexus {
                     let public_inputs = RollupPublicInputsV2 {
                         nexus_hash: range[0],
                         state_root: H256::from(
-                            batch_metadata.metadata.root_hash.as_fixed_slice().clone(),
+                            batch_metadata.metadata.root_hash.as_fixed_bytes().clone(),
                         ),
                         //TODO: remove unwrap
                         height: current_height,
