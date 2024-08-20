@@ -19,7 +19,3 @@ ethers-core = "2.0.14"
 default = ["native"]
 zkvm = ["nexus-core/zkvm-risc0"]
 native = ["nexus-core/native-risc0", "zksync_types"]
-
-[[example]]
-name = "sample"
-path = "src/sample.rs"
