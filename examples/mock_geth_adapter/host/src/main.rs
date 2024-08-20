@@ -7,6 +7,7 @@ use nexus_core::types::{
     AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2,
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
+use nexus_core::zkvm::risczero::RiscZeroProof;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
@@ -196,7 +197,7 @@ async fn main() -> Result<(), Error> {
                     let mut env_builder = ExecutorEnv::builder();
                     let env = env_builder.write(&public_inputs).unwrap().build().unwrap();
                     let prover = default_prover();
-                    let receipt = match prover.prove(env, ADAPTER_ELF) {
+                    let prove_info = match prover.prove(env, ADAPTER_ELF) {
                         Ok(i) => i,
                         Err(e) => {
                             println!("Unable to generate proof due to error: {:?}", e);
@@ -205,13 +206,15 @@ async fn main() -> Result<(), Error> {
                         }
                     };
 
+                    let recursive_proof = RiscZeroProof(prove_info.receipt);
+
                     let tx = TransactionV2 {
                         signature: TxSignature([0u8; 64]),
                         params: TxParamsV2::SubmitProof(SubmitProof {
                             app_id: app_account_id.clone(),
                             nexus_hash: range[0],
                             state_root: public_inputs.state_root.clone(),
-                            proof: match Proof::try_from(receipt) {
+                            proof: match recursive_proof.clone().try_into() {
                                 Ok(i) => i,
                                 Err(e) => {
                                     println!("Unable to serialise proof: {:?}", e);
