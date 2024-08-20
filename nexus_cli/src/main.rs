@@ -14,23 +14,31 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Deletes the **/db/ in the specified directory
-    Clean {
-        #[command(subcommand)]
-        clean_cmd: Option<CleanCommands>,
-    },
-
     /// Runs nexus/host
-    Nexus,
+    Nexus {
+        /// Runs the command in development mode
+        #[arg(long)]
+        dev: bool,
+    },
 
     /// Runs example/zksync_adapter/host with an optional API URL
     Zksync {
         /// Optional URL for zksync_proof_api
         #[arg(long, default_value_t = String::from("http://127.0.0.1:3030"))]
         url: String,
+
+        /// Runs the command in development mode
+        #[arg(long)]
+        dev: bool,
     },
 
-    /// Sets default environment if any
+    /// Cleans the database(s)
+    Clean {
+        #[command(subcommand)]
+        clean_cmd: Option<CleanCommands>,
+    },
+
+    /// Initializes the environment
     Init {
         /// Optional environment name
         #[arg(short, long)]
@@ -85,8 +93,8 @@ fn main() {
                 }
             }
         }
-        Commands::Nexus => run_nexus(&nexus_dir),
-        Commands::Zksync { url } => run_zksync(&url, &zksync_dir),
+        Commands::Zksync { url, dev } => run_zksync(&url, &zksync_dir, dev),
+        Commands::Nexus { dev } => run_nexus(&nexus_dir, dev),
         Commands::Init { env } => init_env(env),
     }
 }
@@ -111,17 +119,21 @@ fn clean_db(dir: &std::path::Path) -> Result<(), std::io::Error> {
     }
 }
 
-fn run_zksync(api_url: &str, zksync_dir: &Path) {
+fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool) {
     println!("Running zksync commands with API URL: {}", api_url);
 
-    // Run the zksync process with the provided URL
-    let status_zksync = Cmd::new("cargo")
+    let mut command = Cmd::new("cargo");
+    command
         .arg("run")
         .arg("--")
-        .arg(api_url) // Pass the URL as an argument
-        .current_dir(zksync_dir)
-        .status()
-        .expect("Failed to execute zksync run");
+        .arg(api_url)
+        .current_dir(zksync_dir);
+
+    if dev {
+        command.env("RISC0_DEV_MODE", "true");
+    }
+
+    let status_zksync = command.status().expect("Failed to execute zksync run");
 
     if !status_zksync.success() {
         eprintln!("Failed to run zksync at {:?}", zksync_dir);
@@ -129,14 +141,17 @@ fn run_zksync(api_url: &str, zksync_dir: &Path) {
     }
 }
 
-fn run_nexus(nexus_dir: &Path) {
+fn run_nexus(nexus_dir: &Path, dev: bool) {
     println!("Running nexus at {:?}", nexus_dir);
 
-    let status = Cmd::new("cargo")
-        .arg("run")
-        .current_dir(nexus_dir)
-        .status()
-        .expect("Failed to execute `cargo run`");
+    let mut command = Cmd::new("cargo");
+    command.arg("run").current_dir(nexus_dir);
+
+    if dev {
+        command.env("RISC0_DEV_MODE", "true");
+    }
+
+    let status = command.status().expect("Failed to execute `cargo run`");
 
     if !status.success() {
         eprintln!("`cargo run` failed with exit status: {}", status);
