@@ -1,0 +1,21 @@
+[package]
+name = "zksync-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+adapter_sdk = { path = "../../../adapter_sdk", default-features = false, features = ["zkvm"] }
+anyhow = "1.0.81"
+nexus-core = { path = "../../../core", default-features = false }
+serde = "1.0.197"
+zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
+zksync_types = { git = "https://github.com/vibhurajeev/zksync-era", optional = true }
+hex = "0.4.3"
+ethers-core = "2.0.14"
+
+[features]
+default = ["native"]
+zkvm = ["nexus-core/zkvm-risc0"]
+native = ["nexus-core/native-risc0", "zksync_types"]

@@ -11,8 +11,12 @@ members = [
     "examples/mock_geth_adapter/host",
     "examples/mock_geth_adapter/methods",
     "examples/mock_geth_adapter/core",
+    "examples/zksync_adapter/host",
+    "examples/zksync_adapter/methods",
+    "examples/zksync_adapter/core",
     "adapter_sdk",
-    "smt_playground",
+    "smt_playground", 
+    "nexus_cli",
 ]
 
 [patch.crates-io]

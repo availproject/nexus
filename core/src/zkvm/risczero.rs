@@ -56,23 +56,6 @@ impl ZKVMProof for RiscZeroProof {
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
         self.0.verify(img_id).map_err(|e| anyhow!(e))
     }
-
-    fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
-        let receipt: Receipt = value.try_into()?;
-
-        Ok(Self(receipt))
-    }
-    fn try_into(&self) -> Result<Proof, Error> {
-        let encoded_u32: Vec<u32> =
-            to_vec(&self).map_err(|e| anyhow!("Serialization error: {}", e))?;
-
-        // Convert Vec<u32> to Vec<u8>
-        let encoded_u8: Vec<u8> = encoded_u32
-            .into_iter()
-            .flat_map(|x| x.to_ne_bytes().to_vec())
-            .collect();
-        Ok(Proof(encoded_u8))
-    }
 }
 
 #[cfg(any(feature = "native-risc0"))]
@@ -97,7 +80,7 @@ impl TryFrom<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
     fn try_from(value: Proof) -> Result<Self, Self::Error> {
-        let receipt: Receipt = value.try_into()?;
+        let receipt: Receipt = from_slice(&value.0)?;
 
         Ok(Self(receipt))
     }
