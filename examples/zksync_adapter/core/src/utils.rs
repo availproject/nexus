@@ -2,18 +2,6 @@ use zksync_basic_types::{Address, H256, U128, U256};
 #[cfg(any(feature = "native"))]
 pub use zksync_types::commitment::serialize_commitments;
 
-// pub fn pre_boojum_serialize_commitments<I: SerializeCommitment>(values: &[I]) -> Vec<u8> {
-//     let final_len = values.len() * I::SERIALIZED_SIZE + 4;
-//     let mut input = vec![0_u8; final_len];
-//     input[0..4].copy_from_slice(&(values.len() as u32).to_be_bytes());
-
-//     let chunks = input[4..].chunks_mut(I::SERIALIZED_SIZE);
-//     for (value, chunk) in values.iter().zip(chunks) {
-//         value.serialize_commitment(chunk);
-//     }
-//     input
-// }
-
 pub fn read_address(bytes: &[u8], start: usize) -> (Address, U256) {
     let mut address = [0u8; 20];
     address.copy_from_slice(&bytes[start..start + 20]);
