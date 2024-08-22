@@ -21,6 +21,7 @@ use zksync_basic_types::{
 pub mod constants;
 pub mod types;
 pub mod utils;
+pub mod verifier;
 //pub use zksync_types::commitment::L1BatchWithMetadata;
 pub use crate::constants::{
     SystemLogKey, L2_LOG_ADDRESS_OFFSET, L2_LOG_KEY_OFFSET, L2_LOG_VALUE_OFFSET,
@@ -63,8 +64,7 @@ impl STF {
             } else if (log_key == U256::from(SystemLogKey::StateDiffHashKey as u16)) {
                 log_output.state_diff_hash = log_value;
             } else if (log_key
-                == U256::from(SystemLogKey::PackedBatchAndL2BlockTimestampKey as u16))
-            {
+                == U256::from(SystemLogKey::PackedBatchAndL2BlockTimestampKey as u16)) {
                 log_output.packed_batch_and_l2_block_timestamp =
                     U256::from(log_value.as_fixed_bytes());
             } else if (log_key == U256::from(SystemLogKey::PrevBatchHashKey as u16)) {

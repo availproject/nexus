@@ -14205,6 +14205,10 @@ version = "0.1.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff 0.4.2",
+ "ark-poly",
  "ethers-core 2.0.14",
  "hex",
  "nexus-core",

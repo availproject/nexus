@@ -6,6 +6,7 @@ use zksync_basic_types::{
 };
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;
+use ark_bn254::Bn254;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogProcessingOutput {

@@ -14,6 +14,10 @@ zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 zksync_types = { git = "https://github.com/vibhurajeev/zksync-era", optional = true }
 hex = "0.4.3"
 ethers-core = "2.0.14"
+ark-bn254 = "0.4.0"
+ark-ec = "0.4.2"
+ark-ff = "0.4.2"
+ark-poly = "0.4.2"
 
 [features]
 default = ["native"]
