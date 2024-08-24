@@ -21,7 +21,7 @@ use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 mod proof_api;
 // Your NodeDB struct and methods implementation here
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 struct AdapterStateData {
     last_height: u32,
     adapter_config: AdapterConfig,
@@ -78,6 +78,12 @@ async fn main() -> Result<(), Error> {
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash: Option<H256> = None;
     let stf = STF::new(ZKSYNC_ADAPTER_ID, ZKSYNC_ADAPTER_ELF.to_vec());
+
+    println!(
+        "Starting nexus with config: {:?} \n AppAccountId: {:?} \n",
+        &adapter_state_data,
+        AppAccountId::from(adapter_state_data.adapter_config.app_id.clone())
+    );
 
     let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);
     loop {
