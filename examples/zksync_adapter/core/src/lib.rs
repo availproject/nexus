@@ -29,6 +29,7 @@ pub use crate::constants::{
     TOTAL_BLOBS_IN_COMMITMENT,
 };
 pub use crate::types::{CommitBatchInfo, H256Vec, L1BatchWithMetadata, LogProcessingOutput};
+use crate::verifier::ZksyncVerifier;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct MockProof(pub ());
@@ -301,6 +302,10 @@ impl STF {
 
         Ok(proof_public_input)
     }
+
+    // pub fn verify_mock_zksync_proof() {
+    //     let verifier = ZksyncVerifier::new();
+    // }
 
     #[cfg(any(feature = "native"))]
     pub fn create_recursive_proof(

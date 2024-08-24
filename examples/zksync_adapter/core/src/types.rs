@@ -1,4 +1,10 @@
 use crate::constants::MAX_NUMBER_OF_BLOBS;
+use ark_bn254::{g1, g1::Parameters, Bn254, FqParameters, Fr, FrParameters, G1Projective};
+use ark_ec::short_weierstrass_jacobian::GroupAffine;
+use ark_ec::*;
+use ark_ff::{Field, Fp256, Fp256Parameters, One, PrimeField, UniformRand, Zero};
+use ark_poly::univariate::DensePolynomial;
+use ark_poly::{domain, Polynomial};
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
     ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, protocol_version::ProtocolVersionId,
@@ -6,7 +12,9 @@ use zksync_basic_types::{
 };
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;
-use ark_bn254::Bn254;
+
+pub type G1Point = <Bn254 as PairingEngine>::G1Affine;
+pub type G2Point = <Bn254 as PairingEngine>::G2Affine;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogProcessingOutput {
@@ -228,4 +236,119 @@ impl SerializeCommitment for SystemL2ToL1Log {
     fn serialize_commitment(&self, buffer: &mut [u8]) {
         self.0.serialize_commitment(buffer);
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Proof {
+    pub state_poly_0: G1Point,
+    pub state_poly_1: G1Point,
+    pub state_poly_2: G1Point,
+    pub state_poly_3: G1Point,
+
+    pub copy_permutation_grand_product: G1Point,
+
+    pub lookup_s_poly: G1Point,
+    pub lookup_grand_product: G1Point,
+
+    pub quotient_poly_parts_0: G1Point,
+    pub quotient_poly_parts_1: G1Point,
+    pub quotient_poly_parts_2: G1Point,
+    pub quotient_poly_parts_3: G1Point,
+
+    pub state_poly_0_opening_at_z: Fr,
+    pub state_poly_1_opening_at_z: Fr,
+    pub state_poly_2_opening_at_z: Fr,
+    pub state_poly_3_opening_at_z: Fr,
+
+    pub state_poly_3_opening_at_z_omega: Fr,
+    pub gate_selectors_0_opening_at_z: Fr,
+
+    pub copy_permutation_polys_0_opening_at_z: Fr,
+    pub copy_permutation_polys_1_opening_at_z: Fr,
+    pub copy_permutation_polys_2_opening_at_z: Fr,
+
+    pub copy_permutation_grand_product_opening_at_z_omega: Fr,
+    pub lookup_s_poly_opening_at_z_omega: Fr,
+    pub lookup_grand_product_opening_at_z_omega: Fr,
+    pub lookup_t_poly_opening_at_z: Fr,
+    pub lookup_t_poly_opening_at_z_omega: Fr,
+    pub lookup_selector_poly_opening_at_z: Fr,
+    pub lookup_table_type_poly_opening_at_z: Fr,
+    pub quotient_poly_opening_at_z: Fr,
+    pub linearisation_poly_opening_at_z: Fr,
+
+    pub opening_proof_at_z: G1Point,
+    pub opening_proof_at_z_omega: G1Point,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProofWithPubSignal {
+    pub proof: Proof,
+    pub pub_signal: Fr,
+}
+
+#[derive(Debug, Clone)]
+pub struct PartialVerifierState {
+    pub alpha: Fp256<FrParameters>,
+    pub beta: Fp256<FrParameters>,
+    pub gamma: Fp256<FrParameters>,
+    pub power_of_alpha_2: Fp256<FrParameters>,
+    pub power_of_alpha_3: Fp256<FrParameters>,
+    pub power_of_alpha_4: Fp256<FrParameters>,
+    pub power_of_alpha_5: Fp256<FrParameters>,
+    pub power_of_alpha_6: Fp256<FrParameters>,
+    pub power_of_alpha_7: Fp256<FrParameters>,
+    pub power_of_alpha_8: Fp256<FrParameters>,
+    pub eta: Fp256<FrParameters>,
+    pub beta_lookup: Fp256<FrParameters>,
+    pub gamma_lookup: Fp256<FrParameters>,
+    pub beta_plus_one: Fp256<FrParameters>,
+    pub beta_gamma_plus_gamma: Fp256<FrParameters>,
+    pub v: Fp256<FrParameters>,
+    pub u: Fp256<FrParameters>,
+    pub z: Fp256<FrParameters>,
+    pub z_minus_last_omega: Fp256<FrParameters>,
+    pub l_0_at_z: Fp256<FrParameters>,
+    pub l_n_minus_one_at_z: Fp256<FrParameters>,
+    pub z_in_domain_size: Fp256<FrParameters>,
+}
+
+impl PartialVerifierState {
+    pub fn new() -> Self {
+        PartialVerifierState {
+            alpha: Fp256::<FrParameters>::zero(),
+            beta: Fp256::<FrParameters>::zero(),
+            gamma: Fp256::<FrParameters>::zero(),
+            power_of_alpha_2: Fp256::<FrParameters>::zero(),
+            power_of_alpha_3: Fp256::<FrParameters>::zero(),
+            power_of_alpha_4: Fp256::<FrParameters>::zero(),
+            power_of_alpha_5: Fp256::<FrParameters>::zero(),
+            power_of_alpha_6: Fp256::<FrParameters>::zero(),
+            power_of_alpha_7: Fp256::<FrParameters>::zero(),
+            power_of_alpha_8: Fp256::<FrParameters>::zero(),
+            eta: Fp256::<FrParameters>::zero(),
+            beta_lookup: Fp256::<FrParameters>::zero(),
+            gamma_lookup: Fp256::<FrParameters>::zero(),
+            beta_plus_one: Fp256::<FrParameters>::zero(),
+            beta_gamma_plus_gamma: Fp256::<FrParameters>::zero(),
+            v: Fp256::<FrParameters>::zero(),
+            u: Fp256::<FrParameters>::zero(),
+            z: Fp256::<FrParameters>::zero(),
+            z_minus_last_omega: Fp256::<FrParameters>::zero(),
+            l_0_at_z: Fp256::<FrParameters>::zero(),
+            l_n_minus_one_at_z: Fp256::<FrParameters>::zero(),
+            z_in_domain_size: Fp256::<FrParameters>::zero(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VerificationKey {
+    pub gate_setup: Vec<G1Point>,
+    pub gate_selectors: Vec<G1Point>,
+    pub permutation: Vec<G1Point>,
+    pub lookup_table: Vec<G1Point>,
+    pub lookup_selector: G1Point,
+    pub lookup_table_type: G1Point,
+    pub recursive_flag: bool,
 }

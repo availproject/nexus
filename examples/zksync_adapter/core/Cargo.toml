@@ -14,12 +14,18 @@ zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 zksync_types = { git = "https://github.com/vibhurajeev/zksync-era", optional = true }
 hex = "0.4.3"
 ethers-core = "2.0.14"
-ark-bn254 = "0.4.0"
-ark-ec = "0.4.2"
-ark-ff = "0.4.2"
-ark-poly = "0.4.2"
+ark-bn254 = "0.3.0"
+ark-ec = "0.3.0"
+ark-ff = "0.3.0"
+ark-poly = "0.3.0"
+num-bigint = "0.4.4"
+tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
 
 [features]
 default = ["native"]
 zkvm = ["nexus-core/zkvm-risc0"]
 native = ["nexus-core/native-risc0", "zksync_types"]
+
+[[example]]
+name = "sample"
+path = "example/sample.rs"
