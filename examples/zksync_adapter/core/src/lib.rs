@@ -22,6 +22,7 @@ pub mod constants;
 pub mod types;
 pub mod utils;
 pub mod verifier;
+pub mod transcript;
 //pub use zksync_types::commitment::L1BatchWithMetadata;
 pub use crate::constants::{
     SystemLogKey, L2_LOG_ADDRESS_OFFSET, L2_LOG_KEY_OFFSET, L2_LOG_VALUE_OFFSET,
