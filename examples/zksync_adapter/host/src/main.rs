@@ -70,8 +70,8 @@ async fn main() -> Result<(), Error> {
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
     // Create or open the database
-    let db_path = "db";
-    let db = NodeDB::from_path(db_path);
+    let db_path = format!("db/{:?}", app_id);
+    let db = NodeDB::from_path(&db_path);
 
     // If --dev flag is used, purge the database
     if dev_flag {
@@ -102,8 +102,9 @@ async fn main() -> Result<(), Error> {
     let stf = STF::new(ZKSYNC_ADAPTER_ID, ZKSYNC_ADAPTER_ELF.to_vec());
 
     println!(
-        "Starting nexus with AppAccountId: {:?} \n",
-        AppAccountId::from(adapter_state_data.adapter_config.app_id.clone())
+        "Starting nexus with AppAccountId: {:?} \n, AppId: {:?}",
+        AppAccountId::from(adapter_state_data.adapter_config.app_id.clone()),
+        &adapter_state_data.adapter_config.app_id
     );
 
     let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);

@@ -132,7 +132,8 @@ fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool, app_id: u64) {
         .arg("run")
         .arg("--")
         .arg(api_url)
-        .arg(format!("--app_id={}", app_id))
+        .arg("--app_id")
+        .arg(app_id.to_string())
         .current_dir(zksync_dir);
 
     if dev {
