@@ -1,13 +1,13 @@
-use std::marker::PhantomData;
-use std::collections::HashMap;
 use crate::{
     types::{
-        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusHeader, RollupPublicInputsV2,
-        StatementDigest, SubmitProof, TransactionZKVM, TxParamsV2, H256,
+        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusHeader,
+        RollupPublicInputsV2, StatementDigest, SubmitProof, TransactionZKVM, TxParamsV2, H256,
     },
     zkvm::traits::ZKVMEnv,
 };
 use anyhow::{anyhow, Error};
+use std::collections::HashMap;
+use std::marker::PhantomData;
 pub struct StateTransitionFunction<Z: ZKVMEnv> {
     z: PhantomData<Z>,
 }
@@ -126,13 +126,13 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
 
         public_inputs.check_consistency(&pre_state.1.statement)?;
 
-        #[cfg(not(feature = "native"))]
-        {
-            match Z::verify(public_inputs.img_id.0, &public_inputs) {
-                Ok(_) => (),
-                Err(e) => return Err(anyhow!("Invalid proof")),
-            }
-        }
+        // #[cfg(not(feature = "native"))]
+        // {
+        //     match Z::verify(public_inputs.img_id.0, &public_inputs) {
+        //         Ok(_) => (),
+        //         Err(e) => return Err(anyhow!("Invalid proof")),
+        //     }
+        // }
 
         let post_state: AccountState = AccountState {
             statement: pre_state.1.statement.clone(),

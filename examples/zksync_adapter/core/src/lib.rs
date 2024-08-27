@@ -49,7 +49,6 @@ impl STF {
     ) -> Result<LogProcessingOutput, anyhow::Error> {
         let mut log_output = LogProcessingOutput::new();
         let emitted_l2_logs = new_batch.system_logs;
-        println!("Emitted logs length: {}", emitted_l2_logs.len());
 
         for i in (0..emitted_l2_logs.len()).step_by(L2_TO_L1_LOG_SERIALIZE_SIZE) {
             let (log_sender, _) = utils::read_address(&emitted_l2_logs, i + L2_LOG_ADDRESS_OFFSET);
@@ -83,8 +82,6 @@ impl STF {
             // else if(log_key == U256::from(SystemLogKey::ExpectedSystemContractUpgradeTxHashKey)) {}
             // else if(log_key > U256::from(SystemLogKey::ExpectedSystemContractUpgradeTxHashKey)) {}
         }
-
-        println!("Log output: {:?}", log_output);
 
         Ok(log_output)
     }

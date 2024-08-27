@@ -7,6 +7,7 @@ use nexus_core::types::{
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
+use nexus_core::zkvm::traits::ZKVMProof;
 use proof_api::ProofAPIResponse;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
@@ -80,8 +81,7 @@ async fn main() -> Result<(), Error> {
     let stf = STF::new(ZKSYNC_ADAPTER_ID, ZKSYNC_ADAPTER_ELF.to_vec());
 
     println!(
-        "Starting nexus with config: {:?} \n AppAccountId: {:?} \n",
-        &adapter_state_data,
+        "Starting nexus with AppAccountId: {:?} \n",
         AppAccountId::from(adapter_state_data.adapter_config.app_id.clone())
     );
 
@@ -105,6 +105,18 @@ async fn main() -> Result<(), Error> {
                         }
                     };
                 let height_on_nexus = account_with_proof.account.height;
+
+                if adapter_state_data.adapter_config.adapter_elf_id.clone()
+                    != account_with_proof.account.statement.clone()
+                {
+                    if account_with_proof.account != AccountState::zero() {
+                        println!(
+                            "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
+                            &adapter_state_data.adapter_config.adapter_elf_id,
+                            &account_with_proof.account.statement
+                        );
+                    }
+                }
 
                 //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
                 //last_height = account_with_proof.account.height;
@@ -177,6 +189,15 @@ async fn main() -> Result<(), Error> {
                     range[0],
                 )?;
 
+                match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
+                    Ok(()) => {
+                        println!("Proof verification successful");
+
+                        ()
+                    }
+                    Err(e) => return Err(anyhow!("Proof generated is invalid.")),
+                }
+
                 if current_height > height_on_nexus {
                     let public_inputs = RollupPublicInputsV2 {
                         nexus_hash: range[0],
@@ -223,7 +244,7 @@ async fn main() -> Result<(), Error> {
                         }
                     }
                 } else {
-                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, last_height);
+                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, height_on_nexus);
                 }
 
                 // Persist adapter state data to the database
