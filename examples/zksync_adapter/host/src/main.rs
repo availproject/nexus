@@ -30,22 +30,43 @@ struct AdapterStateData {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    // Retrieve Ethereum node URL and --dev flag from command line arguments
+    // Retrieve Ethereum node URL and command-line arguments
     let args: Vec<String> = args().collect();
 
     if args.len() <= 2 {
         if args.len() == 2 && args[1] == "--dev" {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
 
         if args.len() < 2 {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
     }
+
     let zksync_proof_api_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
+
+    // Default app_id
+    let mut app_id = 100;
+
+    // Parse the --app_id argument if provided
+    if let Some(app_id_index) = args.iter().position(|arg| arg == "--app_id") {
+        if let Some(app_id_value) = args.get(app_id_index + 1) {
+            match app_id_value.parse::<u32>() {
+                Ok(id) => app_id = id,
+                Err(_) => {
+                    eprintln!("Invalid app_id value. Please provide a valid number.");
+                    return Ok(());
+                }
+            }
+        } else {
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+            return Ok(());
+        }
+    }
+
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
     // Create or open the database
@@ -63,7 +84,7 @@ async fn main() -> Result<(), Error> {
     } else {
         // Initialize with default values if no data found in the database
         let adapter_config = AdapterConfig {
-            app_id: AppId(100),
+            app_id: AppId(app_id),
             elf: ZKSYNC_ADAPTER_ELF.to_vec(),
             adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
             vk: [0u8; 32],
