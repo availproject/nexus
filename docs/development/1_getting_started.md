@@ -44,5 +44,4 @@ Read more about RISC Zero installation in their guide [here](https://dev.risczer
 nexus_cli nexus --dev
 ```
 
-For ZKSync integration, refer to the [ZKSync Example](1_zksync_example.md) guide.
-```
+For ZKSync integration, refer to the [ZKSync Example](2_zksync_example.md) guide.

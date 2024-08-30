@@ -1,8 +1,3 @@
-Here's the content for the `zksync_example.md`:
-
-### **`docs/zksync_example.md`**
-
-```markdown
 # ZKSync Example with Avail Nexus
 
 This guide will help you set up and run the ZKSync adapter with Avail Nexus.
