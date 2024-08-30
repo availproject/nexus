@@ -10,7 +10,17 @@ This guide will help you set up Avail Nexus and get started with running the Nex
 
 ### 2. Install RISC Zero Toolchain
 
-- Install the RISC Zero toolchain for zero-knowledge proofs by following the guide [here](https://dev.risczero.com/api/zkvm/install).
+- Install the RISC Zero toolchain installer
+```zsh
+curl -L https://risczero.com/install | bash
+```
+- Install the RISC Zero toolchain 
+```zsh 
+rzup
+```
+Running rzup will install the latest version of the RISC Zero toolchain.
+
+Read more about RISC Zero installation in their guide [here](https://dev.risczero.com/api/zkvm/install).
 
 ## Setting Up the Environment
 
@@ -34,5 +44,5 @@ This guide will help you set up Avail Nexus and get started with running the Nex
 nexus_cli nexus --dev
 ```
 
-For ZKSync integration, refer to the [ZKSync Example](zksync_example.md) guide.
+For ZKSync integration, refer to the [ZKSync Example](1_zksync_example.md) guide.
 ```
