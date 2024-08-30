@@ -1,4 +1,5 @@
 use crate::types::{G1Point, G2Point, Proof, ProofWithPubSignal, VerificationKey};
+use ark_bn254::{G2Affine, G2Projective, Fq2, Fq};
 use ark_bn254::{g1, g1::Parameters, Bn254, FqParameters, Fr, FrParameters, G1Projective};
 use ark_ec::short_weierstrass_jacobian::GroupAffine;
 use ark_ec::*;
@@ -769,6 +770,22 @@ pub fn get_verification_key() -> VerificationKey {
         .into_affine(),
         recursive_flag: false,
     }
+}
+
+pub fn get_g2_elements() -> (G2Affine, G2Affine) {
+    let g2_0_x1 = Fq::from_str("0x198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c2").unwrap();
+    let g2_0_x2 = Fq::from_str("0x1800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed").unwrap();
+    let g2_0_y1 = Fq::from_str("0x090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b").unwrap();
+    let g2_0_y2 = Fq::from_str("0x12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa").unwrap();
+    let g2_element_0 = G2Affine::new(Fq2::new(g2_0_x1, g2_0_x2), Fq2::new(g2_0_y1, g2_0_y2), true);
+
+    let g2_1_x1 = Fq::from_str("0x260e01b251f6f1c7e7ff4e580791dee8ea51d87a358e038b4efe30fac09383c1").unwrap();
+    let g2_1_x2 = Fq::from_str("0x0118c4d5b837bcc2bc89b5b398b5974e9f5944073b32078b7e231fec938883b0").unwrap();
+    let g2_1_y1 = Fq::from_str("0x04fc6369f7110fe3d25156c1bb9a72859cf2a04641f99ba4ee413c80da6a5fe4").unwrap();
+    let g2_1_y2 = Fq::from_str("0x22febda3c0c0632a56475b4214e5615e11e6dd3f96e6cea2854a87d4dacc5e55").unwrap();
+    let g2_element_1 = G2Affine::new(Fq2::new(g2_1_x1, g2_1_x2), Fq2::new(g2_1_y1, g2_1_y2), true);
+
+    (g2_element_0, g2_element_1)
 }
 
 pub fn get_public_inputs() -> Fp256<FrParameters> {
