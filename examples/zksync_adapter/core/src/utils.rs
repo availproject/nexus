@@ -286,7 +286,7 @@ pub fn get_verification_key() -> VerificationKey {
             G1Projective::new(
                 <G1Point as AffineCurve>::BaseField::from_str(
                     &BigInt::parse_bytes(
-                        "281bdd74b0e5ce559019f68453b8ccdbc07ef97554fb9f47fc87a86f6720d9c4"
+                        "0x110deb1e0863737f9a3d7b4de641a03aa00a77bc9f1a05acc9d55b76ab9fdd4d"
                             .as_bytes(),
                         16,
                     )
@@ -296,7 +296,7 @@ pub fn get_verification_key() -> VerificationKey {
                 .unwrap(),
                 <G1Point as AffineCurve>::BaseField::from_str(
                     &BigInt::parse_bytes(
-                        "07ed1e84e05b9e4e69ce8eed39601a0605adf9abe15f9c9ed13f642bf8c31dfb"
+                        "0x2c9dc252441e9298b7f6df6335a252517b7bccb924adf537b87c5cd3383fd7a9"
                             .as_bytes(),
                         16,
                     )
@@ -430,7 +430,7 @@ pub fn get_verification_key() -> VerificationKey {
             G1Projective::new(
                 <G1Point as AffineCurve>::BaseField::from_str(
                     &BigInt::parse_bytes(
-                        "2b0287845b812b668358980e3fd51479ecd86402156fb329551f0ced5b78ff32"
+                        "0x2a4cb6c495dbc7201142cc773da895ae2046e790073988fb850aca6aead27b8a"
                             .as_bytes(),
                         16,
                     )
@@ -440,7 +440,7 @@ pub fn get_verification_key() -> VerificationKey {
                 .unwrap(),
                 <G1Point as AffineCurve>::BaseField::from_str(
                     &BigInt::parse_bytes(
-                        "08976d4177ca333c0cffd19dda4b8ff6b65f049453235396a42151352d97a509"
+                        "0x28ef9200c3cb67da82030520d640292014f5f7c2e2909da608812e04671a3acf"
                             .as_bytes(),
                         16,
                     )
