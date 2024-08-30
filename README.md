@@ -4,6 +4,8 @@
 
 **Avail Nexus** offers seamless usability across different blockchains and ecosystems without users having to think about which chain their assets are on or developers needing to manage connections with multiple networks. Avail Nexus achieves this through proof aggregation and using Avail DA (Data Availability) as its root of trust. By aggregating proofs from different ecosystems and harnessing Avail DA’s ability to quickly verify data availability, Nexus facilitates cross-chain transactions in a trust-minimized, permissionless, and seamless way.
 
+To read more about nexus and its architecture refer to the [Overview](./docs/1_overview.md).
+
 ### Repository Structure
 
 - **core/**: Contains the foundational package that serves as the backbone for Nexus, its adapters, and any participants interacting with Nexus.
@@ -13,6 +15,6 @@
 
 ### Getting Started
 
-To set up Avail Nexus, follow the instructions in the [Getting Started Guide](./docs/1_getting_started.md).
+To set up Avail Nexus, follow the instructions in the [Getting Started Guide](./docs/development/1_getting_started.md).
 
-For detailed usage of the ZKSync integration, refer to the [ZKSync Example](./docs/2_zksync_example.md).
+For detailed usage of the ZKSync integration, refer to the [ZKSync Example](./docs/development/2_zksync_example.md).
