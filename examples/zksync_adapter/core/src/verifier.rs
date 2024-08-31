@@ -1358,7 +1358,11 @@ impl ZksyncVerifier {
         let pairing1 = Bn254::pairing(pairing_pair_generator, g2_0_element);
         let pairing2 = Bn254::pairing(pairing_pair_with_x, g2_1_element);
 
-        return true;
+        if pairing1 == pairing2 {
+            return true;
+        }
+
+        return false;
     }
 
     // TODO: remove the hardcoded proof
@@ -1440,5 +1444,7 @@ impl ZksyncVerifier {
             pairing_pair_with_generator,
             pairing_pair_buffer_point,
         );
+
+        println!("Is Proof Verified: {:?}", is_proof_verified);
     }
 }
