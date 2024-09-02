@@ -25,7 +25,3 @@ tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
 default = ["native"]
 zkvm = ["nexus-core/zkvm-risc0"]
 native = ["nexus-core/native-risc0", "zksync_types"]
-
-[[example]]
-name = "sample"
-path = "example/sample.rs"
