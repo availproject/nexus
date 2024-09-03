@@ -5,31 +5,10 @@ pragma solidity ^0.8.13;
 import { SparseMerkleTree, TreeEntry } from "./SparseMerkleTree.sol";
 
 /// @notice Interface for the zkSync's contract
-interface IZkSyncDiamond {
+interface IZKSyncNexusManagerRouter {
     /// @notice Returns the hash of the stored batch
     function storedBatchHash(uint256) external view returns (bytes32);
 }
-
-/// `StoredBatchInfo` struct declared in https://github.com/matter-labs/era-contracts/blob/main/l1-contracts/contracts/zksync/interfaces/IExecutor.sol
-/// @notice Rollup batch stored data
-/// @param batchNumber Rollup batch number
-/// @param indexRepeatedStorageChanges The serial number of the shortcut index that's used as a unique identifier for storage keys that were used twice or more
-/// @param numberOfLayer1Txs Number of priority operations to be processed
-/// @param priorityOperationsHash Hash of all priority operations from this batch
-/// @param l2LogsTreeRoot Root hash of tree that contains L2 -> L1 messages from this batch
-/// @param timestamp Rollup batch timestamp, have the same format as Ethereum batch constant
-/// @param commitment Verified input for the zkSync circuit
-struct StoredBatchInfo {
-    uint64 batchNumber;
-    bytes32 batchHash;
-    uint64 indexRepeatedStorageChanges;
-    uint256 numberOfLayer1Txs;
-    bytes32 priorityOperationsHash;
-    bytes32 l2LogsTreeRoot;
-    uint256 timestamp;
-    bytes32 commitment;
-}
-
 
 /// @notice Storage proof that proves a storage key-value pair is included in the batch
 struct StorageProof {
@@ -44,10 +23,10 @@ struct StorageProof {
 }
 
 contract StorageProofVerifier {
-    IZkSyncDiamond immutable public zksyncDiamondAddress;
+    IZKSyncNexusManagerRouter immutable public zksyncDiamondAddress;
     SparseMerkleTree public smt;
 
-    constructor(IZkSyncDiamond _zksyncDiamondAddress, SparseMerkleTree _smt) {
+    constructor(IZKSyncNexusManagerRouter _zksyncDiamondAddress, SparseMerkleTree _smt) {
         zksyncDiamondAddress = _zksyncDiamondAddress;
         smt = _smt;
     }

@@ -1,9 +1,8 @@
 pragma solidity ^0.8.13;
 
 import "../../interfaces/INexusProofManager.sol";
-import "forge-std/console.sol";
 
-contract ZKSyncDiamond {
+contract ZKSyncNexusManagerRouter {
 
     INexusProofManager immutable proofManager;
     bytes32 immutable chainId;

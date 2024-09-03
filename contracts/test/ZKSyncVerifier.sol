@@ -6,7 +6,7 @@ import "../src/interfaces/INexusProofManager.sol";
 import "../src/mock/ERC20.sol";
 import "../src/verification/zksync/StorageProof.sol";
 import "../src/verification/zksync/SparseMerkleTree.sol";
-import "../src/verification/zksync/ZKSyncDiamond.sol";
+import "../src/verification/zksync/ZKSyncNexusManagerRouter.sol";
 
 contract ZKSyncTest is Test  { 
     NexusProofManager proofManager;
@@ -22,8 +22,8 @@ contract ZKSyncTest is Test  {
         erc20 = new ERC20Token("Avail","Avail");
         proofManager = new NexusProofManager(bytes32(uint256(100)));
         SparseMerkleTree smt = new SparseMerkleTree();
-        ZKSyncDiamond zksyncDiamond = new ZKSyncDiamond(INexusProofManager(address(proofManager)), appid);
-        verifier = new StorageProofVerifier(IZkSyncDiamond(address(zksyncDiamond)), smt);
+        ZKSyncNexusManagerRouter zksyncDiamond = new ZKSyncNexusManagerRouter(INexusProofManager(address(proofManager)), appid);
+        verifier = new StorageProofVerifier(IZKSyncNexusManagerRouter(address(zksyncDiamond)), smt);
     }
 
     function testStorageProof() public { 
@@ -60,5 +60,4 @@ contract ZKSyncTest is Test  {
         );
         assert(verifier.verify(proof));
     }
-    
 }
