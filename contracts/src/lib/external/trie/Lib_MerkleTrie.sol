@@ -10,10 +10,11 @@ import {Lib_RLPWriter} from "../rlp/Lib_RLPWriter.sol";
  * @title Lib_MerkleTrie
  */
 library Lib_MerkleTrie {
-    /*******************
+    /**
+     *
      * Data Structures *
-     *******************/
-
+     *
+     */
     enum NodeType {
         BranchNode,
         ExtensionNode,
@@ -25,9 +26,11 @@ library Lib_MerkleTrie {
         Lib_RLPReader.RLPItem[] decoded;
     }
 
-    /**********************
+    /**
+     *
      * Contract Constants *
-     **********************/
+     *
+     */
 
     // TREE_RADIX determines the number of elements per branch node.
     uint256 constant TREE_RADIX = 16;
@@ -49,12 +52,13 @@ library Lib_MerkleTrie {
     // Just a utility constant. RLP represents `NULL` as 0x80.
     bytes1 constant RLP_NULL = bytes1(0x80);
     bytes constant RLP_NULL_BYTES = hex"80";
-    bytes32 internal constant KECCAK256_RLP_NULL_BYTES =
-        keccak256(RLP_NULL_BYTES);
+    bytes32 internal constant KECCAK256_RLP_NULL_BYTES = keccak256(RLP_NULL_BYTES);
 
-    /**********************
+    /**
+     *
      * Internal Functions *
-     **********************/
+     *
+     */
 
     /**
      * @notice Verifies a proof that a given key/value pair is present in the
@@ -68,12 +72,11 @@ library Lib_MerkleTrie {
      * included proof is correctly constructed.
      * @return _verified `true` if the k/v pair exists in the trie, `false` otherwise.
      */
-    function verifyInclusionProof(
-        bytes memory _key,
-        bytes memory _value,
-        bytes memory _proof,
-        bytes32 _root
-    ) internal pure returns (bool _verified) {
+    function verifyInclusionProof(bytes memory _key, bytes memory _value, bytes memory _proof, bytes32 _root)
+        internal
+        pure
+        returns (bool _verified)
+    {
         (bool exists, bytes memory value) = get(_key, _proof, _root);
 
         return (exists && Lib_BytesUtils.equal(_value, value));
@@ -89,12 +92,12 @@ library Lib_MerkleTrie {
      * included proof is correctly constructed.
      * @return _verified `true` if the key is absent in the trie, `false` otherwise.
      */
-    function verifyExclusionProof(
-        bytes memory _key,
-        bytes memory _proof,
-        bytes32 _root
-    ) internal pure returns (bool _verified) {
-        (bool exists, ) = get(_key, _proof, _root);
+    function verifyExclusionProof(bytes memory _key, bytes memory _proof, bytes32 _root)
+        internal
+        pure
+        returns (bool _verified)
+    {
+        (bool exists,) = get(_key, _proof, _root);
 
         return exists == false;
     }
@@ -110,29 +113,19 @@ library Lib_MerkleTrie {
      * included proof is correctly constructed.
      * @return _updatedRoot Root hash of the newly constructed trie.
      */
-    function update(
-        bytes memory _key,
-        bytes memory _value,
-        bytes memory _proof,
-        bytes32 _root
-    ) internal pure returns (bytes32 _updatedRoot) {
+    function update(bytes memory _key, bytes memory _value, bytes memory _proof, bytes32 _root)
+        internal
+        pure
+        returns (bytes32 _updatedRoot)
+    {
         // Special case when inserting the very first node.
         if (_root == KECCAK256_RLP_NULL_BYTES) {
             return getSingleNodeRootHash(_key, _value);
         }
 
         TrieNode[] memory proof = _parseProof(_proof);
-        (uint256 pathLength, bytes memory keyRemainder, ) = _walkNodePath(
-            proof,
-            _key,
-            _root
-        );
-        TrieNode[] memory newPath = _getNewPath(
-            proof,
-            pathLength,
-            keyRemainder,
-            _value
-        );
+        (uint256 pathLength, bytes memory keyRemainder,) = _walkNodePath(proof, _key, _root);
+        TrieNode[] memory newPath = _getNewPath(proof, pathLength, keyRemainder, _value);
 
         return _getUpdatedTrieRoot(newPath, _key);
     }
@@ -145,25 +138,19 @@ library Lib_MerkleTrie {
      * @return _exists Whether or not the key exists.
      * @return _value Value of the key if it exists.
      */
-    function get(
-        bytes memory _key,
-        bytes memory _proof,
-        bytes32 _root
-    ) internal pure returns (bool _exists, bytes memory _value) {
+    function get(bytes memory _key, bytes memory _proof, bytes32 _root)
+        internal
+        pure
+        returns (bool _exists, bytes memory _value)
+    {
         TrieNode[] memory proof = _parseProof(_proof);
-        (
-            uint256 pathLength,
-            bytes memory keyRemainder,
-            bool isFinalNode
-        ) = _walkNodePath(proof, _key, _root);
+        (uint256 pathLength, bytes memory keyRemainder, bool isFinalNode) = _walkNodePath(proof, _key, _root);
 
         bool exists = keyRemainder.length == 0;
 
         require(exists || isFinalNode, "Provided proof is invalid.");
 
-        bytes memory value = exists
-            ? _getNodeValue(proof[pathLength - 1])
-            : bytes("");
+        bytes memory value = exists ? _getNodeValue(proof[pathLength - 1]) : bytes("");
 
         return (exists, value);
     }
@@ -174,19 +161,19 @@ library Lib_MerkleTrie {
      * @param _value Value for the single node.
      * @return _updatedRoot Hash of the trie.
      */
-    function getSingleNodeRootHash(
-        bytes memory _key,
-        bytes memory _value
-    ) internal pure returns (bytes32 _updatedRoot) {
-        return
-            keccak256(
-                _makeLeafNode(Lib_BytesUtils.toNibbles(_key), _value).encoded
-            );
+    function getSingleNodeRootHash(bytes memory _key, bytes memory _value)
+        internal
+        pure
+        returns (bytes32 _updatedRoot)
+    {
+        return keccak256(_makeLeafNode(Lib_BytesUtils.toNibbles(_key), _value).encoded);
     }
 
-    /*********************
+    /**
+     *
      * Private Functions *
-     *********************/
+     *
+     */
 
     /**
      * @notice Walks through a proof using a provided key.
@@ -197,18 +184,10 @@ library Lib_MerkleTrie {
      * @return _keyRemainder Portion of the key remaining after the walk.
      * @return _isFinalNode Whether or not we've hit a dead end.
      */
-    function _walkNodePath(
-        TrieNode[] memory _proof,
-        bytes memory _key,
-        bytes32 _root
-    )
+    function _walkNodePath(TrieNode[] memory _proof, bytes memory _key, bytes32 _root)
         private
         pure
-        returns (
-            uint256 _pathLength,
-            bytes memory _keyRemainder,
-            bool _isFinalNode
-        )
+        returns (uint256 _pathLength, bytes memory _keyRemainder, bool _isFinalNode)
     {
         uint256 pathLength = 0;
         bytes memory key = Lib_BytesUtils.toNibbles(_key);
@@ -229,23 +208,13 @@ library Lib_MerkleTrie {
 
             if (currentKeyIndex == 0) {
                 // First proof element is always the root node.
-                require(
-                    keccak256(currentNode.encoded) == currentNodeID,
-                    "Invalid root hash"
-                );
+                require(keccak256(currentNode.encoded) == currentNodeID, "Invalid root hash");
             } else if (currentNode.encoded.length >= 32) {
                 // Nodes 32 bytes or larger are hashed inside branch nodes.
-                require(
-                    keccak256(currentNode.encoded) == currentNodeID,
-                    "Invalid large internal hash"
-                );
+                require(keccak256(currentNode.encoded) == currentNodeID, "Invalid large internal hash");
             } else {
                 // Nodes smaller than 31 bytes aren't hashed.
-                require(
-                    Lib_BytesUtils.toBytes32(currentNode.encoded) ==
-                        currentNodeID,
-                    "Invalid internal node hash"
-                );
+                require(Lib_BytesUtils.toBytes32(currentNode.encoded) == currentNodeID, "Invalid internal node hash");
             }
 
             if (currentNode.decoded.length == BRANCH_NODE_LENGTH) {
@@ -256,34 +225,21 @@ library Lib_MerkleTrie {
                     // We're not at the end of the key yet.
                     // Figure out what the next node ID should be and continue.
                     uint8 branchKey = uint8(key[currentKeyIndex]);
-                    Lib_RLPReader.RLPItem memory nextNode = currentNode.decoded[
-                        branchKey
-                    ];
+                    Lib_RLPReader.RLPItem memory nextNode = currentNode.decoded[branchKey];
                     currentNodeID = _getNodeID(nextNode);
                     currentKeyIncrement = 1;
                     continue;
                 }
-            } else if (
-                currentNode.decoded.length == LEAF_OR_EXTENSION_NODE_LENGTH
-            ) {
+            } else if (currentNode.decoded.length == LEAF_OR_EXTENSION_NODE_LENGTH) {
                 bytes memory path = _getNodePath(currentNode);
                 uint8 prefix = uint8(path[0]);
                 uint8 offset = 2 - (prefix % 2);
                 bytes memory pathRemainder = Lib_BytesUtils.slice(path, offset);
-                bytes memory keyRemainder = Lib_BytesUtils.slice(
-                    key,
-                    currentKeyIndex
-                );
-                uint256 sharedNibbleLength = _getSharedNibbleLength(
-                    pathRemainder,
-                    keyRemainder
-                );
+                bytes memory keyRemainder = Lib_BytesUtils.slice(key, currentKeyIndex);
+                uint256 sharedNibbleLength = _getSharedNibbleLength(pathRemainder, keyRemainder);
 
                 if (prefix == PREFIX_LEAF_EVEN || prefix == PREFIX_LEAF_ODD) {
-                    if (
-                        pathRemainder.length == sharedNibbleLength &&
-                        keyRemainder.length == sharedNibbleLength
-                    ) {
+                    if (pathRemainder.length == sharedNibbleLength && keyRemainder.length == sharedNibbleLength) {
                         // The key within this leaf matches our key exactly.
                         // Increment the key index to reflect that we have no remainder.
                         currentKeyIndex += sharedNibbleLength;
@@ -292,10 +248,7 @@ library Lib_MerkleTrie {
                     // We've hit a leaf node, so our next node should be NULL.
                     currentNodeID = bytes32(RLP_NULL);
                     break;
-                } else if (
-                    prefix == PREFIX_EXTENSION_EVEN ||
-                    prefix == PREFIX_EXTENSION_ODD
-                ) {
+                } else if (prefix == PREFIX_EXTENSION_EVEN || prefix == PREFIX_EXTENSION_ODD) {
                     if (sharedNibbleLength == 0) {
                         // Our extension node doesn't share any part of our key.
                         // We've hit the end of this path, updates will need to modify this extension.
@@ -318,11 +271,7 @@ library Lib_MerkleTrie {
 
         // If our node ID is NULL, then we're at a dead end.
         bool isFinalNode = currentNodeID == bytes32(RLP_NULL);
-        return (
-            pathLength,
-            Lib_BytesUtils.slice(key, currentKeyIndex),
-            isFinalNode
-        );
+        return (pathLength, Lib_BytesUtils.slice(key, currentKeyIndex), isFinalNode);
     }
 
     /**
@@ -337,12 +286,11 @@ library Lib_MerkleTrie {
      * @param _value Value to insert at the given key.
      * @return _newPath A new path with the inserted k/v pair and extra supporting nodes.
      */
-    function _getNewPath(
-        TrieNode[] memory _path,
-        uint256 _pathLength,
-        bytes memory _keyRemainder,
-        bytes memory _value
-    ) private pure returns (TrieNode[] memory _newPath) {
+    function _getNewPath(TrieNode[] memory _path, uint256 _pathLength, bytes memory _keyRemainder, bytes memory _value)
+        private
+        pure
+        returns (TrieNode[] memory _newPath)
+    {
         bytes memory keyRemainder = _keyRemainder;
 
         // Most of our logic depends on the status of the last node in the path.
@@ -359,10 +307,7 @@ library Lib_MerkleTrie {
         if (keyRemainder.length == 0 && lastNodeType == NodeType.LeafNode) {
             // We've found a leaf node with the given key.
             // Simply need to update the value of the node to match.
-            newNodes[totalNewNodes] = _makeLeafNode(
-                _getNodeKey(lastNode),
-                _value
-            );
+            newNodes[totalNewNodes] = _makeLeafNode(_getNodeKey(lastNode), _value);
             totalNewNodes += 1;
         } else if (lastNodeType == NodeType.BranchNode) {
             if (keyRemainder.length == 0) {
@@ -377,43 +322,24 @@ library Lib_MerkleTrie {
                 totalNewNodes += 1;
                 // Create a new leaf node, slicing our remainder since the first byte points
                 // to our branch node.
-                newNodes[totalNewNodes] = _makeLeafNode(
-                    Lib_BytesUtils.slice(keyRemainder, 1),
-                    _value
-                );
+                newNodes[totalNewNodes] = _makeLeafNode(Lib_BytesUtils.slice(keyRemainder, 1), _value);
                 totalNewNodes += 1;
             }
         } else {
             // Our last node is either an extension node or a leaf node with a different key.
             bytes memory lastNodeKey = _getNodeKey(lastNode);
-            uint256 sharedNibbleLength = _getSharedNibbleLength(
-                lastNodeKey,
-                keyRemainder
-            );
+            uint256 sharedNibbleLength = _getSharedNibbleLength(lastNodeKey, keyRemainder);
 
             if (sharedNibbleLength != 0) {
                 // We've got some shared nibbles between the last node and our key remainder.
                 // We'll need to insert an extension node that covers these shared nibbles.
-                bytes memory nextNodeKey = Lib_BytesUtils.slice(
-                    lastNodeKey,
-                    0,
-                    sharedNibbleLength
-                );
-                newNodes[totalNewNodes] = _makeExtensionNode(
-                    nextNodeKey,
-                    _getNodeHash(_value)
-                );
+                bytes memory nextNodeKey = Lib_BytesUtils.slice(lastNodeKey, 0, sharedNibbleLength);
+                newNodes[totalNewNodes] = _makeExtensionNode(nextNodeKey, _getNodeHash(_value));
                 totalNewNodes += 1;
 
                 // Cut down the keys since we've just covered these shared nibbles.
-                lastNodeKey = Lib_BytesUtils.slice(
-                    lastNodeKey,
-                    sharedNibbleLength
-                );
-                keyRemainder = Lib_BytesUtils.slice(
-                    keyRemainder,
-                    sharedNibbleLength
-                );
+                lastNodeKey = Lib_BytesUtils.slice(lastNodeKey, sharedNibbleLength);
+                keyRemainder = Lib_BytesUtils.slice(keyRemainder, sharedNibbleLength);
             }
 
             // Create an empty branch to fill in.
@@ -423,10 +349,7 @@ library Lib_MerkleTrie {
                 // Key remainder was larger than the key for our last node.
                 // The value within our last node is therefore going to be shifted into
                 // a branch value slot.
-                newBranch = _editBranchValue(
-                    newBranch,
-                    _getNodeValue(lastNode)
-                );
+                newBranch = _editBranchValue(newBranch, _getNodeValue(lastNode));
             } else {
                 // Last node key was larger than the key remainder.
                 // We're going to modify some index of our branch.
@@ -437,36 +360,18 @@ library Lib_MerkleTrie {
                 if (lastNodeType == NodeType.LeafNode) {
                     // We're dealing with a leaf node.
                     // We'll modify the key and insert the old leaf node into the branch index.
-                    TrieNode memory modifiedLastNode = _makeLeafNode(
-                        lastNodeKey,
-                        _getNodeValue(lastNode)
-                    );
-                    newBranch = _editBranchIndex(
-                        newBranch,
-                        branchKey,
-                        _getNodeHash(modifiedLastNode.encoded)
-                    );
+                    TrieNode memory modifiedLastNode = _makeLeafNode(lastNodeKey, _getNodeValue(lastNode));
+                    newBranch = _editBranchIndex(newBranch, branchKey, _getNodeHash(modifiedLastNode.encoded));
                 } else if (lastNodeKey.length != 0) {
                     // We're dealing with a shrinking extension node.
                     // We need to modify the node to decrease the size of the key.
-                    TrieNode memory modifiedLastNode = _makeExtensionNode(
-                        lastNodeKey,
-                        _getNodeValue(lastNode)
-                    );
-                    newBranch = _editBranchIndex(
-                        newBranch,
-                        branchKey,
-                        _getNodeHash(modifiedLastNode.encoded)
-                    );
+                    TrieNode memory modifiedLastNode = _makeExtensionNode(lastNodeKey, _getNodeValue(lastNode));
+                    newBranch = _editBranchIndex(newBranch, branchKey, _getNodeHash(modifiedLastNode.encoded));
                 } else {
                     // We're dealing with an unnecessary extension node.
                     // We're going to delete the node entirely.
                     // Simply insert its current value into the branch index.
-                    newBranch = _editBranchIndex(
-                        newBranch,
-                        branchKey,
-                        _getNodeValue(lastNode)
-                    );
+                    newBranch = _editBranchIndex(newBranch, branchKey, _getNodeValue(lastNode));
                 }
             }
 
@@ -502,10 +407,11 @@ library Lib_MerkleTrie {
      * @param _key Key for the k/v pair.
      * @return _updatedRoot Root hash for the updated trie.
      */
-    function _getUpdatedTrieRoot(
-        TrieNode[] memory _nodes,
-        bytes memory _key
-    ) private pure returns (bytes32 _updatedRoot) {
+    function _getUpdatedTrieRoot(TrieNode[] memory _nodes, bytes memory _key)
+        private
+        pure
+        returns (bytes32 _updatedRoot)
+    {
         bytes memory key = Lib_BytesUtils.toNibbles(_key);
 
         // Some variables to keep track of during iteration.
@@ -542,11 +448,7 @@ library Lib_MerkleTrie {
                     // Re-encode the node based on the previous node.
                     uint8 branchKey = uint8(key[key.length - 1]);
                     key = Lib_BytesUtils.slice(key, 0, key.length - 1);
-                    currentNode = _editBranchIndex(
-                        currentNode,
-                        branchKey,
-                        previousNodeHash
-                    );
+                    currentNode = _editBranchIndex(currentNode, branchKey, previousNodeHash);
                 }
             }
 
@@ -564,18 +466,13 @@ library Lib_MerkleTrie {
      * @param _proof RLP-encoded proof to parse.
      * @return _parsed Proof parsed into easily accessible structs.
      */
-    function _parseProof(
-        bytes memory _proof
-    ) private pure returns (TrieNode[] memory _parsed) {
+    function _parseProof(bytes memory _proof) private pure returns (TrieNode[] memory _parsed) {
         Lib_RLPReader.RLPItem[] memory nodes = Lib_RLPReader.readList(_proof);
         TrieNode[] memory proof = new TrieNode[](nodes.length);
 
         for (uint256 i = 0; i < nodes.length; i++) {
             bytes memory encoded = Lib_RLPReader.readBytes(nodes[i]);
-            proof[i] = TrieNode({
-                encoded: encoded,
-                decoded: Lib_RLPReader.readList(encoded)
-            });
+            proof[i] = TrieNode({encoded: encoded, decoded: Lib_RLPReader.readList(encoded)});
         }
 
         return proof;
@@ -588,9 +485,7 @@ library Lib_MerkleTrie {
      * @param _node Node to pull an ID for.
      * @return _nodeID ID for the node, depending on the size of its contents.
      */
-    function _getNodeID(
-        Lib_RLPReader.RLPItem memory _node
-    ) private pure returns (bytes32 _nodeID) {
+    function _getNodeID(Lib_RLPReader.RLPItem memory _node) private pure returns (bytes32 _nodeID) {
         bytes memory nodeID;
 
         if (_node.length < 32) {
@@ -609,11 +504,8 @@ library Lib_MerkleTrie {
      * @param _node Node to get a path for.
      * @return _path Node path, converted to an array of nibbles.
      */
-    function _getNodePath(
-        TrieNode memory _node
-    ) private pure returns (bytes memory _path) {
-        return
-            Lib_BytesUtils.toNibbles(Lib_RLPReader.readBytes(_node.decoded[0]));
+    function _getNodePath(TrieNode memory _node) private pure returns (bytes memory _path) {
+        return Lib_BytesUtils.toNibbles(Lib_RLPReader.readBytes(_node.decoded[0]));
     }
 
     /**
@@ -622,9 +514,7 @@ library Lib_MerkleTrie {
      * @param _node Node to get a key for.
      * @return _key Node key, converted to an array of nibbles.
      */
-    function _getNodeKey(
-        TrieNode memory _node
-    ) private pure returns (bytes memory _key) {
+    function _getNodeKey(TrieNode memory _node) private pure returns (bytes memory _key) {
         return _removeHexPrefix(_getNodePath(_node));
     }
 
@@ -633,9 +523,7 @@ library Lib_MerkleTrie {
      * @param _node Node to get a value for.
      * @return _value Node value, as hex bytes.
      */
-    function _getNodeValue(
-        TrieNode memory _node
-    ) private pure returns (bytes memory _value) {
+    function _getNodeValue(TrieNode memory _node) private pure returns (bytes memory _value) {
         return Lib_RLPReader.readBytes(_node.decoded[_node.decoded.length - 1]);
     }
 
@@ -645,9 +533,7 @@ library Lib_MerkleTrie {
      * @param _encoded Encoded node to hash.
      * @return _hash Hash of the encoded node. Simply the input if < 32 bytes.
      */
-    function _getNodeHash(
-        bytes memory _encoded
-    ) private pure returns (bytes memory _hash) {
+    function _getNodeHash(bytes memory _encoded) private pure returns (bytes memory _hash) {
         if (_encoded.length < 32) {
             return _encoded;
         } else {
@@ -660,9 +546,7 @@ library Lib_MerkleTrie {
      * @param _node Node to determine a type for.
      * @return _type Type of the node; BranchNode/ExtensionNode/LeafNode.
      */
-    function _getNodeType(
-        TrieNode memory _node
-    ) private pure returns (NodeType _type) {
+    function _getNodeType(TrieNode memory _node) private pure returns (NodeType _type) {
         if (_node.decoded.length == BRANCH_NODE_LENGTH) {
             return NodeType.BranchNode;
         } else if (_node.decoded.length == LEAF_OR_EXTENSION_NODE_LENGTH) {
@@ -671,10 +555,7 @@ library Lib_MerkleTrie {
 
             if (prefix == PREFIX_LEAF_EVEN || prefix == PREFIX_LEAF_ODD) {
                 return NodeType.LeafNode;
-            } else if (
-                prefix == PREFIX_EXTENSION_EVEN ||
-                prefix == PREFIX_EXTENSION_ODD
-            ) {
+            } else if (prefix == PREFIX_EXTENSION_EVEN || prefix == PREFIX_EXTENSION_ODD) {
                 return NodeType.ExtensionNode;
             }
         }
@@ -689,10 +570,7 @@ library Lib_MerkleTrie {
      * @param _b Second nibble array.
      * @return _shared Number of shared nibbles.
      */
-    function _getSharedNibbleLength(
-        bytes memory _a,
-        bytes memory _b
-    ) private pure returns (uint256 _shared) {
+    function _getSharedNibbleLength(bytes memory _a, bytes memory _b) private pure returns (uint256 _shared) {
         uint256 i = 0;
         while (_a.length > i && _b.length > i && _a[i] == _b[i]) {
             i++;
@@ -705,16 +583,10 @@ library Lib_MerkleTrie {
      * @param _raw RLP-encoded node to convert.
      * @return _node Node as a TrieNode struct.
      */
-    function _makeNode(
-        bytes[] memory _raw
-    ) private pure returns (TrieNode memory _node) {
+    function _makeNode(bytes[] memory _raw) private pure returns (TrieNode memory _node) {
         bytes memory encoded = Lib_RLPWriter.writeList(_raw);
 
-        return
-            TrieNode({
-                encoded: encoded,
-                decoded: Lib_RLPReader.readList(encoded)
-            });
+        return TrieNode({encoded: encoded, decoded: Lib_RLPReader.readList(encoded)});
     }
 
     /**
@@ -722,9 +594,7 @@ library Lib_MerkleTrie {
      * @param _items RLP-decoded node to convert.
      * @return _node Node as a TrieNode struct.
      */
-    function _makeNode(
-        Lib_RLPReader.RLPItem[] memory _items
-    ) private pure returns (TrieNode memory _node) {
+    function _makeNode(Lib_RLPReader.RLPItem[] memory _items) private pure returns (TrieNode memory _node) {
         bytes[] memory raw = new bytes[](_items.length);
         for (uint256 i = 0; i < _items.length; i++) {
             raw[i] = Lib_RLPReader.readRawBytes(_items[i]);
@@ -738,10 +608,7 @@ library Lib_MerkleTrie {
      * @param _value Value for the extension node.
      * @return _node New extension node with the given k/v pair.
      */
-    function _makeExtensionNode(
-        bytes memory _key,
-        bytes memory _value
-    ) private pure returns (TrieNode memory _node) {
+    function _makeExtensionNode(bytes memory _key, bytes memory _value) private pure returns (TrieNode memory _node) {
         bytes[] memory raw = new bytes[](2);
         bytes memory key = _addHexPrefix(_key, false);
         raw[0] = Lib_RLPWriter.writeBytes(Lib_BytesUtils.fromNibbles(key));
@@ -758,10 +625,7 @@ library Lib_MerkleTrie {
      * @param _value Value for the leaf node.
      * @return _node New leaf node with the given k/v pair.
      */
-    function _makeLeafNode(
-        bytes memory _key,
-        bytes memory _value
-    ) private pure returns (TrieNode memory _node) {
+    function _makeLeafNode(bytes memory _key, bytes memory _value) private pure returns (TrieNode memory _node) {
         bytes[] memory raw = new bytes[](2);
         bytes memory key = _addHexPrefix(_key, true);
         raw[0] = Lib_RLPWriter.writeBytes(Lib_BytesUtils.fromNibbles(key));
@@ -773,11 +637,7 @@ library Lib_MerkleTrie {
      * @notice Creates an empty branch node.
      * @return _node Empty branch node as a TrieNode struct.
      */
-    function _makeEmptyBranchNode()
-        private
-        pure
-        returns (TrieNode memory _node)
-    {
+    function _makeEmptyBranchNode() private pure returns (TrieNode memory _node) {
         bytes[] memory raw = new bytes[](BRANCH_NODE_LENGTH);
         for (uint256 i = 0; i < raw.length; i++) {
             raw[i] = RLP_NULL_BYTES;
@@ -791,14 +651,13 @@ library Lib_MerkleTrie {
      * @param _value Value to insert into the branch.
      * @return _updatedNode Modified branch node.
      */
-    function _editBranchValue(
-        TrieNode memory _branch,
-        bytes memory _value
-    ) private pure returns (TrieNode memory _updatedNode) {
+    function _editBranchValue(TrieNode memory _branch, bytes memory _value)
+        private
+        pure
+        returns (TrieNode memory _updatedNode)
+    {
         bytes memory encoded = Lib_RLPWriter.writeBytes(_value);
-        _branch.decoded[_branch.decoded.length - 1] = Lib_RLPReader.toRLPItem(
-            encoded
-        );
+        _branch.decoded[_branch.decoded.length - 1] = Lib_RLPReader.toRLPItem(encoded);
         return _makeNode(_branch.decoded);
     }
 
@@ -809,14 +668,12 @@ library Lib_MerkleTrie {
      * @param _value Value to insert into the slot.
      * @return _updatedNode Modified branch node.
      */
-    function _editBranchIndex(
-        TrieNode memory _branch,
-        uint8 _index,
-        bytes memory _value
-    ) private pure returns (TrieNode memory _updatedNode) {
-        bytes memory encoded = _value.length < 32
-            ? _value
-            : Lib_RLPWriter.writeBytes(_value);
+    function _editBranchIndex(TrieNode memory _branch, uint8 _index, bytes memory _value)
+        private
+        pure
+        returns (TrieNode memory _updatedNode)
+    {
+        bytes memory encoded = _value.length < 32 ? _value : Lib_RLPWriter.writeBytes(_value);
         _branch.decoded[_index] = Lib_RLPReader.toRLPItem(encoded);
         return _makeNode(_branch.decoded);
     }
@@ -827,10 +684,7 @@ library Lib_MerkleTrie {
      * @param _isLeaf Whether or not the key belongs to a leaf.
      * @return _prefixedKey Prefixed key.
      */
-    function _addHexPrefix(
-        bytes memory _key,
-        bool _isLeaf
-    ) private pure returns (bytes memory _prefixedKey) {
+    function _addHexPrefix(bytes memory _key, bool _isLeaf) private pure returns (bytes memory _prefixedKey) {
         uint8 prefix = _isLeaf ? uint8(0x02) : uint8(0x00);
         uint8 offset = uint8(_key.length % 2);
         bytes memory prefixed = new bytes(2 - offset);
@@ -843,9 +697,7 @@ library Lib_MerkleTrie {
      * @param _path Path to remove the prefix from.
      * @return _unprefixedKey Unprefixed key.
      */
-    function _removeHexPrefix(
-        bytes memory _path
-    ) private pure returns (bytes memory _unprefixedKey) {
+    function _removeHexPrefix(bytes memory _path) private pure returns (bytes memory _unprefixedKey) {
         if (uint8(_path[0]) % 2 == 0) {
             return Lib_BytesUtils.slice(_path, 2);
         } else {
@@ -863,12 +715,11 @@ library Lib_MerkleTrie {
      * @param _bLength Length of the second array.
      * @return _joined Combined node array.
      */
-    function _joinNodeArrays(
-        TrieNode[] memory _a,
-        uint256 _aLength,
-        TrieNode[] memory _b,
-        uint256 _bLength
-    ) private pure returns (TrieNode[] memory _joined) {
+    function _joinNodeArrays(TrieNode[] memory _a, uint256 _aLength, TrieNode[] memory _b, uint256 _bLength)
+        private
+        pure
+        returns (TrieNode[] memory _joined)
+    {
         TrieNode[] memory ret = new TrieNode[](_aLength + _bLength);
 
         // Copy elements from the first array.

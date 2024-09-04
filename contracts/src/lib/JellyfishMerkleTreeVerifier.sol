@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
-
 library JellyfishMerkleTreeVerifier {
     struct Leaf {
         bytes32 addr;
@@ -37,7 +36,7 @@ library JellyfishMerkleTreeVerifier {
                 }
             }
         }
-  
+
         bytes32 calculatedRoot;
 
         if (proof.leaf.addr == 0x0 && proof.leaf.valueHash == 0x0) {

@@ -40,37 +40,20 @@ library Blake2S {
      * @param input The input data to hash.
      * @return The 32-byte hash digest.
      */
-    function toDigest(
-        bytes memory input
-    ) public view returns (bytes32) {
+    function toDigest(bytes memory input) public view returns (bytes32) {
         BLAKE2S_ctx memory ctx;
         uint256[2] memory DEFAULT_EMPTY_INPUT;
         //Custom Keys or Output Size are not supported yet, primarily because they are not tested. However they can be added in the future
-        init(
-            ctx,
-            DEFAULT_OUTLEN,
-            DEFAULT_EMPTY_KEY,
-            DEFAULT_EMPTY_INPUT,
-            DEFAULT_EMPTY_INPUT
-        );
+        init(ctx, DEFAULT_OUTLEN, DEFAULT_EMPTY_KEY, DEFAULT_EMPTY_INPUT, DEFAULT_EMPTY_INPUT);
         update(ctx, input);
         return finalize(ctx);
     }
 
-    function toDigest(
-        bytes memory input1,
-        bytes memory input2
-    ) public view returns (bytes32) {
+    function toDigest(bytes memory input1, bytes memory input2) public view returns (bytes32) {
         BLAKE2S_ctx memory ctx;
         uint256[2] memory DEFAULT_EMPTY_INPUT;
         //Custom Keys or Output Size are not supported yet, primarily because they are not tested. However they can be added in the future
-        init(
-            ctx,
-            DEFAULT_OUTLEN,
-            DEFAULT_EMPTY_KEY,
-            DEFAULT_EMPTY_INPUT,
-            DEFAULT_EMPTY_INPUT
-        );
+        init(ctx, DEFAULT_OUTLEN, DEFAULT_EMPTY_KEY, DEFAULT_EMPTY_INPUT, DEFAULT_EMPTY_INPUT);
         update(ctx, input1);
         update(ctx, input2);
         return finalize(ctx);
@@ -130,7 +113,7 @@ library Blake2S {
      * @param ctx The BLAKE2s context to update.
      * @param input The input data to be added to the hash computation.
      * - 204320
-     * - 
+     * -
      */
     function update(BLAKE2S_ctx memory ctx, bytes memory input) internal view {
         unchecked {
@@ -159,8 +142,8 @@ library Blake2S {
         }
     }
 
-    function min(uint256 a, uint256 b) internal pure returns(uint256) {
-        if(a < b) return a;
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a < b) return a;
         return b;
     }
 
@@ -208,14 +191,14 @@ library Blake2S {
             uint256 b1 = ctx.b[1];
 
             // Swap endianness on 32bit words
-            b0 = ((b0 >> 24) & 0x000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF) | 
-                 ((b0 >> 8) & 0x0000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF00) | 
-                 ((b0 << 8) & 0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000) | 
-                 ((b0 << 24) & 0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000);
-            b1 = ((b1 >> 24) & 0x000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF) | 
-                 ((b1 >> 8) & 0x0000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF00) | 
-                 ((b1 << 8) & 0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000) | 
-                 ((b1 << 24) & 0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000);
+            b0 = ((b0 >> 24) & 0x000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF)
+                | ((b0 >> 8) & 0x0000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF00)
+                | ((b0 << 8) & 0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000)
+                | ((b0 << 24) & 0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000);
+            b1 = ((b1 >> 24) & 0x000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF)
+                | ((b1 >> 8) & 0x0000FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF00)
+                | ((b1 << 8) & 0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000)
+                | ((b1 << 24) & 0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000);
 
             // // SIGMA Block according to rfc7693
             // uint8[16][10] memory SIGMA = [
@@ -246,35 +229,71 @@ library Blake2S {
 
             assembly {
                 /**
-                * @dev Performs the BLAKE2s mixing function 'G' as defined in the BLAKE2 specification.
-                * @param v The working vector which is being mixed.
-                * @param a Index of the first element in the working vector to mix.
-                * @param b Index of the second element in the working vector to mix.
-                * @param c Index of the third element in the working vector to mix.
-                * @param d Index of the fourth element in the working vector to mix.
-                * @param x The first input word to the mixing function.
-                * @param y The second input word to the mixing function.
-                *
-                * This function updates the working vector 'v' with the results of the mixing operations.
-                * It is a core part of the compression function, which is in turn a core part of the BLAKE2s hash function.
-                */
+                 * @dev Performs the BLAKE2s mixing function 'G' as defined in the BLAKE2 specification.
+                 * @param v The working vector which is being mixed.
+                 * @param a Index of the first element in the working vector to mix.
+                 * @param b Index of the second element in the working vector to mix.
+                 * @param c Index of the third element in the working vector to mix.
+                 * @param d Index of the fourth element in the working vector to mix.
+                 * @param x The first input word to the mixing function.
+                 * @param y The second input word to the mixing function.
+                 *
+                 * This function updates the working vector 'v' with the results of the mixing operations.
+                 * It is a core part of the compression function, which is in turn a core part of the BLAKE2s hash function.
+                 */
                 function G(z, a, b, c, d, x, y) {
                     // v[a] = (v[a] + v[b] + x) & 0xFFFFFFFF;
                     mstore(add(z, a), and(add(add(mload(add(z, a)), mload(add(z, b))), x), 0xFFFFFFFF))
                     // v[d] = (((v[d] ^ v[a]) >> 16) | ((v[d] ^ v[a]) << 16)) & 0xFFFFFFFF;
-                    mstore(add(z, d), and(or(shr(16, xor(mload(add(z, d)), mload(add(z, a)))), shl(16, xor(mload(add(z, d)), mload(add(z, a))))), 0xFFFFFFFF))
+                    mstore(
+                        add(z, d),
+                        and(
+                            or(
+                                shr(16, xor(mload(add(z, d)), mload(add(z, a)))),
+                                shl(16, xor(mload(add(z, d)), mload(add(z, a))))
+                            ),
+                            0xFFFFFFFF
+                        )
+                    )
                     // v[c] = (v[c] + v[d]) & 0xFFFFFFFF;
                     mstore(add(z, c), and(add(mload(add(z, c)), mload(add(z, d))), 0xFFFFFFFF))
                     // v[b] = (((v[b] ^ v[c]) >> 12) | ((v[b] ^ v[c]) << 20)) & 0xFFFFFFFF;
-                    mstore(add(z, b), and(or(shr(12, xor(mload(add(z, b)), mload(add(z, c)))), shl(20, xor(mload(add(z, b)), mload(add(z, c))))), 0xFFFFFFFF))
+                    mstore(
+                        add(z, b),
+                        and(
+                            or(
+                                shr(12, xor(mload(add(z, b)), mload(add(z, c)))),
+                                shl(20, xor(mload(add(z, b)), mload(add(z, c))))
+                            ),
+                            0xFFFFFFFF
+                        )
+                    )
                     // v[a] = (v[a] + v[b] + y) & 0xFFFFFFFF;
                     mstore(add(z, a), and(add(add(mload(add(z, a)), mload(add(z, b))), y), 0xFFFFFFFF))
                     // v[d] = (((v[d] ^ v[a]) >> 8) | ((v[d] ^ v[a]) << 24)) & 0xFFFFFFFF;
-                    mstore(add(z, d), and(or(shr(8, xor(mload(add(z, d)), mload(add(z, a)))), shl(24, xor(mload(add(z, d)), mload(add(z, a))))), 0xFFFFFFFF))
+                    mstore(
+                        add(z, d),
+                        and(
+                            or(
+                                shr(8, xor(mload(add(z, d)), mload(add(z, a)))),
+                                shl(24, xor(mload(add(z, d)), mload(add(z, a))))
+                            ),
+                            0xFFFFFFFF
+                        )
+                    )
                     // v[c] = (v[c] + v[d]) & 0xFFFFFFFF;
                     mstore(add(z, c), and(add(mload(add(z, c)), mload(add(z, d))), 0xFFFFFFFF))
                     // v[b] = (((v[b] ^ v[c]) >> 7) | ((v[b] ^ v[c]) << 25)) & 0xFFFFFFFF;
-                    mstore(add(z, b), and(or(shr(7, xor(mload(add(z, b)), mload(add(z, c)))), shl(25, xor(mload(add(z, b)), mload(add(z, c))))), 0xFFFFFFFF))
+                    mstore(
+                        add(z, b),
+                        and(
+                            or(
+                                shr(7, xor(mload(add(z, b)), mload(add(z, c)))),
+                                shl(25, xor(mload(add(z, b)), mload(add(z, c))))
+                            ),
+                            0xFFFFFFFF
+                        )
+                    )
                 }
 
                 // Round 0
@@ -306,7 +325,7 @@ library Blake2S {
                 G(v, 32, 192, 352, 384, and(shr(128, b0), 0xFFFFFFFF), and(shr(32, b0), 0xFFFFFFFF))
                 G(v, 64, 224, 256, 416, and(shr(0, b0), 0xFFFFFFFF), and(shr(192, b0), 0xFFFFFFFF))
                 G(v, 96, 128, 288, 448, and(shr(192, b1), 0xFFFFFFFF), and(shr(96, b0), 0xFFFFFFFF))
-                
+
                 // Round 3
                 G(v, 0, 128, 256, 384, and(shr(0, b0), 0xFFFFFFFF), and(shr(192, b1), 0xFFFFFFFF))
                 G(v, 32, 160, 288, 416, and(shr(128, b0), 0xFFFFFFFF), and(shr(192, b0), 0xFFFFFFFF))
@@ -379,9 +398,8 @@ library Blake2S {
             }
         }
 
-
         // Update the state with the result of the G mixing operations
-        for (uint i = 0; i < 8; i++) {
+        for (uint256 i = 0; i < 8; i++) {
             ctx.h[i] = ctx.h[i] ^ v[i] ^ v[i + 8];
         }
     }
@@ -399,9 +417,7 @@ library Blake2S {
      * 4. If the desired output length is not a multiple of 4 bytes, it properly pads the final
      *    word in the output array to match the specified output length.
      */
-    function finalize(
-        BLAKE2S_ctx memory ctx
-    ) internal view returns(bytes32 out) {
+    function finalize(BLAKE2S_ctx memory ctx) internal view returns (bytes32 out) {
         unchecked {
             // Add any uncounted bytes
             ctx.t += ctx.c;
@@ -410,7 +426,7 @@ library Blake2S {
             compress(ctx, true);
 
             // Flip little to big endian and store in output buffer
-            for (uint i = 0; i < ctx.outlen / 4; i++) {
+            for (uint256 i = 0; i < ctx.outlen / 4; i++) {
                 out |= bytes32(uint256(getWords32(ctx.h[i]))) << ((7 - i) * 32);
             }
         }
@@ -422,10 +438,6 @@ library Blake2S {
      * @return b The 32-bit word in big-endian format.
      */
     function getWords32(uint256 a) private pure returns (uint256 b) {
-        return
-            (a >> 24) |
-            ((a >> 8) & 0x0000FF00) |
-            ((a << 8) & 0x00FF0000) |
-            ((a << 24) & 0xFF000000);
+        return (a >> 24) | ((a >> 8) & 0x0000FF00) | ((a << 8) & 0x00FF0000) | ((a << 24) & 0xFF000000);
     }
 }

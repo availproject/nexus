@@ -5,15 +5,12 @@ pragma solidity >0.5.0 <0.8.21;
  * @title Lib_BytesUtils
  */
 library Lib_BytesUtils {
-    /**********************
+    /**
+     *
      * Internal Functions *
-     **********************/
-
-    function slice(
-        bytes memory _bytes,
-        uint256 _start,
-        uint256 _length
-    ) internal pure returns (bytes memory) {
+     *
+     */
+    function slice(bytes memory _bytes, uint256 _start, uint256 _length) internal pure returns (bytes memory) {
         unchecked {
             require(_length + 31 >= _length, "slice_overflow");
             require(_start + _length >= _start, "slice_overflow");
@@ -42,28 +39,17 @@ library Lib_BytesUtils {
                     // because when slicing multiples of 32 bytes (lengthmod == 0)
                     // the following copy loop was copying the origin's length
                     // and then ending prematurely not copying everything it should.
-                    let mc := add(
-                        add(tempBytes, lengthmod),
-                        mul(0x20, iszero(lengthmod))
-                    )
+                    let mc := add(add(tempBytes, lengthmod), mul(0x20, iszero(lengthmod)))
                     let end := add(mc, _length)
 
                     for {
                         // The multiplication in the next line has the same exact purpose
                         // as the one above.
-                        let cc := add(
-                            add(
-                                add(_bytes, lengthmod),
-                                mul(0x20, iszero(lengthmod))
-                            ),
-                            _start
-                        )
+                        let cc := add(add(add(_bytes, lengthmod), mul(0x20, iszero(lengthmod))), _start)
                     } lt(mc, end) {
                         mc := add(mc, 0x20)
                         cc := add(cc, 0x20)
-                    } {
-                        mstore(mc, mload(cc))
-                    }
+                    } { mstore(mc, mload(cc)) }
 
                     mstore(tempBytes, _length)
 
@@ -87,10 +73,7 @@ library Lib_BytesUtils {
         }
     }
 
-    function slice(
-        bytes memory _bytes,
-        uint256 _start
-    ) internal pure returns (bytes memory) {
+    function slice(bytes memory _bytes, uint256 _start) internal pure returns (bytes memory) {
         unchecked {
             if (_bytes.length - _start == 0) {
                 return bytes("");
@@ -100,9 +83,7 @@ library Lib_BytesUtils {
         }
     }
 
-    function toBytes32PadLeft(
-        bytes memory _bytes
-    ) internal pure returns (bytes32) {
+    function toBytes32PadLeft(bytes memory _bytes) internal pure returns (bytes32) {
         unchecked {
             bytes32 ret;
             uint256 len = _bytes.length <= 32 ? _bytes.length : 32;
@@ -131,10 +112,7 @@ library Lib_BytesUtils {
         return uint256(toBytes32(_bytes));
     }
 
-    function toUint24(
-        bytes memory _bytes,
-        uint256 _start
-    ) internal pure returns (uint24) {
+    function toUint24(bytes memory _bytes, uint256 _start) internal pure returns (uint24) {
         require(_start + 3 >= _start, "toUint24_overflow");
         require(_bytes.length >= _start + 3, "toUint24_outOfBounds");
         uint24 tempUint;
@@ -146,10 +124,7 @@ library Lib_BytesUtils {
         return tempUint;
     }
 
-    function toUint8(
-        bytes memory _bytes,
-        uint256 _start
-    ) internal pure returns (uint8) {
+    function toUint8(bytes memory _bytes, uint256 _start) internal pure returns (uint8) {
         require(_start + 1 >= _start, "toUint8_overflow");
         require(_bytes.length >= _start + 1, "toUint8_outOfBounds");
         uint8 tempUint;
@@ -161,27 +136,19 @@ library Lib_BytesUtils {
         return tempUint;
     }
 
-    function toAddress(
-        bytes memory _bytes,
-        uint256 _start
-    ) internal pure returns (address) {
+    function toAddress(bytes memory _bytes, uint256 _start) internal pure returns (address) {
         require(_start + 20 >= _start, "toAddress_overflow");
         require(_bytes.length >= _start + 20, "toAddress_outOfBounds");
         address tempAddress;
 
         assembly {
-            tempAddress := div(
-                mload(add(add(_bytes, 0x20), _start)),
-                0x1000000000000000000000000
-            )
+            tempAddress := div(mload(add(add(_bytes, 0x20), _start)), 0x1000000000000000000000000)
         }
 
         return tempAddress;
     }
 
-    function toNibbles(
-        bytes memory _bytes
-    ) internal pure returns (bytes memory) {
+    function toNibbles(bytes memory _bytes) internal pure returns (bytes memory) {
         unchecked {
             bytes memory nibbles = new bytes(_bytes.length * 2);
 
@@ -194,9 +161,7 @@ library Lib_BytesUtils {
         }
     }
 
-    function fromNibbles(
-        bytes memory _bytes
-    ) internal pure returns (bytes memory) {
+    function fromNibbles(bytes memory _bytes) internal pure returns (bytes memory) {
         unchecked {
             bytes memory ret = new bytes(_bytes.length / 2);
 
@@ -208,10 +173,7 @@ library Lib_BytesUtils {
         }
     }
 
-    function equal(
-        bytes memory _bytes,
-        bytes memory _other
-    ) internal pure returns (bool) {
+    function equal(bytes memory _bytes, bytes memory _other) internal pure returns (bool) {
         return keccak256(_bytes) == keccak256(_other);
     }
 }
