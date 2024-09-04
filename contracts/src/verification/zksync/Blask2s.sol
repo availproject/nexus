@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.21;
 
 // https://github.com/AlexNi245/blake2s-solidity/blob/main/contracts/Blake2S.sol
 

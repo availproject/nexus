@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.21;
 
 import "../../lib/external/trie/Lib_SecureMerkleTrie.sol";
 import "../../lib/external/rlp/Lib_RLPReader.sol";

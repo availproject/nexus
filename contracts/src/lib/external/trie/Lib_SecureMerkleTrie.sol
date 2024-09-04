@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >0.5.0 <0.8.21;
-pragma experimental ABIEncoderV2;
+pragma solidity ^0.8.21;
 
 /* Library Imports */
 import {Lib_MerkleTrie} from "./Lib_MerkleTrie.sol";
