@@ -8,3 +8,4 @@ target/
 **/adapter_store
 **/elf
 Cargo.lock
+.DS_Store
