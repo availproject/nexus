@@ -17,6 +17,7 @@ contract NexusProofManager {
 
     error AlreadyUpdatedBlock(uint256 blockNumber);
     error InvalidBlockNumber(uint256 blockNumber, uint256 latestBlockNumber);
+    error NexusLeafInclusionCheckFailed();
 
     struct AccountState {
         bytes32 statementDigest;
@@ -63,8 +64,10 @@ contract NexusProofManager {
 
         verifyRollupState(nexusBlock[nexusBlockNumber].stateRoot, proof, leaf);
 
-        require(nexusAppIdToLatestBlockNumber[key] < accountState.height, "Old block number");
-        nexusAppIdToLatestBlockNumber[key] = accountState.height;
+        if(nexusAppIdToLatestBlockNumber[key] < accountState.height) {
+            nexusAppIdToLatestBlockNumber[key] = accountState.height;
+        }
+
         nexusAppIdToState[key][accountState.height] = accountState.stateRoot;
     }
 
@@ -73,7 +76,9 @@ contract NexusProofManager {
         JellyfishMerkleTreeVerifier.Proof memory proof,
         JellyfishMerkleTreeVerifier.Leaf memory leaf
     ) public pure {
-        require(JellyfishMerkleTreeVerifier.verifyProof(root, leaf, proof), "Invalid leaf against nexus state root");
+        if(!JellyfishMerkleTreeVerifier.verifyProof(root, leaf, proof)) {
+            revert NexusLeafInclusionCheckFailed();
+        }
     }
 
     function getChainState(uint256 blockNumber, bytes32 nexusAppID) external view returns (bytes32) {
