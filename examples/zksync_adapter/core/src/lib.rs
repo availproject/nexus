@@ -10,6 +10,11 @@ use nexus_core::zkvm::{
     risczero::{RiscZeroProof, RiscZeroProver},
     traits::{ZKVMProof, ZKVMProver},
 };
+#[cfg(any(feature = "sp1"))]
+use nexus_core::zkvm::{
+    sp1::{SP1Proof, SP1Prover},
+    traits::{ZKVMProof, ZKVMProver},
+};
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
     ethabi::{Bytes, Token},
@@ -359,4 +364,68 @@ impl STF {
 
         prover.prove()
     }
+
+    #[cfg(any(feature = "sp1"))]
+    pub fn create_recursive_proof(
+        &self,
+        prev_adapter_proof: Option<SP1Proof>,
+        init_account: Option<InitAccount>,
+        new_rollup_proof: MockProof,
+        new_rollup_pi: L1BatchWithMetadata,
+        nexus_hash: NexusH256,
+    ) -> Result<SP1Proof, anyhow::Error> {
+
+        // recursive proofs are used for aggregation of proofs
+        // in sp1 we need to use the "compressed" proof for recursion
+
+        use types::L1BatchNumber;
+
+        let prev_adapter_pi: AdapterPublicInputs = match &prev_adapter_proof {
+            Some(i) => i.public_inputs()?, // why this line not working for sp1 
+            None => {
+                if new_rollup_pi.header.number == L1BatchNumber(1) {
+                    match init_account {
+                        Some(i) => AdapterPublicInputs {
+                            start_nexus_hash: i.start_nexus_hash,
+                            nexus_hash,
+                            state_root: NexusH256::zero(),
+                            height: 0,
+                            app_id: i.app_id,
+                            img_id: i.statement,
+                        },
+                        None => return Err(anyhow!("Init account details not provided which is required for first recursive proof")),
+                    }
+                } else {
+                    return Err(anyhow!("Previous public inputs not provided, and it should be provided if not first recursive proof."));
+                }
+            }
+        };
+
+        let new_batch = Self::get_commit_batch_info(new_rollup_pi.clone());
+
+        //prev_adapter_proof.verify(self.img_id);
+        let check = Self::verify_continuity_and_proof(
+            prev_adapter_pi.clone(),
+            new_rollup_proof.clone(),
+            new_rollup_pi.clone(),
+            new_batch.clone(),
+            nexus_hash.clone(),
+        )?;
+
+        let mut prover: Sp1Prover = Sp1Prover::new(self.elf.clone());
+
+        prover.add_input(&prev_adapter_pi)?;
+        prover.add_input(&new_rollup_proof)?;
+        prover.add_input(&new_rollup_pi)?;
+        prover.add_input(&self.img_id)?;
+        prover.add_input(&new_batch)?;
+        prover.add_input(&nexus_hash)?;
+        match prev_adapter_proof {
+            Some(i) => prover.add_proof_for_recursion(i)?,
+            None => (),
+        };
+
+        prover.prove()
+    }
+
 }
