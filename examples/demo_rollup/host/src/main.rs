@@ -7,7 +7,7 @@ use nexus_core::{
     types::{AppId, StatementDigest},
     zkvm::{
         risczero::{RiscZeroProof, ZKVM},
-        traits::{ZKVMProof, ZKVMEnv, ZKVMProver},
+        traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
     },
 };
 

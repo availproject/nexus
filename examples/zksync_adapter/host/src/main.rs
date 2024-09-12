@@ -169,6 +169,7 @@ async fn main() -> Result<(), Error> {
                     }
                 }
 
+                #[cfg(feature = "native")]
                 let (prev_proof_with_pi, init_account): (
                     Option<RiscZeroProof>,
                     Option<InitAccount>,
@@ -189,6 +190,29 @@ async fn main() -> Result<(), Error> {
                     }
                 }
                 };
+
+                #[cfg(feature = "sp1")]
+                let (prev_proof_with_pi, init_account): (
+                    Option<SP1Proof>,
+                    Option<InitAccount>,
+                ) = if last_height == 0 {
+                    (
+                        None,
+                        Some(InitAccount {
+                            app_id: app_account_id.clone(),
+                            statement: StatementDigest(ZKSYNC_ADAPTER_ID),
+                            start_nexus_hash: account_with_proof.nexus_header.hash(),
+                        }),
+                    )
+                } else {
+                    match db.get(&last_height.to_be_bytes())? {
+                        Some(i) => (Some(i), None),
+                        None => {
+                            return Err(anyhow!("previous proof and metadata not found for last height as per adapter state"))
+                        }
+                    }
+                };
+
                 let range = match nexus_api.get_range().await {
                     Ok(i) => i,
                     Err(e) => {
@@ -204,6 +228,7 @@ async fn main() -> Result<(), Error> {
                 }
 
                 let recursive_proof = stf.create_recursive_proof(
+                    //showing risczeroproof here because sp1 is disabled curently
                     prev_proof_with_pi,
                     init_account,
                     proof,

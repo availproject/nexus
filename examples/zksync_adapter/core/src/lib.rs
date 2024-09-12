@@ -374,14 +374,13 @@ impl STF {
         new_rollup_pi: L1BatchWithMetadata,
         nexus_hash: NexusH256,
     ) -> Result<SP1Proof, anyhow::Error> {
-
         // recursive proofs are used for aggregation of proofs
         // in sp1 we need to use the "compressed" proof for recursion
 
         use types::L1BatchNumber;
 
         let prev_adapter_pi: AdapterPublicInputs = match &prev_adapter_proof {
-            Some(i) => i.public_inputs()?, // why this line not working for sp1 
+            Some(i) => i.public_inputs()?, // why this line not working for sp1
             None => {
                 if new_rollup_pi.header.number == L1BatchNumber(1) {
                     match init_account {
@@ -427,5 +426,4 @@ impl STF {
 
         prover.prove()
     }
-
 }
