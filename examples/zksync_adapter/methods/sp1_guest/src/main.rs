@@ -3,6 +3,7 @@ use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
 use zksync_core::types::{CommitBatchInfo, L1BatchWithMetadata};
 use zksync_core::{MockProof, STF};
+use bincode::serialize;
 
 sp1_zkvm::entrypoint!(main);
 
@@ -14,8 +15,16 @@ fn main() {
     let new_batch: CommitBatchInfo = sp1_zkvm::io::read();
     let nexus_hash: H256 = sp1_zkvm::io::read();
 
+
+
     if new_rollup_pi.header.number.0 > 1 {
-        sp1_zkvm::lib::syscall_verify_sp1_proof(img_id, &to_vec(&previous_adapter_pi).unwrap());
+        let serialized = serialize(&previous_adapter_pi).unwrap();
+        
+        let mut previous_adapter_pi_bytes = [0u8; 32];
+        previous_adapter_pi_bytes.copy_from_slice(&serialized[..32]);
+        unsafe {
+            sp1_zkvm::lib::syscall_verify_sp1_proof(&img_id, &previous_adapter_pi_bytes);
+        }
     }
 
     let result = STF::verify_continuity_and_proof(
