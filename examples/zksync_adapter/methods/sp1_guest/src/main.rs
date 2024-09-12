@@ -1,11 +1,10 @@
 #![no_main]
 use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
-
 use zksync_core::types::{CommitBatchInfo, L1BatchWithMetadata};
 use zksync_core::{MockProof, STF};
 
-sp1_zkvm::guest::entry!(main);
+sp1_zkvm::entrypoint!(main);
 
 fn main() {
     let previous_adapter_pi: AdapterPublicInputs = sp1_zkvm::io::read();
@@ -16,7 +15,7 @@ fn main() {
     let nexus_hash: H256 = sp1_zkvm::io::read();
 
     if new_rollup_pi.header.number.0 > 1 {
-        sp1_zkvm::lib::syscall_verify_sp1_proof(img_id, &to_vec(&previous_adapter_pi).unwrap()).unwrap();
+        sp1_zkvm::lib::syscall_verify_sp1_proof(img_id, &to_vec(&previous_adapter_pi).unwrap());
     }
 
     let result = STF::verify_continuity_and_proof(
