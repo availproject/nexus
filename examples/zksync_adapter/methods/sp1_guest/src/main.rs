@@ -15,8 +15,6 @@ fn main() {
     let new_batch: CommitBatchInfo = sp1_zkvm::io::read();
     let nexus_hash: H256 = sp1_zkvm::io::read();
 
-
-
     if new_rollup_pi.header.number.0 > 1 {
         let serialized = serialize(&previous_adapter_pi).unwrap();
         

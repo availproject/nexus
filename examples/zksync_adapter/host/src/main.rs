@@ -169,7 +169,7 @@ async fn main() -> Result<(), Error> {
                     }
                 }
 
-                #[cfg(feature = "native")]
+                #[cfg(feature = "risc0")]
                 let (prev_proof_with_pi, init_account): (
                     Option<RiscZeroProof>,
                     Option<InitAccount>,

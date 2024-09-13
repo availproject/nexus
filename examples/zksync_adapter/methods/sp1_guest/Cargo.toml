@@ -11,6 +11,3 @@ adapter_sdk = { path = "../../../../adapter_sdk", default-features = false, feat
 zksync-core = { path = "../../core", default-features = false, features = ["zkvm"] }
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git"}
 bincode = "1.3"
-
-[features]
-sp1 = []
