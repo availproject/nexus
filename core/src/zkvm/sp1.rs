@@ -127,11 +127,12 @@ impl ZKVMEnv for SP1ZKVM {
 
     fn verify<T: Serialize>(img_id: [u32; 8], public_input: &T) -> Result<(), anyhow::Error> {
         let serialized_data = serialize_to_data(public_input)?;
-        let byte_slice: &[u8] = serialized_data.as_ref();
-        let public_values_digest = Sha256::digest(byte_slice);
-        // unsafe {
-        //     sp1_zkvm::lib::syscall_verify_sp1_proof(&img_id, public_values_digest)
-        // }
+  
+        let public_values: &[u8; 32] = unsafe { &*(serialized_data.as_ref() as *const [u8] as *const [u8; 32]) };
+        
+        unsafe {
+            sp1_zkvm::lib::syscall_verify_sp1_proof(&img_id, public_values);
+        }
         Ok(())
     }
 
