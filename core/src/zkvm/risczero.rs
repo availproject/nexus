@@ -6,11 +6,9 @@ use super::traits::{ZKVMProof, ZKVMProver};
 use anyhow::anyhow;
 use anyhow::Error;
 use risc0_zkvm::guest::env;
-#[cfg(any(feature = "native-risc0"))]
-pub use risc0_zkvm::recursion;
 use risc0_zkvm::serde::to_vec;
 #[cfg(any(feature = "native-risc0"))]
-use risc0_zkvm::{default_prover, Executor, ExecutorEnv, ExecutorEnvBuilder, LocalProver, Prover};
+use risc0_zkvm::{default_prover, Executor, ExecutorEnv, ExecutorEnvBuilder, Prover};
 use risc0_zkvm::{serde::from_slice, Receipt};
 use serde::{Deserialize, Serialize};
 
@@ -33,13 +31,11 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     }
 
     fn add_proof_for_recursion(&mut self, proof: RiscZeroProof) -> Result<(), anyhow::Error> {
-        println!("Adding assumption");
         self.env_builder.add_assumption(proof.0);
         Ok(())
     }
 
     fn prove(&mut self) -> Result<RiscZeroProof, anyhow::Error> {
-        println!("Proof generation process starting!");
         let start_time = std::time::Instant::now(); // Start time measurement
 
         //let env_1: ExecutorEnv = self.env_builder.clone().build().map_err(|e| anyhow!(e))?;
@@ -48,7 +44,6 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
         let prover = default_prover();
         // let stats = prover.execute(env, &self.elf).map_err(|e| anyhow!(e))?;
         // println!("Execution stats: {:?}", stats);
-        println!("Calling prove");
         let receipt = prover
             .prove(env, &self.elf)
             .map_err(|e| anyhow!("Error when proving: {:?}", e))?;
