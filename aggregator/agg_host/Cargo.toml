@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 agg_prover = { path = "../agg_prover" }
-risc0-zkvm = { version = "1.0.1" }
+risc0-zkvm = { version = "1.1.0" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = "1.0"
