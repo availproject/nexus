@@ -14192,6 +14192,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-runtime 33.0.0",
+ "sp1-sdk",
  "tokio",
  "tracing-subscriber 0.3.18",
  "warp",
@@ -14219,6 +14220,7 @@ name = "zksync-methods"
 version = "0.1.0"
 dependencies = [
  "risc0-build",
+ "sp1-helper 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

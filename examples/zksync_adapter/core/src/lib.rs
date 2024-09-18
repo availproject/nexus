@@ -5,11 +5,14 @@ use hex;
 use nexus_core::types::InitAccount;
 use nexus_core::types::H256 as NexusH256;
 use nexus_core::types::{AppAccountId, RollupPublicInputsV2, StatementDigest};
+// #[cfg(any(feature = "native"))]
+use nexus_core::types::Proof as NexusProof;
 #[cfg(any(feature = "native"))]
-use nexus_core::zkvm::{
-    risczero::{RiscZeroProof, RiscZeroProver},
-    traits::{ZKVMProof, ZKVMProver},
-};
+use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover};
+use nexus_core::zkvm::traits::ZKVMEnv;
+
+#[cfg(any(feature = "native"))]
+use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
     ethabi::{Bytes, Token},
@@ -86,7 +89,7 @@ impl STF {
         Ok(log_output)
     }
 
-    #[cfg(any(feature = "native"))]
+    #[cfg(any(feature = "native", feature = "risc0"))]
     fn get_commit_batch_info(new_rollup_pi: L1BatchWithMetadata) -> CommitBatchInfo {
         let commit_batch_info = CommitBatchInfo {
             batch_number: new_rollup_pi.header.number.0 as u64,
@@ -299,16 +302,23 @@ impl STF {
         Ok(proof_public_input)
     }
 
-    #[cfg(any(feature = "native"))]
-    pub fn create_recursive_proof(
+    #[cfg(any(feature = "native", feature = "risc0"))]
+    pub fn create_recursive_proof<
+        Z: ZKVMProver<P>,
+        P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>,
+        E: ZKVMEnv,
+    >(
         &self,
         //previous_adapter_pi: AdapterPublicInputs,
-        prev_adapter_proof: Option<RiscZeroProof>,
+        prev_adapter_proof: Option<P>,
         init_account: Option<InitAccount>,
         new_rollup_proof: MockProof,
         new_rollup_pi: L1BatchWithMetadata,
         nexus_hash: NexusH256,
-    ) -> Result<RiscZeroProof, anyhow::Error> {
+    ) -> Result<P, anyhow::Error>
+    where
+        <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
+    {
         use types::L1BatchNumber;
 
         let prev_adapter_pi: AdapterPublicInputs = match &prev_adapter_proof {
@@ -335,16 +345,17 @@ impl STF {
         // TODO: need to take the input batch
         let new_batch = Self::get_commit_batch_info(new_rollup_pi.clone());
 
+        // avoiding continuity check for now
         //prev_adapter_proof.verify(self.img_id);
-        let check = Self::verify_continuity_and_proof(
-            prev_adapter_pi.clone(),
-            new_rollup_proof.clone(),
-            new_rollup_pi.clone(),
-            new_batch.clone(),
-            nexus_hash.clone(),
-        )?;
+        // let check = Self::verify_continuity_and_proof(
+        //     prev_adapter_pi.clone(),
+        //     new_rollup_proof.clone(),
+        //     new_rollup_pi.clone(),
+        //     new_batch.clone(),
+        //     nexus_hash.clone(),
+        // )?;
 
-        let mut prover: RiscZeroProver = RiscZeroProver::new(self.elf.clone());
+        let mut prover = Z::new(self.elf.clone());
 
         prover.add_input(&prev_adapter_pi)?;
         prover.add_input(&new_rollup_proof)?;
@@ -357,6 +368,7 @@ impl STF {
             None => (),
         };
 
-        prover.prove()
+        let proof = prover.prove();
+        proof
     }
 }

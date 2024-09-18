@@ -6,7 +6,13 @@ use nexus_core::types::{
     AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2,
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
-use nexus_core::zkvm::risczero::RiscZeroProof;
+
+#[cfg(any(feature = "risc0"))]
+use nexus_core::zkvm::risczero::{RiscZeroProof, RiscZeroProver as Prover, ZKVM};
+
+#[cfg(any(feature = "sp1"))]
+use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
+
 use nexus_core::zkvm::traits::ZKVMProof;
 use proof_api::ProofAPIResponse;
 use risc0_zkvm::guest::env;
@@ -17,6 +23,8 @@ use std::env::args;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zksync_core::{L1BatchWithMetadata, MockProof, STF};
+
+#[cfg(any(feature = "risc0"))] // for now
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
 mod proof_api;
@@ -203,7 +211,7 @@ async fn main() -> Result<(), Error> {
                     continue;
                 }
 
-                let recursive_proof = stf.create_recursive_proof(
+                let recursive_proof = stf.create_recursive_proof::<Prover, RiscZeroProof, ZKVM>(
                     prev_proof_with_pi,
                     init_account,
                     proof,
