@@ -330,12 +330,12 @@ impl STF {
                 if new_rollup_pi.header.number == L1BatchNumber(1) {
                     match init_account {
                         Some(i) => AdapterPublicInputs {
-                            start_nexus_hash: NexusH256::from(i.1.start_nexus_hash),
+                            start_nexus_hash: NexusH256::from(i.start_nexus_hash),
                             nexus_hash,
                             state_root: NexusH256::zero(),
                             height: 0,
-                            app_id: i.0,
-                            img_id: i.1.statement,
+                            app_id: i.app_id,
+                            img_id: i.statement,
                         },
                         None => return Err(anyhow!("Init account details not provided which is required for first recursive proof")),
                     }
