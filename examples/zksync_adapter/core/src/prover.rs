@@ -1,8 +1,9 @@
+use crate::types::{CommitBatchInfo, L1BatchWithMetadata};
+use crate::{MockProof, STF};
 use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
 use nexus_core::zkvm::traits::ZKVMEnv;
-use zksync_core::types::{CommitBatchInfo, L1BatchWithMetadata};
-use zksync_core::{MockProof, STF};
+use risc0_zkvm::serde::to_vec;
 
 pub fn run<Z: ZKVMEnv>() {
     let previous_adapter_pi: AdapterPublicInputs = Z::read_input::<AdapterPublicInputs>().unwrap();
@@ -23,5 +24,5 @@ pub fn run<Z: ZKVMEnv>() {
         nexus_hash,
     );
 
-    Z::commit(&result);
+    // Z::commit(&result);
 }

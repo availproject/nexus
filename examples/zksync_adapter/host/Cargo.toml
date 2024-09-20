@@ -26,4 +26,4 @@ sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true }
 [features]
 default = ["risc0"]
 sp1 = ["sp1-sdk"]
-risc0 = ["risc0-zkvm/std"]
+risc0 = ["risc0-zkvm/std", "nexus-core/native-risc0"]

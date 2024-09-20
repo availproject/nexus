@@ -28,6 +28,7 @@ use zksync_basic_types::{
 pub mod constants;
 pub mod types;
 pub mod utils;
+pub mod prover;
 //pub use zksync_types::commitment::L1BatchWithMetadata;
 pub use crate::constants::{
     SystemLogKey, L2_LOG_ADDRESS_OFFSET, L2_LOG_KEY_OFFSET, L2_LOG_VALUE_OFFSET,
@@ -315,7 +316,7 @@ impl STF {
         &self,
         //previous_adapter_pi: AdapterPublicInputs,
         prev_adapter_proof: Option<P>,
-        init_account: Option<InitAccount>,
+        init_account: Option<(AppAccountId, AccountState)>,
         new_rollup_proof: MockProof,
         new_rollup_pi: L1BatchWithMetadata,
         nexus_hash: NexusH256,
@@ -330,12 +331,12 @@ impl STF {
                 if new_rollup_pi.header.number == L1BatchNumber(1) {
                     match init_account {
                         Some(i) => AdapterPublicInputs {
-                            start_nexus_hash: NexusH256::from(i.start_nexus_hash),
+                            start_nexus_hash: NexusH256::from(i.1.start_nexus_hash),
                             nexus_hash,
                             state_root: NexusH256::zero(),
                             height: 0,
-                            app_id: i.app_id,
-                            img_id: i.statement,
+                            app_id: i.0,
+                            img_id: i.1.statement,
                         },
                         None => return Err(anyhow!("Init account details not provided which is required for first recursive proof")),
                     }
