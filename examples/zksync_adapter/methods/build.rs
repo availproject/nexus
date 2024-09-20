@@ -6,5 +6,5 @@ fn main() {
     risc0_build::embed_methods();
     
     #[cfg(any(feature = "sp1"))]
-    build_program_with_args("./sp1_guest", Default::default())
+    build_program_with_args("./sp1-guest", Default::default())
 }

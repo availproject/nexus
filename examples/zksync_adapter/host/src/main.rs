@@ -90,6 +90,10 @@ async fn main() -> Result<(), Error> {
         db.delete(b"adapter_state_data")?;
     }
 
+    #[cfg(any(feature = "sp1"))]
+    let ZKSYNC_ADAPTER_ELF: &[u8] =
+        include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+
     // Retrieve or initialize the adapter state data from the database
     let adapter_state_data =
         if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {

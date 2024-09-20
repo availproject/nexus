@@ -1,5 +1,5 @@
 use super::traits::ZKVMEnv;
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 use super::traits::{ZKVMProof, ZKVMProver};
 use crate::types::Proof;
 use anyhow::anyhow;
@@ -9,20 +9,20 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::to_vec;
 use sha2::Digest;
 use sha2::Sha256;
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 use sp1_sdk::{
     utils, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1PublicValues, SP1Stdin,
     SP1VerifyingKey,
 };
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 pub struct Sp1Prover {
     sp1_standard_input: SP1Stdin,
     sp1_client: ProverClient,
     elf: Vec<u8>,
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn new(elf: Vec<u8>) -> Self {
         let mut sp1_standard_input = SP1Stdin::new();
@@ -56,11 +56,11 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         Ok(Sp1Proof(proof))
     }
 }
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sp1Proof(pub SP1ProofWithPublicValues);
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 impl ZKVMProof for Sp1Proof {
     fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
         let json = serde_json::to_string(&self.0.public_values)?;
@@ -71,20 +71,9 @@ impl ZKVMProof for Sp1Proof {
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
         panic!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
     }
-
-    fn try_from(value: Proof) -> Result<Self, anyhow::Error> {
-        let receipt: SP1ProofWithPublicValues = value.try_into()?;
-        Ok(Self(receipt))
-    }
-
-    fn try_into(&self) -> Result<Proof, Error> {
-        let encoded_u8: Vec<u8> =
-            to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
-        Ok(Proof(encoded_u8))
-    }
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 impl TryFrom<Proof> for SP1ProofWithPublicValues {
     type Error = anyhow::Error;
 
@@ -94,7 +83,7 @@ impl TryFrom<Proof> for SP1ProofWithPublicValues {
     }
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-sp1"))]
 impl TryInto<Proof> for SP1ProofWithPublicValues {
     type Error = anyhow::Error;
 
