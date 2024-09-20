@@ -37,6 +37,14 @@ impl VmState {
         Self { merkle_store }
     }
 
+    pub fn get_version(&self) -> Result<Option<u64>, anyhow::Error> {
+        self.merkle_store.get(b"version", true)
+    }
+
+    pub fn update_version(&self, version: u64) -> Result<(), anyhow::Error> {
+        self.merkle_store.put(b"version", &version)
+    }
+
     pub fn get_root(&self, version: u64) -> Result<H256, anyhow::Error> {
         let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
             JellyfishMerkleTree::new(&self.merkle_store);
