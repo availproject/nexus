@@ -18,6 +18,7 @@ risc0-zkvm = { version = "1.0.1", default-features = false, features = ["std"] }
 
 [features]
 default = ["native"]
-zkvm = ["nexus-core/zkvm-risc0"]
+zkvm-risc0 = ["nexus-core/zkvm-risc0"]
+zkvm-sp1 = ["nexus-core/zkvm-sp1"]
 risc0 = ["nexus-core/native-risc0"]
-native = ["nexus-core/native-risc0", "nexus-core/native", "zksync_types"]
+native = ["nexus-core/native-sp1", "nexus-core/native", "zksync_types"]

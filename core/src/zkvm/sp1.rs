@@ -84,7 +84,28 @@ impl TryFrom<Proof> for SP1ProofWithPublicValues {
 }
 
 #[cfg(any(feature = "native-sp1"))]
-impl TryInto<Proof> for SP1ProofWithPublicValues {
+impl TryFrom<Proof> for Sp1Proof {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Proof) -> Result<Self, Self::Error> {
+        let receipt: SP1ProofWithPublicValues = value.try_into()?;
+        Ok(Self(receipt))
+    }
+}
+
+// #[cfg(any(feature = "native-sp1"))]
+// impl TryInto<Proof> for SP1ProofWithPublicValues {
+//     type Error = anyhow::Error;
+
+//     fn try_into(self) -> Result<Proof, Self::Error> {
+//         let encoded_u8: Vec<u8> =
+//             to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
+//         Ok(Proof(encoded_u8))
+//     }
+// }
+
+#[cfg(any(feature = "native-sp1"))]
+impl TryInto<Proof> for Sp1Proof {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<Proof, Self::Error> {

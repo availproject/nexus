@@ -22,7 +22,7 @@ pub fn run<Z: ZKVMEnv>() {
         new_rollup_pi,
         new_batch,
         nexus_hash,
-    );
+    ).expect("Should not have panicked.");;
 
-    // Z::commit(&result);
+    Z::commit(&result);
 }

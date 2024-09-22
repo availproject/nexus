@@ -1,5 +1,5 @@
 #![no_main]
-use nexus_core::prover::run;
+use zksync_core::prover::run;
 use nexus_core::zkvm::risczero::ZKVM;
 risc0_zkvm::guest::entry!(main);
 
