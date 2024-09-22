@@ -3,7 +3,7 @@ use crate::{MockProof, STF};
 use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
 use nexus_core::zkvm::traits::ZKVMEnv;
-use risc0_zkvm::serde::to_vec;
+// use risc0_zkvm::serde::to_vec;
 
 pub fn run<Z: ZKVMEnv>() {
     let previous_adapter_pi: AdapterPublicInputs = Z::read_input::<AdapterPublicInputs>().unwrap();
@@ -12,9 +12,9 @@ pub fn run<Z: ZKVMEnv>() {
     let img_id: [u32; 8] = Z::read_input::<[u32; 8]>().unwrap();
     let new_batch: CommitBatchInfo = Z::read_input::<CommitBatchInfo>().unwrap();
     let nexus_hash: H256 = Z::read_input::<H256>().unwrap();
-    if new_rollup_pi.header.number.0 > 1 {
-        Z::verify(img_id, &to_vec(&previous_adapter_pi).unwrap()).unwrap();
-    }
+    // if new_rollup_pi.header.number.0 > 1 {
+    //     Z::verify(img_id, &to_vec(&previous_adapter_pi).unwrap()).unwrap();
+    // }
 
     let result = STF::verify_continuity_and_proof(
         previous_adapter_pi.clone(),

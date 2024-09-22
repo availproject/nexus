@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-adapter_sdk = { path = "../../../adapter_sdk", default-features = false, features = ["zkvm"] }
+adapter_sdk = { path = "../../../adapter_sdk", default-features = false, optional = true }
 anyhow = "1.0.81"
 nexus-core = { path = "../../../core", default-features = false, optional = true }
 serde = "1.0.197"
@@ -14,11 +14,11 @@ zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 zksync_types = { git = "https://github.com/vibhurajeev/zksync-era", optional = true }
 hex = "0.4.3"
 ethers-core = "2.0.14"
-risc0-zkvm = { version = "1.0.1", default-features = false, features = ["std"] }
+# risc0-zkvm = { version = "1.0.1", default-features = false, features = ["std"] }
 
 [features]
 default = ["native"]
-zkvm-risc0 = ["nexus-core/zkvm-risc0"]
-zkvm-sp1 = ["nexus-core/zkvm-sp1"]
+zkvm-risc0 = ["nexus-core/zkvm-risc0", "adapter_sdk/zkvm-risc0"]
+zkvm-sp1 = ["nexus-core/zkvm-sp1", "adapter_sdk/zkvm-sp1"]
 risc0 = ["nexus-core/native-risc0"]
 native = ["nexus-core/native-sp1", "nexus-core/native", "zksync_types"]

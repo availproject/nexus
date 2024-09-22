@@ -13730,7 +13730,6 @@ dependencies = [
  "ethers-core 2.0.14",
  "hex",
  "nexus-core",
- "risc0-zkvm",
  "serde",
  "zksync_basic_types",
  "zksync_types",
