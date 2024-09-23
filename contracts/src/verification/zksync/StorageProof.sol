@@ -31,7 +31,7 @@ contract StorageProofVerifier {
     }
 
     /// @notice Verifies the storage proof
-    function verify(StorageProof memory _proof) external view returns (bool valid) {
+    function verify(StorageProof memory _proof) public view returns (bool valid) {
         // Fold the proof path to get hash of L2 state
         bytes32 l2BatchHash = smt.getRootHash(
             _proof.path, TreeEntry({key: _proof.key, value: _proof.value, leafIndex: _proof.index}), _proof.account
