@@ -64,7 +64,7 @@ contract NexusProofManager {
 
         verifyRollupState(nexusBlock[nexusBlockNumber].stateRoot, proof, leaf);
 
-        if(nexusAppIdToLatestBlockNumber[key] < accountState.height) {
+        if (nexusAppIdToLatestBlockNumber[key] < accountState.height) {
             nexusAppIdToLatestBlockNumber[key] = accountState.height;
         }
 
@@ -76,7 +76,7 @@ contract NexusProofManager {
         JellyfishMerkleTreeVerifier.Proof memory proof,
         JellyfishMerkleTreeVerifier.Leaf memory leaf
     ) public pure {
-        if(!JellyfishMerkleTreeVerifier.verifyProof(root, leaf, proof)) {
+        if (!JellyfishMerkleTreeVerifier.verifyProof(root, leaf, proof)) {
             revert NexusLeafInclusionCheckFailed();
         }
     }
