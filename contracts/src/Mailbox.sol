@@ -6,6 +6,7 @@ import {INexusVerifierWrapper} from "./interfaces/INexusVerifierWrapper.sol";
 contract Mailbox is INexusMailbox { 
     error WrapperNotAvailable();
     error InvalidParameters();
+    error StateAlreadyUpdated();
 
     mapping(bytes32 => bytes32) public sendMessages;
     mapping(bytes32 => INexusVerifierWrapper) public verifierWrappers;
@@ -24,6 +25,11 @@ contract Mailbox is INexusMailbox {
         }
 
         bytes32 receiptHash = keccak256(abi.encode(receipt));
+
+        /// @dev we check if not exists, using chainId = 0 since this can is imposed by mailbox that the chainID is not 0 when storing
+        if(verifiedReceipts[keccak256(abi.encode(receipt.chainIdFrom, receiptHash))].chainIdFrom != bytes32(0)) {
+            revert StateAlreadyUpdated();
+        }
 
         verifier.parseAndVerify(chainblockNumber, receiptHash, proof);
         verifiedReceipts[keccak256(abi.encode(receipt.chainIdFrom, receiptHash))] = receipt;
