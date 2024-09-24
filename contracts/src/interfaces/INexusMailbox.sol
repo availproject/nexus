@@ -7,7 +7,6 @@ struct Receipt {
     bytes data;
     address from;
     address[] to; // if specified on verification, the callback on "to" function will be called
-    address[] sm; // security module
     uint256 nonce;
 }
 
