@@ -3,6 +3,7 @@ pragma solidity ^0.8.21;
 
 import {Receipt, INexusMailbox} from "./interfaces/INexusMailbox.sol";
 import {INexusVerifierWrapper} from "./interfaces/INexusVerifierWrapper.sol";
+import {INexusReceiver} from "./interfaces/INexusReceiver.sol";
 import {Initializable} from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
@@ -18,7 +19,9 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     bytes32 public chainId;
     uint256 public mailboxNonce;
 
-    function initialise() initializer public {
+    event CallbackFailed(address indexed to, bytes data);
+
+    function initialise() public initializer {
         chainId = bytes32(block.chainid);
         __Ownable_init(msg.sender);
     }
@@ -42,31 +45,86 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         verifiedReceipts[keccak256(abi.encode(receipt.chainIdFrom, receiptHash))] = receipt;
 
         if (callback) {
-            // do something
+            address to = search(receipt.chainIdTo, receipt.to);
+            if(to != address(0)) {
+                (bool success,) = to.call(
+                    abi.encodeWithSignature("callback(bytes)", receipt.data)
+                );
+                if (!success) { 
+                    emit CallbackFailed(to, receipt.data);
+                }
+            }
         }
     }
 
     function sendMessage(
-        bytes32[] calldata chainIdTo,
-        address[] calldata to,
-        address[] calldata sm,
+        bytes32[] memory chainIdTo,
+        address[] memory to,
         bytes calldata data
     ) public {
-        if (chainIdTo.length != to.length || to.length != sm.length) {
+        if (chainIdTo.length != to.length) {
             revert InvalidParameters();
         }
+        quickSort(chainIdTo, to,  0, int(chainIdTo.length-1));
         Receipt memory receipt = Receipt({
             chainIdFrom: chainId,
             chainIdTo: chainIdTo,
             data: data,
             from: msg.sender,
             to: to,
-            sm: sm,
             nonce: mailboxNonce++
         });
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(msg.sender, receiptHash));
         sendMessages[key] = receiptHash;
+    }
+
+    function quickSort(bytes32[] memory chainIdTo, address[] memory to,  int256 left, int256 right) internal pure {
+        int256 i = left;
+        int256 j = right;
+        if (i == j) return;
+        bytes32 pivot = chainIdTo[uint256(left + (right - left) / 2)];
+        while (i <= j) {
+            while (chainIdTo[uint256(i)] < pivot) i++;
+            while (pivot < chainIdTo[uint256(j)]) j--;
+            if (i <= j) {
+                (chainIdTo[uint256(i)], chainIdTo[uint256(j)]) = (chainIdTo[uint256(j)], chainIdTo[uint256(i)]);
+                (to[uint256(i)], to[uint256(j)]) = (to[uint256(j)], to[uint256(i)]);
+                i++;
+                j--;
+            }
+        }
+        if (left < j) {
+            quickSort(chainIdTo,to, left, j);
+        }
+        if (i < right) {
+            quickSort(chainIdTo, to, i, right);
+        }
+    }
+
+      function search(bytes32[] memory chainIdTo, address[] memory to) internal view returns (address) {
+        if (chainIdTo.length == 0) {
+            return (address(0));
+        }
+        
+        int left = 0;
+        int right = int(chainIdTo.length - 1);
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            
+            if (chainIdTo[uint(mid)] == chainId) {
+                return to[uint(mid)];
+            }
+            
+            if (chainIdTo[uint(mid)] < chainId) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+        
+        return (address(0));
     }
 
     // @dev This function can reset a verifier wrapper back to address(0)

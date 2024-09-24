@@ -38,13 +38,11 @@ contract MailBoxTest is Test {
         bytes32[] memory chainIdTo = new bytes32[](length);
         chainIdTo[0] = bytes32(targetChainId);
         address[] memory to = new address[](length);
-        address[] memory sm = new address[](length);
         to[0] = address(0);
-        sm[0] = address(0);
         bytes memory data = bytes("test");
         bytes32 chainId = mailbox.chainId();
         uint256 mailboxNonce = mailbox.mailboxNonce();
-        mailbox.sendMessage(chainIdTo, to, sm, data);
+        mailbox.sendMessage(chainIdTo, to,  data);
 
         NexusReceipt memory receipt = NexusReceipt({
             chainIdFrom: chainId,
@@ -52,7 +50,6 @@ contract MailBoxTest is Test {
             data: data,
             from: address(this),
             to: to,
-            sm: sm,
             nonce: mailboxNonce++
         });
 
@@ -89,16 +86,13 @@ contract MailBoxTest is Test {
 
         mailbox.updateSendMessages(key, value);
 
-
         uint256 length = 1;
         bytes32[] memory chainIdTo = new bytes32[](length);
         chainIdTo[0] = bytes32(targetChainId);
         address[] memory to = new address[](length);
-        address[] memory sm = new address[](length);
         to[0] = address(0);
-        sm[0] = address(0);
         bytes memory data = bytes("test");
-        mailbox.sendMessage(chainIdTo, to, sm, data);
+        mailbox.sendMessage(chainIdTo, to, data);
 
         NexusReceipt memory receipt = NexusReceipt({
             chainIdFrom: mailbox.chainId(),
@@ -106,11 +100,65 @@ contract MailBoxTest is Test {
             data: data,
             from: address(this),
             to: to,
-            sm: sm,
             nonce: mailbox.mailboxNonce() + 1
         });
 
+        mailbox.checkVerificationOfEncoding(0, receipt, bytes32(targetChainId), value, encoding);
+    }
 
-        mailbox.checkVerificationOfEncoding(0,  receipt, bytes32(targetChainId), value, encoding);
+    function testSortingAlgorithm() public view{
+        uint256 length = 5;
+        bytes32[] memory chainIdTo = new bytes32[](length);
+        chainIdTo[0] = bytes32(targetChainId);
+        chainIdTo[1] = bytes32(targetChainId - 1);
+        chainIdTo[2] = bytes32(targetChainId + 1);
+        chainIdTo[3] = bytes32(targetChainId + 2);
+        chainIdTo[4] = bytes32(targetChainId - 2);
+
+        
+        address[] memory to = new address[](length);
+        to[0] = address(0);
+        to[1] = vm.addr(1);
+        to[2] = vm.addr(2);
+        to[3] = vm.addr(3);
+        to[4] = vm.addr(4);
+ 
+        (chainIdTo, to) = mailbox.sortWrapper(chainIdTo, to,  0, int(length-1));
+
+        assertEq(chainIdTo[0], bytes32(targetChainId - 2));
+        assertEq(chainIdTo[1],bytes32(targetChainId - 1));
+        assertEq(chainIdTo[2], bytes32(targetChainId) );
+        assertEq(chainIdTo[3], bytes32(targetChainId + 1));
+        assertEq(chainIdTo[4], bytes32(targetChainId + 2));
+
+        assertEq(to[0], vm.addr(4));
+        assertEq(to[1], vm.addr(1));
+        assertEq(to[2], address(0));
+        assertEq(to[3], vm.addr(2));
+        assertEq(to[4], vm.addr(3));
+    }
+
+    function testSearchAlgorithm() public view {
+        uint256 length = 5;
+        bytes32[] memory chainIdTo = new bytes32[](length);
+        bytes32 chainId = mailbox.chainId();
+        chainIdTo[0] = chainId;
+        chainIdTo[1] = bytes32(targetChainId - 1);
+        chainIdTo[2] = bytes32(targetChainId + 1);
+        chainIdTo[3] = bytes32(targetChainId + 2);
+        chainIdTo[4] = bytes32(targetChainId - 2);
+
+        
+        address[] memory to = new address[](length);
+        to[0] = vm.addr(2);
+        to[1] = vm.addr(1);
+        to[2] = address(0);
+        to[3] = vm.addr(3);
+        to[4] = vm.addr(4);
+ 
+        (chainIdTo, to) = mailbox.sortWrapper(chainIdTo, to,  0, int(length-1));
+
+        address toAddr = mailbox.searchWrapper(chainIdTo, to);
+        assertEq(toAddr, vm.addr(2));
     }
 }
