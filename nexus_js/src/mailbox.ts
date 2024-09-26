@@ -1,8 +1,12 @@
+enum Chains {
+  Ethereum,
+  ZKSync,
+}
 interface ChainDetails {
   rpcUrl: string;
   mailboxContract: string;
   stateManagerContract: string;
-  appID: string;
+  appID: string; // nexus app id ?
 }
 
 export default class MailBoxClient {
@@ -22,8 +26,20 @@ export default class MailBoxClient {
     }
   }
 
+  verify(chain: Chains) {
+    switch (chain) {
+      case Chains.Ethereum: {
+        // call ethereum verifier object using the above chains array details
+      }
+      case Chains.ZKSync: {
+      }
+      default: {
+        // handle error gracefully
+      }
+    }
+  }
+
   addChain(key: string, chainDetails: ChainDetails): void {
     this.chains.set(key, chainDetails);
   }
 }
-
