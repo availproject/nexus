@@ -46,7 +46,7 @@ contract StorageProof {
         storageRoot = accountFields[ACCOUNT_STORAGE_ROOT_INDEX].readBytes32();
     }
 
-    function verifyStorage(bytes32 storageRoot, bytes32 slot, bytes calldata storageSlotTrieProof)
+    function verifyStorage(bytes32 storageRoot, bytes32 slot, bytes memory storageSlotTrieProof)
         public
         pure
         returns (bytes32 slotValue)
