@@ -71,6 +71,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(msg.sender, receiptHash));
         sendMessages[key] = receiptHash;
+        emit ReceiptEvent(chainId, chainIdTo, data, msg.sender, to, mailboxNonce);
     }
 
     function quickSort(bytes32[] memory chainIdTo, address[] memory to, int256 left, int256 right) internal pure {
