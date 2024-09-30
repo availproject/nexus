@@ -46,26 +46,20 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
         if (callback) {
             address to = search(receipt.chainIdTo, receipt.to);
-            if(to != address(0)) {
-                (bool success,) = to.call(
-                    abi.encodeWithSignature("callback(bytes)", receipt.data)
-                );
-                if (!success) { 
+            if (to != address(0)) {
+                (bool success,) = to.call(abi.encodeWithSignature("callback(bytes)", receipt.data));
+                if (!success) {
                     emit CallbackFailed(to, receipt.data);
                 }
             }
         }
     }
 
-    function sendMessage(
-        bytes32[] memory chainIdTo,
-        address[] memory to,
-        bytes calldata data
-    ) public {
+    function sendMessage(bytes32[] memory chainIdTo, address[] memory to, bytes calldata data) public {
         if (chainIdTo.length != to.length) {
             revert InvalidParameters();
         }
-        quickSort(chainIdTo, to,  0, int(chainIdTo.length-1));
+        quickSort(chainIdTo, to, 0, int256(chainIdTo.length - 1));
         Receipt memory receipt = Receipt({
             chainIdFrom: chainId,
             chainIdTo: chainIdTo,
@@ -79,7 +73,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         sendMessages[key] = receiptHash;
     }
 
-    function quickSort(bytes32[] memory chainIdTo, address[] memory to,  int256 left, int256 right) internal pure {
+    function quickSort(bytes32[] memory chainIdTo, address[] memory to, int256 left, int256 right) internal pure {
         int256 i = left;
         int256 j = right;
         if (i == j) return;
@@ -95,35 +89,35 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             }
         }
         if (left < j) {
-            quickSort(chainIdTo,to, left, j);
+            quickSort(chainIdTo, to, left, j);
         }
         if (i < right) {
             quickSort(chainIdTo, to, i, right);
         }
     }
 
-      function search(bytes32[] memory chainIdTo, address[] memory to) internal view returns (address) {
+    function search(bytes32[] memory chainIdTo, address[] memory to) internal view returns (address) {
         if (chainIdTo.length == 0) {
             return (address(0));
         }
-        
-        int left = 0;
-        int right = int(chainIdTo.length - 1);
-        
+
+        int256 left = 0;
+        int256 right = int256(chainIdTo.length - 1);
+
         while (left <= right) {
-            int mid = left + (right - left) / 2;
-            
-            if (chainIdTo[uint(mid)] == chainId) {
-                return to[uint(mid)];
+            int256 mid = left + (right - left) / 2;
+
+            if (chainIdTo[uint256(mid)] == chainId) {
+                return to[uint256(mid)];
             }
-            
-            if (chainIdTo[uint(mid)] < chainId) {
+
+            if (chainIdTo[uint256(mid)] < chainId) {
                 left = mid + 1;
             } else {
                 right = mid - 1;
             }
         }
-        
+
         return (address(0));
     }
 

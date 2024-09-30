@@ -12,4 +12,5 @@ struct Receipt {
 
 interface INexusMailbox {
     function receiveMessage(uint256 chainblockNumber, Receipt calldata, bytes calldata proof, bool callback) external;
+    function sendMessage(bytes32[] memory chainIdTo, address[] memory to, bytes calldata data) external;
 }
