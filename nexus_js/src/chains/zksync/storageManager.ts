@@ -140,9 +140,11 @@ export class StorageProofProvider {
       [batchNumber]
     );
     const commitLog = receipt.logs.find(
-      (log) =>
+      (log: { address: string; topics: { [x: string]: any } }) =>
         log.address === this.diamondAddress &&
-        blockCommitFilter.every((topic, i) => topic === log.topics[i])
+        blockCommitFilter.every(
+          (topic: any, i: string | number) => topic === log.topics[i]
+        )
     );
     if (commitLog == undefined) {
       throw new Error(`Commit log for batch ${batchNumber} not found`);
