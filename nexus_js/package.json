@@ -1,0 +1,31 @@
+{
+  "name": "nexus-js",
+  "version": "0.0.1",
+  "description": "A TypeScript SDK for Nexus",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/nexus-js.git"
+  },
+  "keywords": [
+    "nexus",
+    "typescript",
+    "sdk"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^4.0.0",
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "dependencies": {}
+}
