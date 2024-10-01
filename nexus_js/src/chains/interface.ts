@@ -1,4 +1,5 @@
 import { Receipt } from "../types";
+import MailBoxClient from "../mailbox";
 
 export default abstract class ChainInterface {
   protected chainId: string;
@@ -7,12 +8,12 @@ export default abstract class ChainInterface {
     this.chainId = _chainId;
   }
 
-  abstract sendMessage(chainIdTo: string[], to: string[]): void;
+  abstract sendMessage(chainIdTo: string[], to: string[], data: string): void;
+
   abstract receiveMessage(
     chainblockNumber: number,
     receipt: Receipt,
-    callback: boolean
-  ): string;
-
-  abstract encodeData(...args: any[]): void;
+    callback: boolean,
+    ...args: any[]
+  ): void;
 }

@@ -57,8 +57,6 @@ class MailboxUtils {
 }
 
 export default class MailBoxClient extends MailboxUtils {
-  private: Provider;
-
   constructor(chains: { [key in Chains]: ChainDetails }) {
     if (Object.keys(chains).length === 0) {
       throw new Error("At least one account state mapping must be provided.");

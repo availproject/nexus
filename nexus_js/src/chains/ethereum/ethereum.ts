@@ -1,6 +1,7 @@
-import { ETHEREUM_CHAIN_ID } from "../constants";
-import { Receipt } from "../types";
-import ChainInterface from "./interface";
+import { ETHEREUM_CHAIN_ID } from "../../constants";
+import { Receipt } from "../../types";
+import MailBoxClient from "../../mailbox";
+import ChainInterface from "../interface";
 
 type Proof = {
   accountProof: string;
@@ -10,23 +11,26 @@ type Proof = {
 };
 export default class EthereumVerifier extends ChainInterface {
   private rpcUrl: string;
-  constructor(_rpcUrl: string) {
+  private mailbox: MailBoxClient;
+
+  constructor(_mailbox: MailBoxClient, _rpcUrl: string) {
     super(ETHEREUM_CHAIN_ID);
     this.rpcUrl = _rpcUrl;
+    this.mailbox = _mailbox;
   }
 
-  sendMessage(chainIdTo: string[], to: string[]): void {}
+  sendMessage(chainIdTo: string[], to: string[]) {
+    const storageSlot = this.calculateStorageSlot();
+    const proof = this.getProof();
+    // TODO: next steps
+  }
   receiveMessage(
     chainblockNumber: number,
     receipt: Receipt,
     callback: boolean
-  ): string {
-    return "";
-  }
+  ) {}
 
-  encodeData(...args: any[]): void {}
-
-  getStorageProof() {}
+  getProof() {}
   calculateStorageSlot() {}
 
   // move the encoding logic from rust off-chain scripts here
