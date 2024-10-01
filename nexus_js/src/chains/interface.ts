@@ -1,5 +1,4 @@
 import { Receipt } from "../types";
-import MailBoxClient from "../mailbox";
 
 export default abstract class ChainInterface {
   protected chainId: string;
