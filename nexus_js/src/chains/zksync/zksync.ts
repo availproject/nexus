@@ -5,6 +5,7 @@ import ChainInterface from "../interface";
 import { RpcProof, StorageProofProvider } from "./storageManager";
 import MailBoxClient from "../../mailbox";
 import { AbiCoder, ethers } from "ethers";
+import logger from "../../logger";
 
 type Proof = {
   batchNumber: number;
@@ -84,7 +85,7 @@ export default class ZKSyncVerifier extends ChainInterface {
       );
       return proof;
     } catch (e) {
-      console.log(e);
+      logger.error(e);
       return undefined;
     }
   }
