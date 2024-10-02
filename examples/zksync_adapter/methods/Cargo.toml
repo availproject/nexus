@@ -11,6 +11,6 @@ sp1-helper = { version = "1.1.0", optional = true }
 methods = ["risc0-guest"]
 
 [features]
-default = ["risc0"]
+# default = ["risc0"]
 sp1 = ["sp1-helper"]
 risc0 = ["risc0-build"]

@@ -220,6 +220,7 @@ name = "adapter_sdk"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "digest 0.10.7",
  "hex",
  "nexus-core",
  "relayer",

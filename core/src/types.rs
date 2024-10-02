@@ -434,7 +434,7 @@ impl RollupPublicInputsV2 {
     }
 }
 
-#[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native-risc0"))]
 impl TryFrom<risc0_zkvm::Receipt> for Proof {
     type Error = Error;
 
@@ -443,7 +443,7 @@ impl TryFrom<risc0_zkvm::Receipt> for Proof {
     }
 }
 
-#[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native-risc0"))]
 impl TryInto<risc0_zkvm::Receipt> for Proof {
     type Error = Error;
 

@@ -11,12 +11,15 @@ use nexus_core::types::{
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
 #[cfg(feature = "sp1")]
-use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
+use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM };
 
 use nexus_core::zkvm::traits::ZKVMProof;
 use proof_api::ProofAPIResponse;
+#[cfg(feature = "risc0")]
 use risc0_zkvm::guest::env;
+#[cfg(feature = "risc0")]
 use risc0_zkvm::serde::to_vec;
+#[cfg(feature = "risc0")]
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value as SerdeValue};
@@ -28,8 +31,11 @@ use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zksync_core::{L1BatchWithMetadata, MockProof, STF};
 
-#[cfg(feature = "risc0")] // for now
-use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
+#[cfg(any(feature = "sp1"))]
+use sp1_sdk::{utils};
+
+// #[cfg(feature = "risc0")] // for now
+// use zksync_methods::{ ZKSYNC_ADAPTER_ELF ,ZKSYNC_ADAPTER_ID}; 
 
 mod proof_api;
 // Your NodeDB struct and methods implementation here
@@ -42,6 +48,10 @@ struct AdapterStateData {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+
+    #[cfg(any(feature = "sp1"))]
+    utils::setup_logger();
+
     // Retrieve Ethereum node URL and command-line arguments
     let args: Vec<String> = args().collect();
     if args.len() <= 2 {
@@ -91,11 +101,11 @@ async fn main() -> Result<(), Error> {
     }
 
     #[cfg(feature = "sp1")]
-    let ZKSYNC_ADAPTER_ELF: &[u8] =
-        include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+    let zksync_adapter_elf_vec: Vec<u8> = std::fs::read("../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf").expect("Failed to read elf");
+    let zksync_adapter_elf : &[u8] = &zksync_adapter_elf_vec;
 
     #[cfg(feature = "sp1")]
-    let ZKSYNC_ADAPTER_ID = [0u32; 8]; // since sp1 doesn't implements verify method on proof object
+    let zksync_adapter_id: [u32; 8] = [0u32; 8]; // since sp1 doesn't implements verify method on proof object
 
     // Retrieve or initialize the adapter state data from the database
     let adapter_state_data =
@@ -105,8 +115,8 @@ async fn main() -> Result<(), Error> {
             // Initialize with default values if no data found in the database
             let adapter_config = AdapterConfig {
                 app_id: AppId(app_id),
-                elf: ZKSYNC_ADAPTER_ELF.to_vec(),
-                adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                elf: zksync_adapter_elf.to_vec(),
+                adapter_elf_id: StatementDigest(zksync_adapter_id),
                 vk: [0u8; 32],
                 rollup_start_height: 606460,
             };
@@ -119,7 +129,7 @@ async fn main() -> Result<(), Error> {
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash: Option<H256> = None;
-    let stf = STF::new(ZKSYNC_ADAPTER_ID, ZKSYNC_ADAPTER_ELF.to_vec());
+    let stf = STF::new(zksync_adapter_id, zksync_adapter_elf.to_vec());
 
     println!(
         "Starting nexus with AppAccountId: {:?} \n, and start height {last_height}",
@@ -154,7 +164,7 @@ async fn main() -> Result<(), Error> {
             signature: TxSignature([0u8; 64]),
             params: TxParamsV2::InitAccount(InitAccount {
                 app_id: app_account_id.clone(),
-                statement: StatementDigest(ZKSYNC_ADAPTER_ID),
+                statement: StatementDigest(zksync_adapter_id),
                 start_nexus_hash: account_with_proof.nexus_header.hash(),
             }),
         };
@@ -252,7 +262,7 @@ async fn main() -> Result<(), Error> {
                 );
 
                 #[cfg(feature = "risc0")]                
-                match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
+                match recursive_proof.0.verify(zksync_adapter_id) {
                     Ok(()) => {
                         println!("Proof verification successful");
 
@@ -273,7 +283,7 @@ async fn main() -> Result<(), Error> {
                             H256::from(account_with_proof.account.start_nexus_hash)
                         }),
                         app_id: app_account_id.clone(),
-                        img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                        img_id: StatementDigest(zksync_adapter_id),
                     };
 
                     let tx = TransactionV2 {

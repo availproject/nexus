@@ -1,6 +1,6 @@
-use crate::types::{CommitBatchInfo, L1BatchWithMetadata};
+use crate::types::{CommitBatchInfo, L1BatchWithMetadata, AdapterPublicInputs};
 use crate::{MockProof, STF};
-use adapter_sdk::types::AdapterPublicInputs;
+// use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
 use nexus_core::zkvm::traits::ZKVMEnv;
 // use risc0_zkvm::serde::to_vec;

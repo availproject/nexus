@@ -15,12 +15,15 @@ use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
     SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
+#[cfg(feature = "native-risc0")]
 use nexus_core::zkvm::risczero::RiscZeroProver;
-#[cfg(any(feature = "sp1"))]
-use nexus_core::zkvm::sp1::SpOneProver;
+// #[cfg(any(feature = "native-sp1"))]
+use nexus_core::zkvm::sp1::Sp1Prover;
 use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use relayer::Relayer;
+#[cfg(feature = "native-risc0")]
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
+#[cfg(feature = "native-risc0")]
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -34,11 +37,11 @@ use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
-#[cfg(feature = "sp1")]
+// #[cfg(feature = "native-sp1")]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
 
-#[cfg(feature = "sp1")]
-const ELF: &[u8] = include_bytes!("../../demo_rollup/program/elf/riscv32im-succinct-zkvm-elf");
+// #[cfg(feature = "native-sp1")]
+//const ELF: &[u8] = include_bytes!("../../zksync_adapter/methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InclusionProof(pub Vec<u8>);
@@ -201,10 +204,10 @@ where
             let nexus_api = nexus_api_clone;
             Self::manage_submissions(db_clone_2, &nexus_api).await
         });
-        match self.process_queue().await {
-            Ok(_) => (),
-            Err(e) => println!("Exiting because of error: {:?}", e),
-        };
+        // match self.process_queue().await {
+        //     Ok(_) => (),
+        //     Err(e) => println!("Exiting because of error: {:?}", e),
+        // };
 
         tokio::try_join!(avail_syncer_handle, relayer_handle, submission_handle)
             .unwrap()
@@ -306,49 +309,50 @@ where
             }
         }
     }
+    
+    
+    // async fn process_queue(&mut self) -> Result<Receipt, Error> {
+    //     loop {
+    //         let queue_item = {
+    //             let queue_lock = self.queue.lock().await;
+    //             let item = queue_lock.front().cloned();
+    //             item
+    //         };
 
-    async fn process_queue(&mut self) -> Result<Receipt, Error> {
-        loop {
-            let queue_item = {
-                let queue_lock = self.queue.lock().await;
-                let item = queue_lock.front().cloned();
-                item
-            };
+    //         if queue_item.is_none() {
+    //             thread::sleep(Duration::from_secs(2));
 
-            if queue_item.is_none() {
-                thread::sleep(Duration::from_secs(2));
+    //             continue; // Restart the loop
+    //         };
+    //         let queue_item = queue_item.unwrap();
+    //         if queue_item.blob.is_some() && queue_item.proof.is_none() {
+    //             thread::sleep(Duration::from_secs(10));
 
-                continue; // Restart the loop
-            };
-            let queue_item = queue_item.unwrap();
-            if queue_item.blob.is_some() && queue_item.proof.is_none() {
-                thread::sleep(Duration::from_secs(10));
+    //             continue; // Restart the loop
+    //         }
 
-                continue; // Restart the loop
-            }
+    //         let receipt = match self.verify_and_generate_proof(&queue_item).await {
+    //             Err(e) => {
+    //                 return Err(e);
+    //             }
+    //             Ok(i) => i,
+    //         };
+    //         // TODO]
+    //         // let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
+    //         // self.queue.lock().await.pop_front();
 
-            let receipt = match self.verify_and_generate_proof(&queue_item).await {
-                Err(e) => {
-                    return Err(e);
-                }
-                Ok(i) => i,
-            };
-            // TODO]
-            // let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
-            // self.queue.lock().await.pop_front();
-
-            // self.db.lock().await.store_last_proof(&(
-            //     receipt.clone(),
-            //     adapter_pi.clone(),
-            //     queue_item.header.number,
-            // ))?;
-            // self.previous_adapter_proof = Some((
-            //     receipt.clone(),
-            //     adapter_pi.clone(),
-            //     queue_item.header.number,
-            // ));
-        }
-    }
+    //         // self.db.lock().await.store_last_proof(&(
+    //         //     receipt.clone(),
+    //         //     adapter_pi.clone(),
+    //         //     queue_item.header.number,
+    //         // ))?;
+    //         // self.previous_adapter_proof = Some((
+    //         //     receipt.clone(),
+    //         //     adapter_pi.clone(),
+    //         //     queue_item.header.number,
+    //         // ));
+    //     }
+    // }
 
     pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) -> Result<(), Error> {
         let mut queue = self.queue.lock().await;
@@ -403,12 +407,12 @@ where
             Some(i) => Some(i.clone()),
         };
 
-        let prover = default_prover();
+        // let prover = default_prover();
 
-        #[cfg(feature = "sp1")]
-        let mut zkvm = SpOneProver::new(self.elf);
+        // #[cfg(feature = "native-sp1")]
+        let mut zkvm = Sp1Prover::new(self.elf.clone());
 
-        #[cfg(feature = "native")]
+        #[cfg(feature = "native-risc0")]
         let mut zkvm = RiscZeroProver::new(self.elf.clone());
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
@@ -419,7 +423,7 @@ where
                 Some(pi)
             }
         };
-        #[cfg(feature = "native")]
+
         {
             zkvm.add_input(&prev_pi);
             zkvm.add_input(&queue_item.proof);

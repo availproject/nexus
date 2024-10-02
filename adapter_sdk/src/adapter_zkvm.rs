@@ -5,11 +5,12 @@ use nexus_core::traits::Hasher;
 use nexus_core::types::{
     AppAccountId, AvailHeader, Extension, ShaHasher, StatementDigest, V3Extension, H256,
 };
-use risc0_zkvm::{
-    guest::env::{self, verify},
-    serde::to_vec,
-    sha::rust_crypto::Digest,
-};
+// use risc0_zkvm::{
+//     guest::env::{self, verify},
+//     serde::to_vec,
+//     sha::rust_crypto::Digest,
+// };
+use digest::Update;
 
 use serde::Serialize;
 
@@ -97,7 +98,7 @@ pub fn verify_proof<P: RollupProof>(
     //TODO: Check inclusion proof for data blob, app index check, and empty block check.
     let mut hasher = ShaHasher::new();
 
-    hasher.0.update(private_inputs.app_id.0.to_be_bytes());
+    hasher.0.update(&private_inputs.app_id.0.to_be_bytes());
 
     let hash: H256 = hasher.finish();
     let app_account_id: AppAccountId = AppAccountId::from(hash);
@@ -180,13 +181,13 @@ pub fn verify_proof<P: RollupProof>(
         ));
     }
 
-    match env::verify(img_id.0, &to_vec(&prev_public_input).unwrap()) {
-        Ok(()) => {
-            println!("Verified proof");
-            ()
-        }
-        Err(e) => return Err(anyhow::anyhow!("Invalid proof")),
-    }
+    // match env::verify(img_id.0, &to_vec(&prev_public_input).unwrap()) {
+    //     Ok(()) => {
+    //         println!("Verified proof");
+    //         ()
+    //     }
+    //     Err(e) => return Err(anyhow::anyhow!("Invalid proof")),
+    // }
 
     Ok(AdapterPublicInputs {
         nexus_hash,
