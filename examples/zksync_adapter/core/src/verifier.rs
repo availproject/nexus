@@ -52,7 +52,6 @@ impl ZksyncVerifier {
         transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_3.y));
 
         let etaaa = transcript.get_transcript_challenge(0);
-        println!("etaaa: {}", BigInt::from_bytes_be(Sign::Plus, &etaaa));
 
         //round 1.5
         transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().lookup_s_poly.x));
@@ -60,8 +59,6 @@ impl ZksyncVerifier {
 
         let betaa = transcript.get_transcript_challenge(1);
         let gammma = transcript.get_transcript_challenge(2);
-        println!("betaa: {}", BigInt::from_bytes_be(Sign::Plus, &betaa));
-        println!("gammma: {}", BigInt::from_bytes_be(Sign::Plus, &gammma));
 
         //round 2
 
@@ -74,14 +71,6 @@ impl ZksyncVerifier {
 
         let beta_lookuppp = transcript.get_transcript_challenge(3);
         let gamma_lookuppp = transcript.get_transcript_challenge(4);
-        println!(
-            "beta_lookuppp: {}",
-            BigInt::from_bytes_be(Sign::Plus, &beta_lookuppp)
-        );
-        println!(
-            "gamma_lookuppp: {}",
-            BigInt::from_bytes_be(Sign::Plus, &gamma_lookuppp)
-        );
 
         //round 2.5
 
@@ -89,7 +78,6 @@ impl ZksyncVerifier {
         transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().lookup_grand_product.y));
 
         let alphaaa = transcript.get_transcript_challenge(5);
-        println!("alphaaa: {}", BigInt::from_bytes_be(Sign::Plus, &alphaaa));
 
         //round 3
 
@@ -104,11 +92,6 @@ impl ZksyncVerifier {
 
         let zz = transcript.get_transcript_challenge(6);
         let zz_in_domain_size = get_fr_from_u8arr(zz.to_vec()).pow([get_domain_size()]);
-        println!("zz: {}", BigInt::from_bytes_be(Sign::Plus, &zz));
-        println!(
-            "zz_in_domain_size: {}",
-            get_bigint_from_fr(zz_in_domain_size)
-        );
 
         //round 4
 
@@ -173,8 +156,6 @@ impl ZksyncVerifier {
 
         let vv = transcript.get_transcript_challenge(7);
 
-        println!("vv: {}", BigInt::from_bytes_be(Sign::Plus, &vv));
-
         // round 5
 
         transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().opening_proof_at_z.x));
@@ -187,7 +168,6 @@ impl ZksyncVerifier {
         ));
 
         let uu = transcript.get_transcript_challenge(8);
-        println!("uu: {}", BigInt::from_bytes_be(Sign::Plus, &uu));
 
         let power_of_alpha_1 = get_fr_from_u8arr(alphaaa.to_vec());
         let power_of_alpha_2 = power_of_alpha_1.mul(power_of_alpha_1);
@@ -277,7 +257,6 @@ impl ZksyncVerifier {
         res = res.mul(pvs.power_of_alpha_6);
 
         let mut last_omega = get_omega().pow([get_domain_size() - 1]);
-        println!("last_omega: {}", get_bigint_from_fr(last_omega));
         let z_minus_last_omega = pvs.z.add(last_omega.neg());
         res = res.mul(z_minus_last_omega);
 
@@ -289,7 +268,6 @@ impl ZksyncVerifier {
             .power_of_alpha_8
             .mul(pvs.l_n_minus_one_at_z.mul(beta_gamma_power));
         res = res.add(subtrahend.neg());
-        println!("res: {}", get_bigint_from_fr(res));
         res
     }
 
@@ -311,12 +289,10 @@ impl ZksyncVerifier {
         pvs.l_n_minus_one_at_z = lnminus_1_at_z;
 
         let state_t = l0atz.mul(get_public_inputs());
-        // println!("state_t: {}", get_bigint_from_fr(state_t));
 
         let mut result = state_t.mul(get_mock_proof().gate_selectors_0_opening_at_z);
 
         result = result.add(Self::permutation_quotient_contribution(pvs, l0atz));
-        // println!("result: {}", get_bigint_from_fr(result));
 
         result = result.add(Self::lookup_quotient_contribution(pvs));
 
@@ -337,7 +313,6 @@ impl ZksyncVerifier {
         if poly_num > 0 {
             omega_power = get_omega().pow(&[poly_num as u64]);
         }
-        println!("omegaPower: {}", omega_power);
         let mut res = at
             .pow(&[get_domain_size()])
             .add(get_scalar_field().sub(Fr::from_str("1").unwrap()));
@@ -401,18 +376,12 @@ impl ZksyncVerifier {
             .into_affine()
             .add(queries_at_z_0);
 
-        println!("Queries at Z 0 x Slot: {:?}", queries_at_z_0.x.to_string());
-        println!("Queries at Z 0 y Slot: {:?}", queries_at_z_0.y.to_string());
-
         current_z = current_z.mul(z_domain_size);
 
         queries_at_z_0 = proof_quotient_poly_parts_3_affine
             .mul(current_z)
             .into_affine()
             .add(queries_at_z_0);
-
-        println!("Queries at Z 0 x Slot: {:?}", queries_at_z_0.x.to_string());
-        println!("Queries at Z 0 y Slot: {:?}", queries_at_z_0.y.to_string());
 
         let state_opening_0_z = proof.state_poly_0_opening_at_z;
 
@@ -439,9 +408,6 @@ impl ZksyncVerifier {
             pvs.clone(),
         );
 
-        println!("Queries at Z 1 x Slot: {:?}", queries_at_z_1.x.to_string());
-        println!("Queries at Z 1 y Slot: {:?}", queries_at_z_1.y.to_string());
-
         queries_at_z_1 = Self::add_assign_rescue_customgate_linearisation_contribution_with_v(
             queries_at_z_1,
             state_opening_0_z,
@@ -453,8 +419,6 @@ impl ZksyncVerifier {
             pvs.clone(),
         );
 
-        println!(" Queries at Z 1 x Slot: {:?}", queries_at_z_1.x.to_string());
-        println!(" Queries at Z 1 y Slot: {:?}", queries_at_z_1.y.to_string());
         // PROOF_QUOTIENT_POLY_PARTS_1_X_SLOT currentz QUERIES_AT_Z_0_X_SLOT
         // queries_at_z_1
 
@@ -471,9 +435,6 @@ impl ZksyncVerifier {
 
         queries_at_z_1 = resp.0;
         let copy_permutation_first_aggregated_commitment_coeff = resp.1;
-
-        println!("Queries at Z 1 x Slot: {:?}", queries_at_z_1.x.to_string());
-        println!("Queries at Z 1 y Slot: {:?}", queries_at_z_1.y.to_string());
 
         // we are assigning few things here internally which would be required later on
         let (
@@ -511,15 +472,6 @@ impl ZksyncVerifier {
             .into_affine()
             .add(queries_t_poly_aggregated);
 
-        println!(
-            "Queries T Poly Aggregated x Slot: {:?}",
-            queries_t_poly_aggregated.x.to_string()
-        );
-        println!(
-            "Queries T Poly Aggregated y Slot: {:?}",
-            queries_t_poly_aggregated.y.to_string()
-        );
-
         (
             queries_at_z_0,
             queries_at_z_1,
@@ -556,7 +508,6 @@ impl ZksyncVerifier {
         let queries_z_0 = queries.0;
         let queries_z_1 = queries.1;
 
-        println!("Queries Z 0 x Slot: {:?}", queries_z_0.x.to_string());
         let mut aggregation_challenge = Fr::from_str("1").unwrap();
 
         let first_d_coeff: Fr;
@@ -642,13 +593,7 @@ impl ZksyncVerifier {
 
         aggregated_at_z = update_agg_challenge.1;
 
-        println!("Aggregated at z 1 {:?}", aggregated_at_z.x.to_string());
-
         aggregation_challenge = update_agg_challenge.0;
-        println!(
-            "Aggregation Challenge 1 {:?}",
-            aggregation_challenge.to_string()
-        );
         aggregated_opening_at_z = update_agg_challenge.2;
 
         update_agg_challenge = update_aggregation_challenge(
@@ -663,11 +608,6 @@ impl ZksyncVerifier {
         aggregated_at_z = update_agg_challenge.1;
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
-        println!("Aggregated at z 2 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 2 {:?}",
-            aggregation_challenge.to_string()
-        );
 
         update_agg_challenge = update_aggregation_challenge(
             proof_state_polys_2,
@@ -681,11 +621,6 @@ impl ZksyncVerifier {
         aggregated_at_z = update_agg_challenge.1;
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
-        println!("Aggregated at z 3 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 3 {:?}",
-            aggregation_challenge.to_string()
-        );
 
         aggregation_challenge = aggregation_challenge.mul(state_v_slot);
         first_d_coeff = aggregation_challenge;
@@ -707,12 +642,6 @@ impl ZksyncVerifier {
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
 
-        println!("Aggregated at z 4 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 4 {:?}",
-            aggregation_challenge.to_string()
-        );
-
         update_agg_challenge = update_aggregation_challenge(
             vk_permutation_0_affine,
             proof_copy_permutation_polys_0_opening_at_z,
@@ -725,12 +654,6 @@ impl ZksyncVerifier {
         aggregated_at_z = update_agg_challenge.1;
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
-
-        println!("Aggregated at z 5 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 5 {:?}",
-            aggregation_challenge.to_string()
-        );
 
         update_agg_challenge = update_aggregation_challenge(
             vk_permutation_1_affine,
@@ -745,12 +668,6 @@ impl ZksyncVerifier {
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
 
-        println!("Aggregated at z 6 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 6 {:?}",
-            aggregation_challenge.to_string()
-        );
-
         update_agg_challenge = update_aggregation_challenge(
             vk_permutation_2_affine,
             proof_copy_permutation_polys_2_opening_at_z,
@@ -763,12 +680,6 @@ impl ZksyncVerifier {
         aggregated_at_z = update_agg_challenge.1;
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
-
-        println!("Aggregated at z 7 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 7 {:?}",
-            aggregation_challenge.to_string()
-        );
 
         aggregation_challenge = aggregation_challenge.mul(state_v_slot);
         first_t_coeff = aggregation_challenge;
@@ -790,12 +701,6 @@ impl ZksyncVerifier {
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
 
-        println!("Aggregated at z 8 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 8 {:?}",
-            aggregation_challenge.to_string()
-        );
-
         update_agg_challenge = update_aggregation_challenge(
             vk_lookup_table_type_affine,
             proof_lookup_table_type_poly_opening_at_z,
@@ -808,18 +713,6 @@ impl ZksyncVerifier {
         aggregated_at_z = update_agg_challenge.1;
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_at_z = update_agg_challenge.2;
-        println!("Aggregated at z 9 {:?}", aggregated_at_z.x.to_string());
-        println!(
-            "Aggregation Challenge 9 {:?}",
-            aggregation_challenge.to_string()
-        );
-
-        // storing aggregated opening at z
-        // mstore(AGGREGATED_OPENING_AT_Z_SLOT, aggregatedOpeningAtZ)
-        println!(
-            "Aggregated Opening at Z x Slot: {:?}",
-            aggregated_opening_at_z.to_string()
-        );
 
         aggregation_challenge = aggregation_challenge.mul(state_v_slot);
 
@@ -838,19 +731,8 @@ impl ZksyncVerifier {
             .mul(copy_permutation_coeff)
             .into_affine();
 
-        println!("Copy perm coeff {:?}", copy_permutation_coeff.to_string());
-        println!(
-            "Aggfldkhbldkghf Slot: {:?}",
-            aggregated_z_omega.x.to_string()
-        );
-
         let mut aggregated_opening_z_omega =
             proof_copy_permutation_grand_product_opening_at_z_omega.mul(aggregation_challenge);
-
-        println!(
-            "Aggregated Opening at Z Omega x Slot: {:?}",
-            aggregated_opening_z_omega.to_string()
-        );
 
         let proof_state_polys_3 = proof.state_poly_3;
 
@@ -897,15 +779,6 @@ impl ZksyncVerifier {
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_z_omega = update_agg_challenge.2;
 
-        println!(
-            "Aggregated at z omega 1 {:?}",
-            aggregated_z_omega.x.to_string()
-        );
-        println!(
-            "Aggregation Challenge 1 {:?}",
-            aggregation_challenge.to_string()
-        );
-
         let proof_lookup_s_poly = proof.lookup_s_poly;
 
         let proof_lookup_s_poly_opening_at_z_omega = proof.lookup_s_poly_opening_at_z_omega;
@@ -927,15 +800,6 @@ impl ZksyncVerifier {
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_z_omega = update_agg_challenge.2;
 
-        println!(
-            "Aggregated at z omega 2 {:?}",
-            aggregated_z_omega.x.to_string()
-        );
-        println!(
-            "Aggregation Challenge 2 {:?}",
-            aggregation_challenge.to_string()
-        );
-
         let proof_lookup_grand_product_opening_at_z_omega =
             proof.lookup_grand_product_opening_at_z_omega;
 
@@ -956,20 +820,6 @@ impl ZksyncVerifier {
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_z_omega = update_agg_challenge.2;
 
-        println!(
-            "kdfghfgh {:?}",
-            lookup_grand_product_first_aggregated_commitment_coeff.to_string()
-        );
-
-        println!(
-            "Aggregated at z omega 3 {:?}",
-            aggregated_z_omega.x.to_string()
-        );
-        println!(
-            "Aggregation Challenge 3 {:?}",
-            aggregation_challenge.to_string()
-        );
-
         update_agg_challenge = update_aggregation_challenge_second(
             queries_t_poly_aggregated,
             proof_lookup_t_poly_opening_at_z_omega,
@@ -985,42 +835,11 @@ impl ZksyncVerifier {
         aggregation_challenge = update_agg_challenge.0;
         aggregated_opening_z_omega = update_agg_challenge.2;
 
-        println!(
-            "Aggregated at z omega 4 {:?}",
-            aggregated_z_omega.x.to_string()
-        );
-        println!(
-            "Aggregation Challenge 4 {:?}",
-            aggregation_challenge.to_string()
-        );
-
-        // store aggregated_opening_z_omega somewhere and return it as it might be used somewhere else
-
-        println!(
-            "Aggregated at z x Slot: {:?}",
-            aggregated_at_z.x.to_string()
-        );
-
-        println!(
-            "Aggregated Z Omega x Slot: {:?}",
-            aggregated_z_omega.x.to_string()
-        );
-
         let pairing_pair_with_generator = aggregated_at_z.add(aggregated_z_omega);
-
-        println!(
-            "Pairing Pair with Generator x Slot: {:?}",
-            pairing_pair_with_generator.x.to_string()
-        );
 
         let aggregated_value = aggregated_opening_z_omega
             .mul(state_u)
             .add(aggregated_opening_at_z);
-
-        println!(
-            "Aggregated Value x Slot: {:?}",
-            aggregated_value.to_string()
-        );
 
         let mut pairing_buffer_point = G1Projective::new(
             <G1Point as AffineCurve>::BaseField::from_str(
@@ -1066,6 +885,7 @@ impl ZksyncVerifier {
         let state_beta_plus_one = pvs.beta_plus_one;
         let proof_lookup_grand_product_opening_at_z_omega =
             proof.lookup_grand_product_opening_at_z_omega;
+        let state_l_0_at_z = pvs.l_0_at_z;
         // check is this assignment even correct ??
         let mut factor = proof_lookup_grand_product_opening_at_z_omega;
         factor = factor.mul(state_power_of_alpha_6);
@@ -1079,8 +899,6 @@ impl ZksyncVerifier {
         factor = factor.mul(state_beta_lookup);
         factor = factor.add(proof_lookup_t_poly_opening_at_z);
         factor = factor.add(state_beta_gamma_plus_gamma);
-
-        println!("Factor aa: {:?}", factor.to_string());
 
         let mut freconstructed = state_opening_0_z;
         let eta = state_eta;
@@ -1102,19 +920,10 @@ impl ZksyncVerifier {
         factor = factor.mul(state_power_of_alpha_6);
         factor = factor.mul(state_z_minus_last_omega);
 
-        // calcualated somewhere in the middle
-        // TODO: need to fix this
-        let state_l_0_at_z = Fr::from_str(
-            "16998705531439461081194953598960002453935573094468931463486819379249964474322",
-        )
-        .unwrap();
-
         factor = factor.add(state_l_0_at_z.mul(state_power_of_alpha_7));
         factor = factor.add(state_l_n_minus_1_at_z.mul(state_power_of_alpha_8));
 
         factor = factor.mul(state_v_slot);
-
-        println!("Factor: {:?}", factor.to_string());
 
         (lookup_s_first_aggregated_commitment_coeff, factor)
         // LOOKUP_GRAND_PRODUCT_FIRST_AGGREGATED_COMMITMENT_COEFF
@@ -1179,13 +988,8 @@ impl ZksyncVerifier {
             .add(state_opening_3_z);
         factor = factor.mul(intermediate_value);
 
-        println!("Factor: {:?}", factor.to_string());
-        println!("intermediate_value: {:?}", intermediate_value.to_string());
-
         // calcualated somewhere in the middle
         let state_l_0_at_z = pvs.l_0_at_z;
-
-        println!("State L 0 at Z: {:?}", state_l_0_at_z.to_string());
 
         factor = factor.add(state_l_0_at_z.mul(state_power_of_alpha_5));
         factor = factor.mul(state_v_slot);
@@ -1195,8 +999,6 @@ impl ZksyncVerifier {
         factor = state_power_of_alpha_4.mul(state_beta);
 
         factor = factor.mul(proof_copy_permutation_grand_product_opening_at_z_omega);
-
-        println!("Factor 2: {:?}", factor.to_string());
 
         intermediate_value = state_opening_0_z
             .add(state_gamma.add(proof_copy_permutation_polys_0_opening_at_z.mul(state_beta)));
@@ -1210,15 +1012,9 @@ impl ZksyncVerifier {
             .add(state_gamma.add(proof_copy_permutation_polys_2_opening_at_z.mul(state_beta)));
         factor = factor.mul(intermediate_value);
 
-        println!("factor 2: {:?}", factor.to_string());
-        println!("intermediate_value 2: {:?}", intermediate_value.to_string());
-
         factor = factor.mul(state_v_slot);
 
         let temp_query_val = vk_permutation_3_affine.mul(factor).into_affine();
-        println!("Temp Query Val: {:?}", temp_query_val.x.to_string());
-        println!("Temp Query Val: {:?}", temp_query_val.y.to_string());
-
         (
             queries_at_z_1.add(-temp_query_val),
             copy_permutation_first_aggregated_commitment_coeff,
@@ -1315,9 +1111,6 @@ impl ZksyncVerifier {
                 .mul(proof_state_polys_3_opening_at_z_omega_slot)
                 .into_affine(),
         );
-
-        println!("Queries at Z 1 x Slot: {:?}", queries_at_z_1.x.to_string());
-        println!("Queries at Z 1 y Slot: {:?}", queries_at_z_1.y.to_string());
 
         let coeff = proof_gate_selectors_0_opening_at_z.mul(state_v_slot);
         queries_at_z_1 = queries_at_z_1.mul(coeff).into_affine();
