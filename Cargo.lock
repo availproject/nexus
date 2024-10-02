@@ -228,6 +228,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp1-sdk",
+ "sp1-zkvm",
  "tokio",
  "tokio-stream",
  "warp",
