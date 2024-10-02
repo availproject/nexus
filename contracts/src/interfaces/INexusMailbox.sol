@@ -12,9 +12,24 @@ struct Receipt {
 
 interface INexusMailbox {
     event ReceiptEvent(
-        bytes32 indexed chainIdFrom, bytes32[] chainIdTo, bytes data, address indexed from, address[] to, uint256 nonce
+        bytes32 indexed chainIdFrom,
+        bytes32[] chainIdTo,
+        bytes data,
+        address indexed from,
+        address[] to,
+        uint256 nonce
     );
 
-    function receiveMessage(uint256 chainblockNumber, Receipt calldata, bytes calldata proof, bool callback) external;
-    function sendMessage(bytes32[] memory chainIdTo, address[] memory to, bytes calldata data) external;
+    function receiveMessage(
+        uint256 chainblockNumber,
+        Receipt calldata,
+        bytes calldata proof,
+        bool callback
+    ) external;
+    function sendMessage(
+        bytes32[] memory chainIdTo,
+        address[] memory to,
+        uint256 nonce,
+        bytes calldata data
+    ) external;
 }
