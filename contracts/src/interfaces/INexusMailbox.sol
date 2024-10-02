@@ -9,7 +9,6 @@ struct Receipt {
     address[] to; // if specified on verification, the callback on "to" function will be called
     uint256 nonce;
 }
-
 interface INexusMailbox {
     event ReceiptEvent(
         bytes32 indexed chainIdFrom,

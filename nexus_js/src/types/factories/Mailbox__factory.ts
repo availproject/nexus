@@ -46,19 +46,6 @@ const _abi = [
   },
   {
     type: "function",
-    name: "mailboxNonce",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "uint256",
-        internalType: "uint256",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "owner",
     inputs: [],
     outputs: [
@@ -150,6 +137,11 @@ const _abi = [
         name: "to",
         type: "address[]",
         internalType: "address[]",
+      },
+      {
+        name: "nonce",
+        type: "uint256",
+        internalType: "uint256",
       },
       {
         name: "data",

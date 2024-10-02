@@ -54,7 +54,6 @@ export interface MailboxInterface extends Interface {
       | "addOrUpdateWrapper"
       | "chainId"
       | "initialise"
-      | "mailboxNonce"
       | "owner"
       | "receiveMessage"
       | "renounceOwnership"
@@ -82,10 +81,6 @@ export interface MailboxInterface extends Interface {
     functionFragment: "initialise",
     values?: undefined
   ): string;
-  encodeFunctionData(
-    functionFragment: "mailboxNonce",
-    values?: undefined
-  ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "receiveMessage",
@@ -97,7 +92,7 @@ export interface MailboxInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "sendMessage",
-    values: [BytesLike[], AddressLike[], BytesLike]
+    values: [BytesLike[], AddressLike[], BigNumberish, BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "sendMessages",
@@ -122,10 +117,6 @@ export interface MailboxInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "chainId", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "initialise", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "mailboxNonce",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "receiveMessage",
@@ -279,8 +270,6 @@ export interface Mailbox extends BaseContract {
 
   initialise: TypedContractMethod<[], [void], "nonpayable">;
 
-  mailboxNonce: TypedContractMethod<[], [bigint], "view">;
-
   owner: TypedContractMethod<[], [string], "view">;
 
   receiveMessage: TypedContractMethod<
@@ -297,7 +286,12 @@ export interface Mailbox extends BaseContract {
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   sendMessage: TypedContractMethod<
-    [chainIdTo: BytesLike[], to: AddressLike[], data: BytesLike],
+    [
+      chainIdTo: BytesLike[],
+      to: AddressLike[],
+      nonce: BigNumberish,
+      data: BytesLike
+    ],
     [void],
     "nonpayable"
   >;
@@ -343,9 +337,6 @@ export interface Mailbox extends BaseContract {
     nameOrSignature: "initialise"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "mailboxNonce"
-  ): TypedContractMethod<[], [bigint], "view">;
-  getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -366,7 +357,12 @@ export interface Mailbox extends BaseContract {
   getFunction(
     nameOrSignature: "sendMessage"
   ): TypedContractMethod<
-    [chainIdTo: BytesLike[], to: AddressLike[], data: BytesLike],
+    [
+      chainIdTo: BytesLike[],
+      to: AddressLike[],
+      nonce: BigNumberish,
+      data: BytesLike
+    ],
     [void],
     "nonpayable"
   >;

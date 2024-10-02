@@ -65,9 +65,15 @@ export default class MailBoxClient extends MailboxUtils {
     super(chains);
   }
 
-  sendMessage(chain: Chains, chainIdTo: string[], to: string[], data: string) {
+  sendMessage(
+    chain: Chains,
+    chainIdTo: string[],
+    to: string[],
+    nonce: number,
+    data: string
+  ) {
     const mailboxContract = this.getMailboxContract(chain);
-    mailboxContract?.sendMessage(chainIdTo, to, data);
+    mailboxContract?.sendMessage(chainIdTo, to, nonce, data);
   }
 
   receiveMessage(
