@@ -40,7 +40,6 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         self.sp1_standard_input.write(input);
         Ok(())
     }
-
     fn add_proof_for_recursion(&mut self, proof: Sp1Proof) -> Result<(), anyhow::Error> {
         unimplemented!();
         Ok(())
@@ -64,20 +63,10 @@ pub struct Sp1Proof(pub SP1ProofWithPublicValues);
 #[cfg(any(feature = "native-sp1"))]
 impl ZKVMProof for Sp1Proof {
 
-    // TODO: fix public inputs method
     fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error> {
         let public_value = &self.0.public_values.read::<V>();
         Ok(public_value.clone())
     }
-
-    // fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&self) -> Result<V, anyhow::Error> {
-    //     let json = serde_json::to_string(&self.0.public_values)?;
-    //     println!("json: {:?}", json);
-    //     let deserialized = serde_json::from_str(&json)?;
-    //     // println!("deserialized: {}", deserialized);
-    //     Ok(deserialized)
-    // }
-
 
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
         panic!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
