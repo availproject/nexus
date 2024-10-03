@@ -125,6 +125,23 @@ async fn main() -> Result<(), Error> {
                 adapter_config,
             }
         };
+    let adapter_state_data =
+        if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
+            data
+        } else {
+            // Initialize with default values if no data found in the database
+            let adapter_config = AdapterConfig {
+                app_id: AppId(app_id),
+                elf: ZKSYNC_ADAPTER_ELF.to_vec(),
+                adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                vk: [0u8; 32],
+                rollup_start_height: 606460,
+            };
+            AdapterStateData {
+                last_height: 0,
+                adapter_config,
+            }
+        };
 
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
@@ -248,15 +265,14 @@ async fn main() -> Result<(), Error> {
                     continue;
                 }
 
-                let recursive_proof = stf.create_recursive_proof::<Prover, Proof, ZKVM>(
+                let mut recursive_proof = stf.create_recursive_proof::<Prover, Proof, ZKVM>(
                     prev_proof_with_pi,
                     account_state,
                     proof,
                     batch_metadata.clone(),
                     range[0],
                 )?;
-
-                // TODO: need to fix public_inputs method for sp1
+                
                 println!(
                     "Current proof data: {:?}",
                     recursive_proof.public_inputs::<RollupPublicInputsV2>()

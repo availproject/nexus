@@ -187,11 +187,17 @@ pub async fn get_state(
         Ok(None) => HeaderStore::new(32),
         Err(_) => panic!("Header store error"),
     };
-    let (account_option, proof) = match state_lock.get_with_proof(app_account_id, 0) {
+    let current_version = match state_lock.get_version() {
+        Ok(Some(i)) => i,
+        Ok(None) => 0,
+        Err(e) => return Ok(String::from("Internal db error")),
+    };
+
+    let (account_option, proof) = match state_lock.get_with_proof(app_account_id, current_version) {
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
     };
-    let root = match state_lock.get_root(0) {
+    let root = match state_lock.get_root(current_version) {
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
     };
@@ -239,11 +245,17 @@ pub async fn get_state_hex(
         Ok(None) => HeaderStore::new(32),
         Err(_) => panic!("Header store error"),
     };
-    let (account_option, proof) = match state_lock.get_with_proof(app_account_id, 0) {
+    let current_version = match state_lock.get_version() {
+        Ok(Some(i)) => i,
+        Ok(None) => 0,
+        Err(e) => return Ok(String::from("Internal db error")),
+    };
+
+    let (account_option, proof) = match state_lock.get_with_proof(app_account_id, current_version) {
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
     };
-    let root = match state_lock.get_root(0) {
+    let root = match state_lock.get_root(current_version) {
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
     };

@@ -39,11 +39,14 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         &mut self,
         state_root: &H256,
         node_batch: &NodeBatch,
-        version: Version,
     ) -> Result<(), Error> {
         let mut state_lock = self.state.lock().await;
         state_lock.commit(node_batch)?;
 
+        let version = match state_lock.get_version()? {
+            Some(i) => i,
+            None => 0,
+        };
         let root = state_lock.get_root(version)?;
 
         //TODO: Can remove as fixed slice from below
@@ -59,14 +62,16 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
         txs: &Vec<TransactionV2>,
-        prev_version: Version,
     ) -> Result<(Option<TreeUpdateBatch>, StateUpdate), Error> {
         //TODO: Increment version for each update.
-        let version = prev_version;
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
 
-        let result = {
+        let result: Result<u64, anyhow::Error> = {
             let state_lock = self.state.lock().await;
+            let prev_version = match state_lock.get_version()? {
+                Some(i) => i,
+                None => 0,
+            };
             txs.iter().try_for_each(|tx| {
                 let app_account_id: AppAccountId = match &tx.params {
                     TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
@@ -75,7 +80,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                     }
                 };
 
-                let account_state = match state_lock.get(&app_account_id.as_h256(), 0) {
+                let account_state = match state_lock.get(&app_account_id.as_h256(), prev_version) {
                     Ok(Some(account)) => account,
                     Err(e) => return Err(anyhow!("{:?}", e)), // Exit and return the error
                     Ok(None) => AccountState::zero(),
@@ -83,14 +88,18 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
 
                 pre_state.insert(app_account_id.0.clone(), account_state);
                 Ok(()) // Continue iterating
-            })
+            })?;
+
+            Ok(prev_version)
         };
 
         // Check the result and return an error if necessary
-        match result {
-            Ok(()) => { /* Continue with the rest of your code */ }
+        let prev_version = match result {
+            Ok(i) => i,
             Err(e) => return Err(e),
-        }
+        };
+
+        let version = prev_version + 1;
 
         //TODO: Need to simplify this part.
         let zkvm_txs: Vec<TransactionZKVM> = txs
@@ -122,6 +131,8 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                     .collect(),
                 version,
             )?;
+
+            state_lock.update_version(version)?;
 
             Ok((Some(result.0), result.1))
         } else {

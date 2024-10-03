@@ -207,7 +207,7 @@ where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
     let state_update = state_machine
-        .execute_batch(&header, header_store, &txs, 0)
+        .execute_batch(&header, header_store, &txs)
         .await?;
 
     let (proof, result) = {
@@ -266,7 +266,7 @@ where
     match state_update.0 {
         Some(i) => {
             state_machine
-                .commit_state(&result.state_root, &i.node_batch, 0)
+                .commit_state(&result.state_root, &i.node_batch)
                 .await?;
         }
         None => (),

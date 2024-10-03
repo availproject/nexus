@@ -339,10 +339,21 @@ impl STF {
         // .unwrap();
 
         // let mut blob_commitments: H256Vec = [H256::zero(); MAX_NUMBER_OF_BLOBS];
+        // let mut blob_commitments: H256Vec = [H256::zero(); MAX_NUMBER_OF_BLOBS];
 
         // // when pub data source is selected as blob which is default
         // // Self::verify_blob_information(new_batch.pubdata_commitments.clone(), log_output.blob_hashes);
+        // // when pub data source is selected as blob which is default
+        // // Self::verify_blob_information(new_batch.pubdata_commitments.clone(), log_output.blob_hashes);
 
+        // let start = U256::from(SystemLogKey::BlobOneHashKey as u16).low_u32() as usize;
+        // let end = U256::from(SystemLogKey::BlobSixHashKey as u16).low_u32() as usize;
+        // // this we do in case when pricing mode is validium
+        // for i in start..=end {
+        //     log_output.blob_hashes
+        //         [i - (U256::from(SystemLogKey::BlobOneHashKey as u16).low_u64() as usize)] =
+        //         H256::zero();
+        // }
         // let start = U256::from(SystemLogKey::BlobOneHashKey as u16).low_u32() as usize;
         // let end = U256::from(SystemLogKey::BlobSixHashKey as u16).low_u32() as usize;
         // // this we do in case when pricing mode is validium
@@ -358,7 +369,14 @@ impl STF {
         //     blob_commitments,
         //     log_output.blob_hashes,
         // );
+        // let commitment: H256 = Self::create_batch_commitment(
+        //     commit_batch_info.clone(),
+        //     log_output.state_diff_hash,
+        //     blob_commitments,
+        //     log_output.blob_hashes,
+        // );
 
+        // let mut public_inputs = previous_adapter_pi.clone();
         // let mut public_inputs = previous_adapter_pi.clone();
 
         // if new_rollup_pi.header.number.0 > 1 {
@@ -451,13 +469,15 @@ impl STF {
             Some(i) => prover.add_proof_for_recursion(i)?,
             None => (),
         };
-        
-        // Run the verifier function from the verifier
-        let proof = prover.prove();
-        proof
 
+        let conditional_proof = prover.prove();
 
-//         let conditional_proof = prover.prove()?;
-//         Ok(conditional_proof)
+        // match prev_adapter_proof {
+        //     Some(i) => RiscZeroProof(risczero::recursion::resolve(conditional_proof, i.0)),
+        //     None => Ok(conditional_proof),
+        // }
+
+        // Ok(conditional_proof)
+        conditional_proof
     }
 }
