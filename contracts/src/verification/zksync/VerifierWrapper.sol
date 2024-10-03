@@ -10,11 +10,16 @@ contract VerifierWrapper is INexusVerifierWrapper, StorageProofVerifier {
     error InvalidProof();
     error VerificationFailed();
 
-    constructor(IZKSyncNexusManagerRouter zksyncDiamondAddress, SparseMerkleTree smt)
-        StorageProofVerifier(zksyncDiamondAddress, smt)
-    {}
+    constructor(
+        IZKSyncNexusManagerRouter zksyncDiamondAddress,
+        SparseMerkleTree smt
+    ) StorageProofVerifier(zksyncDiamondAddress, smt) {}
 
-    function parseAndVerify(uint256, bytes32 receipt, bytes calldata data) external view {
+    function parseAndVerify(
+        uint256,
+        bytes32 receipt,
+        bytes calldata data
+    ) external view {
         StorageProof memory proof;
         proof = abi.decode(data, (StorageProof));
         if (proof.value != receipt) {
