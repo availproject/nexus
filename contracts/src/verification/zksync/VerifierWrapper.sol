@@ -20,8 +20,7 @@ contract VerifierWrapper is INexusVerifierWrapper, StorageProofVerifier {
         bytes32 receipt,
         bytes calldata data
     ) external view {
-        StorageProof memory proof;
-        proof = abi.decode(data, (StorageProof));
+        StorageProof memory proof = abi.decode(data, (StorageProof));
         if (proof.value != receipt) {
             revert InvalidProof();
         }

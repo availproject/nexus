@@ -35,13 +35,7 @@ contract VerifierWrapper is INexusVerifierWrapper, EthereumVerifier {
         bytes32 receipt,
         bytes calldata data
     ) external {
-        Proof memory proof;
-        (
-            proof.accountProof,
-            proof.addr,
-            proof.storageProof,
-            proof.storageSlot
-        ) = abi.decode(data, (bytes, address, bytes, bytes32));
+        Proof memory proof = abi.decode(data, (Proof));
         bytes32 state = nexus.getChainState(chainblockNumber, nexusAppId);
         (, , , bytes32 storageRoot) = verifyAccount(
             state,
