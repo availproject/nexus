@@ -69,7 +69,7 @@ impl ZKVMProof for Sp1Proof {
     }
 
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
-        panic!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
+        unimplemented!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
     }
 }
 

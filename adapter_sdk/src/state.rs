@@ -310,7 +310,6 @@ where
         }
     }
     
-    
     // async fn process_queue(&mut self) -> Result<Receipt, Error> {
     //     loop {
     //         let queue_item = {

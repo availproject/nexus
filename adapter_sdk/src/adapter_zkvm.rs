@@ -5,11 +5,14 @@ use nexus_core::traits::Hasher;
 use nexus_core::types::{
     AppAccountId, AvailHeader, Extension, ShaHasher, StatementDigest, V3Extension, H256,
 };
-// use risc0_zkvm::{
-//     guest::env::{self, verify},
-//     serde::to_vec,
-//     sha::rust_crypto::Digest,
-// };
+#[cfg(feature = "zkvm-risc0")]
+use risc0_zkvm::{
+    guest::env::{self, verify},
+    serde::to_vec,
+    sha::rust_crypto::Digest,
+};
+
+#[cfg(feature = "zkvm-sp1")]
 use digest::Update;
 
 use serde::Serialize;
@@ -181,13 +184,14 @@ pub fn verify_proof<P: RollupProof>(
         ));
     }
 
-    // match env::verify(img_id.0, &to_vec(&prev_public_input).unwrap()) {
-    //     Ok(()) => {
-    //         println!("Verified proof");
-    //         ()
-    //     }
-    //     Err(e) => return Err(anyhow::anyhow!("Invalid proof")),
-    // }
+    #[cfg(feature = "zkvm-risc0")]
+    match env::verify(img_id.0, &to_vec(&prev_public_input).unwrap()) {
+        Ok(()) => {
+            println!("Verified proof");
+            ()
+        }
+        Err(e) => return Err(anyhow::anyhow!("Invalid proof")),
+    }
 
     Ok(AdapterPublicInputs {
         nexus_hash,

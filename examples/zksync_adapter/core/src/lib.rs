@@ -470,14 +470,10 @@ impl STF {
             None => (),
         };
 
-        let conditional_proof = prover.prove();
-
         // match prev_adapter_proof {
         //     Some(i) => RiscZeroProof(risczero::recursion::resolve(conditional_proof, i.0)),
         //     None => Ok(conditional_proof),
         // }
-
-        // Ok(conditional_proof)
-        conditional_proof
+        prover.prove()
     }
 }

@@ -63,7 +63,7 @@ pub enum TxParamsV2 {
     InitAccount(InitAccount),
 }
 
-// #[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native"))]
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TransactionV2 {
     pub signature: TxSignature,
