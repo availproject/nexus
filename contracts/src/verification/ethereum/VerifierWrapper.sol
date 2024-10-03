@@ -6,7 +6,7 @@ import {INexusVerifierWrapper} from "../../interfaces/INexusVerifierWrapper.sol"
 import {INexusProofManager} from "../../interfaces/INexusProofManager.sol";
 
 contract VerifierWrapper is INexusVerifierWrapper, EthereumVerifier {
-    bytes32 immutable chainId;
+    bytes32 immutable nexusAppId;
     INexusProofManager immutable nexus;
 
     error InvalidEntry();
@@ -23,10 +23,10 @@ contract VerifierWrapper is INexusVerifierWrapper, EthereumVerifier {
         0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
 
     constructor(
-        bytes32 _chainId,
+        bytes32 _nexusAppId,
         INexusProofManager _nexus
     ) EthereumVerifier(_nexus) {
-        chainId = _chainId;
+        nexusAppId = _nexusAppId;
         nexus = _nexus;
     }
 
@@ -42,7 +42,7 @@ contract VerifierWrapper is INexusVerifierWrapper, EthereumVerifier {
             proof.storageProof,
             proof.storageSlot
         ) = abi.decode(data, (bytes, address, bytes, bytes32));
-        bytes32 state = nexus.getChainState(chainblockNumber, chainId);
+        bytes32 state = nexus.getChainState(chainblockNumber, nexusAppId);
         (, , , bytes32 storageRoot) = verifyAccount(
             state,
             proof.accountProof,
