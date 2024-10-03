@@ -6,11 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-<<<<<<< Updated upstream
 adapter_sdk = { path = "../../../adapter_sdk", default-features = false, features = ["zkvm-risc0"] }
-=======
-adapter_sdk = { path = "../../../adapter_sdk", default-features = false }
->>>>>>> Stashed changes
 anyhow = "1.0.81"
 nexus-core = { path = "../../../core",  default-features = false, features = ["zkvm-risc0"] }
 serde = "1.0.197"

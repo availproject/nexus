@@ -17,7 +17,7 @@ use nexus_core::types::{
 };
 #[cfg(feature = "native-risc0")]
 use nexus_core::zkvm::risczero::RiscZeroProver;
-// #[cfg(any(feature = "native-sp1"))]
+#[cfg(any(feature = "native-sp1"))]
 use nexus_core::zkvm::sp1::Sp1Prover;
 use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use relayer::Relayer;
@@ -37,7 +37,7 @@ use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
-// #[cfg(feature = "native-sp1")]
+#[cfg(feature = "native-sp1")]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
 
 // #[cfg(feature = "native-sp1")]
@@ -409,7 +409,7 @@ where
 
         // let prover = default_prover();
 
-        // #[cfg(feature = "native-sp1")]
+        #[cfg(feature = "native-sp1")]
         let mut zkvm = Sp1Prover::new(self.elf.clone());
 
         #[cfg(feature = "native-risc0")]

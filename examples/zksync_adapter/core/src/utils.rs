@@ -1,5 +1,5 @@
 use zksync_basic_types::{Address, H256, U128, U256};
-// #[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native"))]
 pub use zksync_types::commitment::serialize_commitments;
 
 pub fn read_address(bytes: &[u8], start: usize) -> (Address, U256) {

@@ -25,5 +25,5 @@ sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true }
 
 [features]
 default = []
-sp1 = ["sp1-sdk", "nexus-core/zkvm-sp1" , "zksync-methods/sp1" , "zksync-core/zkvm-sp1" , "adapter_sdk/native-sp1"] #which adapter choice needed
-risc0 = ["risc0-zkvm/std", "nexus-core/zkvm-risc0" , "zksync-methods/risc0" , "zksync-core/zkvm-risc0" , "adapter_sdk/zkvm-risc0"]
+sp1 = ["sp1-sdk", "nexus-core/zkvm-sp1" , "zksync-methods/sp1" , "zksync-core/sp1" , "adapter_sdk/native-sp1"] #which adapter choice needed
+risc0 = ["risc0-zkvm/std", "nexus-core/zkvm-risc0" , "zksync-methods/risc0" , "zksync-core/risc0" , "adapter_sdk/zkvm-risc0"]

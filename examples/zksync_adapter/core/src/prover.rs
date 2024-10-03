@@ -1,6 +1,6 @@
-use crate::types::{CommitBatchInfo, L1BatchWithMetadata, AdapterPublicInputs};
+use crate::types::{CommitBatchInfo, L1BatchWithMetadata};
 use crate::{MockProof, STF};
-// use adapter_sdk::types::AdapterPublicInputs;
+use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
 use nexus_core::zkvm::traits::ZKVMEnv;
 // use risc0_zkvm::serde::to_vec;
@@ -12,6 +12,8 @@ pub fn run<Z: ZKVMEnv>() {
     let img_id: [u32; 8] = Z::read_input::<[u32; 8]>().unwrap();
     let new_batch: CommitBatchInfo = Z::read_input::<CommitBatchInfo>().unwrap();
     let nexus_hash: H256 = Z::read_input::<H256>().unwrap();
+    
+    // TODO: commented since it is not implemented for sp1 crate
     // if new_rollup_pi.header.number.0 > 1 {
     //     Z::verify(img_id, &to_vec(&previous_adapter_pi).unwrap()).unwrap();
     // }
@@ -22,7 +24,7 @@ pub fn run<Z: ZKVMEnv>() {
         new_rollup_pi,
         new_batch,
         nexus_hash,
-    ).expect("Should not have panicked.");;
+    ).expect("Should not have panicked.");
 
     Z::commit(&result);
 }

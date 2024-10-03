@@ -1,4 +1,4 @@
-// use adapter_sdk::types::AdapterPublicInputs;
+use adapter_sdk::types::AdapterPublicInputs;
 use anyhow::anyhow;
 use ethers_core::abi::{self, token};
 use hex;
@@ -6,7 +6,7 @@ use hex;
 use nexus_core::types::AccountState;
 use nexus_core::types::InitAccount;
 use nexus_core::types::H256 as NexusH256;
-use nexus_core::types::{AppAccountId, RollupPublicInputsV2, StatementDigest};
+use nexus_core::types::{AppAccountId, StatementDigest};
 // #[cfg(any(feature = "native"))]
 use nexus_core::types::Proof as NexusProof;
 #[cfg(any(feature = "native-risc0"))]
@@ -23,7 +23,7 @@ use zksync_basic_types::{
     web3::keccak256,
     H256, U256, U64,
 };
-use zksync_types::commitment::serialize_commitments;
+// use zksync_types::commitment::serialize_commitments;
 // use zksync_types::commitment::serialize_commitments;
 pub mod constants;
 // pub mod transcript;
@@ -38,9 +38,7 @@ pub use crate::constants::{
     L2_TO_L1_LOG_SERIALIZE_SIZE, MAX_NUMBER_OF_BLOBS, PUBDATA_COMMITMENT_SIZE,
     TOTAL_BLOBS_IN_COMMITMENT,
 };
-pub use crate::types::{CommitBatchInfo, H256Vec, L1BatchWithMetadata, LogProcessingOutput, AdapterPublicInputs};
-// use crate::verifier::ZksyncVerifier;
-
+pub use crate::types::{CommitBatchInfo, H256Vec, L1BatchWithMetadata, LogProcessingOutput};
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct MockProof(pub ());
 
@@ -98,7 +96,7 @@ impl STF {
         Ok(log_output)
     }
 
-    // #[cfg(any(feature = "native", feature = "risc0"))]
+    #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
     fn get_commit_batch_info(new_rollup_pi: L1BatchWithMetadata) -> CommitBatchInfo {
         let commit_batch_info = CommitBatchInfo {
             batch_number: new_rollup_pi.header.number.0 as u64,
@@ -128,25 +126,25 @@ impl STF {
         let mut events_queue_state_hash_array = [0u8; 32];
 
         new_state_root_array.copy_from_slice(
-            hex::decode("0x0345c077e53d9fe567c519ccc03d938a699257b562378d557c28bd828f949f2e")
+            hex::decode("0345c077e53d9fe567c519ccc03d938a699257b562378d557c28bd828f949f2e")
                 .unwrap()
                 .as_slice(),
         );
 
         priority_operations_hash_array.copy_from_slice(
-            hex::decode("0xd179d9ca318bc891ff8fb7f7f7c8fc5ce420c7f7a715baf5dde385c557d75f27")
+            hex::decode("d179d9ca318bc891ff8fb7f7f7c8fc5ce420c7f7a715baf5dde385c557d75f27")
                 .unwrap()
                 .as_slice(),
         );
 
         bootloader_heap_initial_contents_hash_array.copy_from_slice(
-            hex::decode("0x65e138992d67d68d760f784cecafd6a6ae31d124b4aab4d33e1a373756e427d1")
+            hex::decode("65e138992d67d68d760f784cecafd6a6ae31d124b4aab4d33e1a373756e427d1")
                 .unwrap()
                 .as_slice(),
         );
 
         events_queue_state_hash_array.copy_from_slice(
-            hex::decode("0x626fb1e4d667d0ea712d56013a9301ed9155de9acc6bce05ed28e972e6fe3b2b")
+            hex::decode("626fb1e4d667d0ea712d56013a9301ed9155de9acc6bce05ed28e972e6fe3b2b")
                 .unwrap()
                 .as_slice(),
         );
@@ -334,11 +332,11 @@ impl STF {
 
         // TODO: need to change
         let expected_system_contract_upgrade_tx_hash = H256::zero(); // zero hash for now
-        let mut log_output: LogProcessingOutput = Self::process_l2_logs(
-            commit_batch_info.clone(),
-            expected_system_contract_upgrade_tx_hash,
-        )
-        .unwrap();
+        // let mut log_output: LogProcessingOutput = Self::process_l2_logs(
+        //     commit_batch_info.clone(),
+        //     expected_system_contract_upgrade_tx_hash,
+        // )
+        // .unwrap();
 
         // let mut blob_commitments: H256Vec = [H256::zero(); MAX_NUMBER_OF_BLOBS];
 
@@ -363,14 +361,14 @@ impl STF {
 
         // let mut public_inputs = previous_adapter_pi.clone();
 
-        if new_rollup_pi.header.number.0 > 1 {
-            // state root of current proof should be same as batch hash of previous batch
-            if log_output.previous_batch_hash.as_fixed_bytes()
-                != previous_adapter_pi.state_root.as_fixed_slice()
-            {
-                return Err(anyhow!("Previous batch hash does not match"));
-            }
-        };
+        // if new_rollup_pi.header.number.0 > 1 {
+        //     // state root of current proof should be same as batch hash of previous batch
+        //     if log_output.previous_batch_hash.as_fixed_bytes()
+        //         != previous_adapter_pi.state_root.as_fixed_slice()
+        //     {
+        //         return Err(anyhow!("Previous batch hash does not match"));
+        //     }
+        // };
 
         let proof_public_input = AdapterPublicInputs {
             nexus_hash,
@@ -384,7 +382,7 @@ impl STF {
         Ok(proof_public_input)
     }
 
-    // #[cfg(any(feature = "native", feature = "risc0"))]
+    #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
     pub fn create_recursive_proof<
         Z: ZKVMProver<P>,
         P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>,
@@ -446,15 +444,15 @@ impl STF {
         prover.add_input(&self.img_id)?;
         prover.add_input(&new_batch)?;
         prover.add_input(&nexus_hash)?;
-        // match prev_adapter_proof.clone() {
-        //     Some(i) => prover.add_proof_for_recursion(i)?,
-        //     None => (),
-        // };
         
-
+        // TODO: Need to write a program for add proof for recursion
+        #[cfg(feature = "risc0")]
+        match prev_adapter_proof.clone() {
+            Some(i) => prover.add_proof_for_recursion(i)?,
+            None => (),
+        };
+        
         // Run the verifier function from the verifier
-        
-
         let proof = prover.prove();
         proof
 

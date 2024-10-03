@@ -7,6 +7,7 @@ use anyhow::Error;
 use jmt::proof;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::to_vec;
+use std::borrow::Cow;
 use sha2::Digest;
 use sha2::Sha256;
 #[cfg(any(feature = "native-sp1"))]
@@ -35,8 +36,8 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
-        let mut sp1_input = self.sp1_standard_input.clone();
-        sp1_input.write(input);
+        //! TODO: need to do error handling
+        self.sp1_standard_input.write(input);
         Ok(())
     }
 
@@ -62,11 +63,19 @@ pub struct Sp1Proof(pub SP1ProofWithPublicValues);
 
 #[cfg(any(feature = "native-sp1"))]
 impl ZKVMProof for Sp1Proof {
-    fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
+
+    // TODO: fix public inputs method
+    // fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&self) -> Result<V, anyhow::Error> {
+    //     let public_value = &self.0.public_values.read::<V>();
+    //     Ok(public_value.clone())
+    // }
+
+    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&self) -> Result<V, anyhow::Error> {
         let json = serde_json::to_string(&self.0.public_values)?;
         let deserialized = serde_json::from_str(&json)?;
         Ok(deserialized)
     }
+
 
     fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
         panic!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");

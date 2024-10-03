@@ -11,7 +11,7 @@ anyhow = "1.0.81"
 nexus-core = { path = "../../../core", default-features = false, optional = true }
 serde = "1.0.197"
 zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
-zksync_types = { git = "https://github.com/vibhurajeev/zksync-era" }
+zksync_types = { git = "https://github.com/vibhurajeev/zksync-era", optional = true }
 hex = "0.4.3"
 ethers-core = "2.0.14"
 # risc0-zkvm = { version = "1.0.1", default-features = false, features = ["std"] }
@@ -20,5 +20,6 @@ ethers-core = "2.0.14"
 # default = ["native"]
 zkvm-risc0 = ["nexus-core/zkvm-risc0", "adapter_sdk/zkvm-risc0"]
 zkvm-sp1 = ["nexus-core/zkvm-sp1", "adapter_sdk/zkvm-sp1"]
-risc0 = ["nexus-core/native-risc0"]
-native = ["nexus-core/native-sp1", "nexus-core/native", "zksync_types", "adapter_sdk/native"]
+risc0 = ["nexus-core/native-risc0", "adapter_sdk/native-risc0"]
+sp1 = ["nexus-core/native-sp1", "adapter_sdk/native-sp1"]
+native = ["nexus-core/native", "zksync_types"]
