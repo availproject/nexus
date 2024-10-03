@@ -24,7 +24,7 @@ contract MailBoxTest is Test {
 
     function setUp() public {
         mailbox = new NexusMailboxWrapper();
-        mailbox.initialise();
+        mailbox.initialize();
         erc20 = new ERC20Token("Avail", "Avail");
         proofManager = new NexusProofManager();
         SparseMerkleTree smt = new SparseMerkleTree();
@@ -46,7 +46,7 @@ contract MailBoxTest is Test {
         address[] memory to = new address[](length);
         to[0] = address(0);
         bytes memory data = bytes("test");
-        bytes32 chainId = mailbox.chainId();
+        bytes32 chainId = mailbox.networkId();
         uint256 mailboxNonce = 1;
         mailbox.sendMessage(chainIdTo, to, mailboxNonce, data);
 
@@ -62,7 +62,7 @@ contract MailBoxTest is Test {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(address(this), receiptHash));
 
-        assertEq(mailbox.sendMessages(key), receiptHash);
+        assertEq(mailbox.messages(key), receiptHash);
     }
 
     function testReceiveReceipt() public {
@@ -120,7 +120,7 @@ contract MailBoxTest is Test {
         mailbox.sendMessage(chainIdTo, to, mailboxNonce, data);
 
         NexusReceipt memory receipt = NexusReceipt({
-            chainIdFrom: mailbox.chainId(),
+            chainIdFrom: mailbox.networkId(),
             chainIdTo: chainIdTo,
             data: data,
             from: address(this),
@@ -176,7 +176,7 @@ contract MailBoxTest is Test {
     function testSearchAlgorithm() public view {
         uint256 length = 5;
         bytes32[] memory chainIdTo = new bytes32[](length);
-        bytes32 chainId = mailbox.chainId();
+        bytes32 chainId = mailbox.networkId();
         chainIdTo[0] = chainId;
         chainIdTo[1] = bytes32(targetChainId - 1);
         chainIdTo[2] = bytes32(targetChainId + 1);
