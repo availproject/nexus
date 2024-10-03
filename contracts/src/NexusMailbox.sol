@@ -31,16 +31,18 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes calldata proof,
         bool callback
     ) public {
-        INexusVerifierWrapper verifier = verifierWrappers[receipt.chainIdFrom];
+        INexusVerifierWrapper verifier = verifierWrappers[
+            receipt.networkIdFrom
+        ];
         if (address(verifier) == address(0)) {
             revert WrapperNotAvailable();
         }
 
         bytes32 receiptHash = keccak256(abi.encode(receipt));
-        bytes32 key = keccak256(abi.encode(receipt.chainIdFrom, receiptHash));
+        bytes32 key = keccak256(abi.encode(receipt.networkIdFrom, receiptHash));
 
         /// @dev we check if not exists, using chainId = 0 since this can is imposed by mailbox that the chainID is not 0 when storing
-        if (verifiedReceipts[key].chainIdFrom != bytes32(0)) {
+        if (verifiedReceipts[key].networkIdFrom != bytes32(0)) {
             revert StateAlreadyUpdated();
         }
 
@@ -48,7 +50,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         verifiedReceipts[key] = receipt;
 
         if (callback) {
-            address to = search(receipt.chainIdTo, receipt.to);
+            address to = search(receipt.networkIdTo, receipt.to);
             if (to != address(0)) {
                 (bool success, ) = to.call(
                     abi.encodeWithSignature(
@@ -65,18 +67,18 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
     // @dev we take nonce from the msg.sender since they manage and create deterministic receipt structures.
     function sendMessage(
-        bytes32[] memory chainIdTo,
+        bytes32[] memory networkIdTo,
         address[] memory to,
         uint256 nonce,
         bytes calldata data
     ) public {
-        if (chainIdTo.length != to.length) {
+        if (networkIdTo.length != to.length) {
             revert InvalidParameters();
         }
-        quickSort(chainIdTo, to, 0, int256(chainIdTo.length - 1));
+        quickSort(networkIdTo, to, 0, int256(networkIdTo.length - 1));
         Receipt memory receipt = Receipt({
-            chainIdFrom: networkId,
-            chainIdTo: chainIdTo,
+            networkIdFrom: networkId,
+            networkIdTo: networkIdTo,
             data: data,
             from: msg.sender,
             to: to,
@@ -85,11 +87,11 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(msg.sender, receiptHash));
         messages[key] = receiptHash;
-        emit ReceiptEvent(networkId, chainIdTo, data, msg.sender, to, nonce);
+        emit ReceiptEvent(networkId, networkIdTo, data, msg.sender, to, nonce);
     }
 
     function quickSort(
-        bytes32[] memory chainIdTo,
+        bytes32[] memory networkIdTo,
         address[] memory to,
         int256 left,
         int256 right
@@ -97,14 +99,14 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         int256 i = left;
         int256 j = right;
         if (i == j) return;
-        bytes32 pivot = chainIdTo[uint256(left + (right - left) / 2)];
+        bytes32 pivot = networkIdTo[uint256(left + (right - left) / 2)];
         while (i <= j) {
-            while (chainIdTo[uint256(i)] < pivot) i++;
-            while (pivot < chainIdTo[uint256(j)]) j--;
+            while (networkIdTo[uint256(i)] < pivot) i++;
+            while (pivot < networkIdTo[uint256(j)]) j--;
             if (i <= j) {
-                (chainIdTo[uint256(i)], chainIdTo[uint256(j)]) = (
-                    chainIdTo[uint256(j)],
-                    chainIdTo[uint256(i)]
+                (networkIdTo[uint256(i)], networkIdTo[uint256(j)]) = (
+                    networkIdTo[uint256(j)],
+                    networkIdTo[uint256(i)]
                 );
                 (to[uint256(i)], to[uint256(j)]) = (
                     to[uint256(j)],
@@ -115,32 +117,32 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             }
         }
         if (left < j) {
-            quickSort(chainIdTo, to, left, j);
+            quickSort(networkIdTo, to, left, j);
         }
         if (i < right) {
-            quickSort(chainIdTo, to, i, right);
+            quickSort(networkIdTo, to, i, right);
         }
     }
 
     function search(
-        bytes32[] memory chainIdTo,
+        bytes32[] memory networkIdTo,
         address[] memory to
     ) internal view returns (address) {
-        if (chainIdTo.length == 0) {
+        if (networkIdTo.length == 0) {
             return (address(0));
         }
 
         int256 left = 0;
-        int256 right = int256(chainIdTo.length - 1);
+        int256 right = int256(networkIdTo.length - 1);
 
         while (left <= right) {
             int256 mid = left + (right - left) / 2;
 
-            if (chainIdTo[uint256(mid)] == networkId) {
+            if (networkIdTo[uint256(mid)] == networkId) {
                 return to[uint256(mid)];
             }
 
-            if (chainIdTo[uint256(mid)] < networkId) {
+            if (networkIdTo[uint256(mid)] < networkId) {
                 left = mid + 1;
             } else {
                 right = mid - 1;

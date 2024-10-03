@@ -20,7 +20,7 @@ contract MailBoxTest is Test {
 
     bytes32 appid =
         0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
-    uint256 targetChainId = 137;
+    uint256 targetNetworkId = 137;
 
     function setUp() public {
         mailbox = new NexusMailboxWrapper();
@@ -36,23 +36,23 @@ contract MailBoxTest is Test {
             IZKSyncNexusManagerRouter(address(zksyncDiamond)),
             smt
         );
-        mailbox.addOrUpdateWrapper(bytes32(targetChainId), wrapper);
+        mailbox.addOrUpdateWrapper(bytes32(targetNetworkId), wrapper);
     }
 
     function testSendMessage() public {
         uint256 length = 1;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        chainIdTo[0] = bytes32(targetChainId);
+        bytes32[] memory networkIdTo = new bytes32[](length);
+        networkIdTo[0] = bytes32(targetNetworkId);
         address[] memory to = new address[](length);
         to[0] = address(0);
         bytes memory data = bytes("test");
-        bytes32 chainId = mailbox.networkId();
+        bytes32 networkId = mailbox.networkId();
         uint256 mailboxNonce = 1;
-        mailbox.sendMessage(chainIdTo, to, mailboxNonce, data);
+        mailbox.sendMessage(networkIdTo, to, mailboxNonce, data);
 
         NexusReceipt memory receipt = NexusReceipt({
-            chainIdFrom: chainId,
-            chainIdTo: chainIdTo,
+            networkIdFrom: networkId,
+            networkIdTo: networkIdTo,
             data: data,
             from: address(this),
             to: to,
@@ -111,17 +111,17 @@ contract MailBoxTest is Test {
         mailbox.updateSendMessages(key, value);
 
         uint256 length = 1;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        chainIdTo[0] = bytes32(targetChainId);
+        bytes32[] memory networkIdTo = new bytes32[](length);
+        networkIdTo[0] = bytes32(targetNetworkId);
         address[] memory to = new address[](length);
         to[0] = address(0);
         bytes memory data = bytes("test");
         uint256 mailboxNonce = 1;
-        mailbox.sendMessage(chainIdTo, to, mailboxNonce, data);
+        mailbox.sendMessage(networkIdTo, to, mailboxNonce, data);
 
         NexusReceipt memory receipt = NexusReceipt({
-            chainIdFrom: mailbox.networkId(),
-            chainIdTo: chainIdTo,
+            networkIdFrom: mailbox.networkId(),
+            networkIdTo: networkIdTo,
             data: data,
             from: address(this),
             to: to,
@@ -131,7 +131,7 @@ contract MailBoxTest is Test {
         mailbox.checkVerificationOfEncoding(
             0,
             receipt,
-            bytes32(targetChainId),
+            bytes32(targetNetworkId),
             value,
             encoding
         );
@@ -139,12 +139,12 @@ contract MailBoxTest is Test {
 
     function testSortingAlgorithm() public view {
         uint256 length = 5;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        chainIdTo[0] = bytes32(targetChainId);
-        chainIdTo[1] = bytes32(targetChainId - 1);
-        chainIdTo[2] = bytes32(targetChainId + 1);
-        chainIdTo[3] = bytes32(targetChainId + 2);
-        chainIdTo[4] = bytes32(targetChainId - 2);
+        bytes32[] memory networkIdTo = new bytes32[](length);
+        networkIdTo[0] = bytes32(targetNetworkId);
+        networkIdTo[1] = bytes32(targetNetworkId - 1);
+        networkIdTo[2] = bytes32(targetNetworkId + 1);
+        networkIdTo[3] = bytes32(targetNetworkId + 2);
+        networkIdTo[4] = bytes32(targetNetworkId - 2);
 
         address[] memory to = new address[](length);
         to[0] = address(0);
@@ -153,18 +153,18 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (chainIdTo, to) = mailbox.sortWrapper(
-            chainIdTo,
+        (networkIdTo, to) = mailbox.sortWrapper(
+            networkIdTo,
             to,
             0,
             int256(length - 1)
         );
 
-        assertEq(chainIdTo[0], bytes32(targetChainId - 2));
-        assertEq(chainIdTo[1], bytes32(targetChainId - 1));
-        assertEq(chainIdTo[2], bytes32(targetChainId));
-        assertEq(chainIdTo[3], bytes32(targetChainId + 1));
-        assertEq(chainIdTo[4], bytes32(targetChainId + 2));
+        assertEq(networkIdTo[0], bytes32(targetNetworkId - 2));
+        assertEq(networkIdTo[1], bytes32(targetNetworkId - 1));
+        assertEq(networkIdTo[2], bytes32(targetNetworkId));
+        assertEq(networkIdTo[3], bytes32(targetNetworkId + 1));
+        assertEq(networkIdTo[4], bytes32(targetNetworkId + 2));
 
         assertEq(to[0], vm.addr(4));
         assertEq(to[1], vm.addr(1));
@@ -175,13 +175,13 @@ contract MailBoxTest is Test {
 
     function testSearchAlgorithm() public view {
         uint256 length = 5;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        bytes32 chainId = mailbox.networkId();
-        chainIdTo[0] = chainId;
-        chainIdTo[1] = bytes32(targetChainId - 1);
-        chainIdTo[2] = bytes32(targetChainId + 1);
-        chainIdTo[3] = bytes32(targetChainId + 2);
-        chainIdTo[4] = bytes32(targetChainId - 2);
+        bytes32[] memory networkIdTo = new bytes32[](length);
+        bytes32 networkId = mailbox.networkId();
+        networkIdTo[0] = networkId;
+        networkIdTo[1] = bytes32(targetNetworkId - 1);
+        networkIdTo[2] = bytes32(targetNetworkId + 1);
+        networkIdTo[3] = bytes32(targetNetworkId + 2);
+        networkIdTo[4] = bytes32(targetNetworkId - 2);
 
         address[] memory to = new address[](length);
         to[0] = vm.addr(2);
@@ -190,14 +190,14 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (chainIdTo, to) = mailbox.sortWrapper(
-            chainIdTo,
+        (networkIdTo, to) = mailbox.sortWrapper(
+            networkIdTo,
             to,
             0,
             int256(length - 1)
         );
 
-        address toAddr = mailbox.searchWrapper(chainIdTo, to);
+        address toAddr = mailbox.searchWrapper(networkIdTo, to);
         assertEq(toAddr, vm.addr(2));
     }
 }

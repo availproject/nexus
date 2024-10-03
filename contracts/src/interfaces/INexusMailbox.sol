@@ -2,8 +2,8 @@
 pragma solidity ^0.8.21;
 
 struct Receipt {
-    bytes32 chainIdFrom;
-    bytes32[] chainIdTo;
+    bytes32 networkIdFrom;
+    bytes32[] networkIdTo;
     bytes data;
     address from;
     address[] to; // if specified on verification, the callback on "to" function will be called
@@ -12,8 +12,8 @@ struct Receipt {
 
 interface INexusMailbox {
     event ReceiptEvent(
-        bytes32 indexed chainIdFrom,
-        bytes32[] chainIdTo,
+        bytes32 indexed networkIdFrom,
+        bytes32[] networkIdTo,
         bytes data,
         address indexed from,
         address[] to,
@@ -27,7 +27,7 @@ interface INexusMailbox {
         bool callback
     ) external;
     function sendMessage(
-        bytes32[] memory chainIdTo,
+        bytes32[] memory networkIdFrom,
         address[] memory to,
         uint256 nonce,
         bytes calldata data
