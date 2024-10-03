@@ -256,12 +256,11 @@ async fn main() -> Result<(), Error> {
                     range[0],
                 )?;
 
-                // println!("Recurisve proof {:?}", recursive_proof.public_values.read::<RollupPublicInputsV2>());
                 // TODO: need to fix public_inputs method for sp1
-                // println!(
-                //     "Current proof data: {:?}",
-                //     recursive_proof.public_inputs::<RollupPublicInputsV2>()
-                // );
+                println!(
+                    "Current proof data: {:?}",
+                    recursive_proof.public_inputs::<RollupPublicInputsV2>()
+                );
 
                 #[cfg(feature = "risc0")]                
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {

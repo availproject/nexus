@@ -390,7 +390,7 @@ impl STF {
     >(
         &self,
         //previous_adapter_pi: AdapterPublicInputs,
-        prev_adapter_proof: Option<P>,
+        mut prev_adapter_proof: Option<P>,
         init_account: Option<(AppAccountId, AccountState)>,
         new_rollup_proof: MockProof,
         new_rollup_pi: L1BatchWithMetadata,
@@ -400,7 +400,7 @@ impl STF {
         <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
     {
         use types::L1BatchNumber;
-        let prev_adapter_pi: AdapterPublicInputs = match &prev_adapter_proof {
+        let prev_adapter_pi: AdapterPublicInputs = match &mut prev_adapter_proof {
             Some(i) => i.public_inputs()?,
             None => {
                 if new_rollup_pi.header.number == L1BatchNumber(1) {
