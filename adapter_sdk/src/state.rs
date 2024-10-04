@@ -82,6 +82,12 @@ pub struct AdapterState<
     pub nexus_api: NexusAPI,
 }
 
+#[cfg(feature = "native-sp1")]
+pub trait ProofConversion: std::convert::From<nexus_core::zkvm::sp1::Sp1Proof> {}
+
+#[cfg(feature = "native-risc0")]
+pub trait ProofConversion: std::convert::From<nexus_core::zkvm::risczero::RiscZeroProof> {}
+
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
         Z: ZKVMEnv,
@@ -92,7 +98,8 @@ impl<
             + Serialize
             + Send
             + TryInto<Proof>
-            + Debug,
+            + Debug
+            + ProofConversion
     > AdapterState<P, Z, ZP>
 where
     <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
@@ -204,10 +211,11 @@ where
             let nexus_api = nexus_api_clone;
             Self::manage_submissions(db_clone_2, &nexus_api).await
         });
-        // match self.process_queue().await {
-        //     Ok(_) => (),
-        //     Err(e) => println!("Exiting because of error: {:?}", e),
-        // };
+
+        match self.process_queue().await {
+            Ok(_) => (),
+            Err(e) => println!("Exiting because of error: {:?}", e),
+        };
 
         tokio::try_join!(avail_syncer_handle, relayer_handle, submission_handle)
             .unwrap()
@@ -310,50 +318,53 @@ where
         }
     }
     
-    // async fn process_queue(&mut self) -> Result<Receipt, Error> {
-    //     loop {
-    //         let queue_item = {
-    //             let queue_lock = self.queue.lock().await;
-    //             let item = queue_lock.front().cloned();
-    //             item
-    //         };
+    async fn process_queue(&mut self) -> Result<ZP, Error> 
+    where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug
+    {
+        println!("Called this");
+        loop {
+            let queue_item = {
+                let queue_lock = self.queue.lock().await;
+                let item = queue_lock.front().cloned();
+                item
+            };
 
-    //         if queue_item.is_none() {
-    //             thread::sleep(Duration::from_secs(2));
+            if queue_item.is_none() {
+                thread::sleep(Duration::from_secs(2));
 
-    //             continue; // Restart the loop
-    //         };
-    //         let queue_item = queue_item.unwrap();
-    //         if queue_item.blob.is_some() && queue_item.proof.is_none() {
-    //             thread::sleep(Duration::from_secs(10));
+                continue; // Restart the loop
+            };
+            let queue_item = queue_item.unwrap();
+            if queue_item.blob.is_some() && queue_item.proof.is_none() {
+                thread::sleep(Duration::from_secs(10));
 
-    //             continue; // Restart the loop
-    //         }
+                continue; // Restart the loop
+            }
 
-    //         let receipt = match self.verify_and_generate_proof(&queue_item).await {
-    //             Err(e) => {
-    //                 return Err(e);
-    //             }
-    //             Ok(i) => i,
-    //         };
-    //         // TODO]
-    //         // let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
-    //         // self.queue.lock().await.pop_front();
+            let receipt = match self.verify_and_generate_proof(&queue_item).await {
+                Err(e) => {
+                    return Err(e);
+                }
+                Ok(i) => i,
+            };
+            // TODO]
+            // let adapter_pi: AdapterPublicInputs = from_slice(&receipt.journal.bytes)?;
+            // self.queue.lock().await.pop_front();
 
-    //         // self.db.lock().await.store_last_proof(&(
-    //         //     receipt.clone(),
-    //         //     adapter_pi.clone(),
-    //         //     queue_item.header.number,
-    //         // ))?;
-    //         // self.previous_adapter_proof = Some((
-    //         //     receipt.clone(),
-    //         //     adapter_pi.clone(),
-    //         //     queue_item.header.number,
-    //         // ));
-    //     }
-    // }
+            // self.db.lock().await.store_last_proof(&(
+            //     receipt.clone(),
+            //     adapter_pi.clone(),
+            //     queue_item.header.number,
+            // ))?;
+            // self.previous_adapter_proof = Some((
+            //     receipt.clone(),
+            //     adapter_pi.clone(),
+            //     queue_item.header.number,
+            // ));
+        }
+    }
 
-    pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) -> Result<(), Error> {
+    pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) ->  Result<(), Error> {
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -385,7 +396,8 @@ where
         &mut self,
         queue_item: &QueueItem<P>,
         // TODO change the return type to ZP
-    ) -> Result<(), Error> {
+    ) -> Result<(ZP), Error> 
+            where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug {
         let nexus_header: NexusHeader =
             self.nexus_api.get_header(&queue_item.header.hash()).await?;
 
@@ -406,8 +418,6 @@ where
             Some(i) => Some(i.clone()),
         };
 
-        // let prover = default_prover();
-
         #[cfg(feature = "native-sp1")]
         let mut zkvm = Sp1Prover::new(self.elf.clone());
 
@@ -418,21 +428,24 @@ where
             None => None,
             Some((receipt, pi, _)) => {
                 // env_builder.add_assumption(receipt);
-
                 Some(pi)
             }
         };
 
-        {
-            zkvm.add_input(&prev_pi);
-            zkvm.add_input(&queue_item.proof);
-            zkvm.add_input(&private_inputs);
-            zkvm.add_input(&self.elf_id);
-            zkvm.add_input(&self.vk);
+        zkvm.add_input(&prev_pi);
+        zkvm.add_input(&queue_item.proof);
+        zkvm.add_input(&private_inputs);
+        zkvm.add_input(&self.elf_id);
+        zkvm.add_input(&self.vk);
 
-            zkvm.prove();
-        }
+        let zkvm_proof = zkvm.prove();
 
-        Ok(())
+        let zkvm_proof = match zkvm_proof {
+            Ok(i) => {
+                let proof: ZP = i.try_into().map_err(|_| anyhow!("Conversion failed"))?;
+                return Ok(proof);
+            }
+            Err(e) => return Err(anyhow!(e)),
+        };
     }
 }
