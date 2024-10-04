@@ -469,11 +469,7 @@ impl STF {
             Some(i) => prover.add_proof_for_recursion(i)?,
             None => (),
         };
-
-        // match prev_adapter_proof {
-        //     Some(i) => RiscZeroProof(risczero::recursion::resolve(conditional_proof, i.0)),
-        //     None => Ok(conditional_proof),
-        // }
+        
         prover.prove()
     }
 }

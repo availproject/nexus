@@ -25,15 +25,18 @@ ethabi = "18.0.0"
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git", optional = true}
 sp1-helper = { git = "https://github.com/succinctlabs/sp1.git", optional = true}
+sp1-prover = {version = "1.2.0" , optional = true}
+sp1-stark = {version = "1.2.0" , optional = true}
 risc0-zkvm = { version = "1.0.5", default-features = false, features = ["std"], optional = true}
 sha2 = { version = "0.10.8", optional = true }
 hex = "0.4.3"
+winnow = "0.6.18"
 
 [features]
 # default = ["native-risc0"]
 native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio" ]
 zkvm = ["sparse-merkle-tree/arch-32", "sparse-merkle-tree/std"]
-native-sp1 = ["sp1-sdk", "sp1-helper", "sp1-zkvm", "sha2", "native"]
+native-sp1 = ["sp1-sdk", "sp1-helper", "sp1-zkvm", "sha2", "native", "sp1-prover" , "sp1-stark"]
 native-risc0 = ["risc0-zkvm/default", "native"]
 zkvm-sp1 = ["sp1-zkvm", "zkvm", "sha2"]
 zkvm-risc0 = ["risc0-zkvm/std", "zkvm"]

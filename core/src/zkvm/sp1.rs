@@ -10,11 +10,17 @@ use serde_json::to_vec;
 use std::borrow::Cow;
 use sha2::Digest;
 use sha2::Sha256;
+use serde::Deserializer;
+use bincode; 
 #[cfg(any(feature = "native-sp1"))]
 use sp1_sdk::{
     utils, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1PublicValues, SP1Stdin,
-    SP1VerifyingKey,
+    SP1VerifyingKey, SP1Proof, SP1Prover
 };
+#[cfg(any(feature = "native-sp1"))]
+use sp1_stark::SP1ProverOpts;
+#[cfg(any(feature = "native-sp1"))]
+use sp1_prover::types::SP1ProofWithMetadata;
 
 #[cfg(any(feature = "native-sp1"))]
 pub struct Sp1Prover {
@@ -41,7 +47,7 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         Ok(())
     }
     fn add_proof_for_recursion(&mut self, proof: Sp1Proof) -> Result<(), anyhow::Error> {
-        unimplemented!();
+        unimplemented!("Not implemented since sp1 requires compressed proof");
         Ok(())
     }
 
@@ -68,8 +74,19 @@ impl ZKVMProof for Sp1Proof {
         Ok(public_value.clone())
     }
 
-    fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
-        unimplemented!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
+    // fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
+    //     unimplemented!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
+    // }
+
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error> {
+        let elf = match elf {
+            Some(elf) => elf,
+            None => return Err(anyhow!("ELF is required")),
+        };
+        let prover = Sp1Prover::new(elf.clone());
+        let (_, vk) = prover.sp1_client.setup(&elf);
+        prover.sp1_client.verify(&self.0, &vk)?;
+        Ok(())
     }
 }
 

@@ -11,7 +11,7 @@ pub trait ZKVMProver<R: ZKVMProof> {
 
 // #[cfg(any(feature = "native"))]
 pub trait ZKVMProof: Sized {
-    fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error>;
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error>;
     fn public_inputs<V: Serialize + DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error>;
 }
 

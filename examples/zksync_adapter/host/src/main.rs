@@ -282,7 +282,15 @@ async fn main() -> Result<(), Error> {
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
                     Ok(()) => {
                         println!("Proof verification successful");
+                        ()
+                    }
+                    Err(e) => return Err(anyhow!("Proof generated is invalid.")),
+                }
 
+                #[cfg(feature = "sp1")]                
+                match recursive_proof.verify(None, Some(ZKSYNC_ADAPTER_ELF.to_vec())) {
+                    Ok(()) => {
+                        println!("Proof verification successful");
                         ()
                     }
                     Err(e) => return Err(anyhow!("Proof generated is invalid.")),

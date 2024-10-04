@@ -66,7 +66,11 @@ impl ZKVMProof for RiscZeroProof {
         from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
     }
 
-    fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error> {
+        let img_id = match img_id {
+            Some(id) => id,
+            None => return Err(anyhow!("ELF is required")),
+        };
         self.0.verify(img_id).map_err(|e| anyhow!(e))
     }
 }
