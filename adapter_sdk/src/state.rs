@@ -319,9 +319,8 @@ where
     }
     
     async fn process_queue(&mut self) -> Result<ZP, Error> 
-    where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug
+        where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug
     {
-        println!("Called this");
         loop {
             let queue_item = {
                 let queue_lock = self.queue.lock().await;
