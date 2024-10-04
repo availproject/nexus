@@ -23,8 +23,7 @@ interface INexusMailbox {
     function receiveMessage(
         uint256 chainblockNumber,
         Receipt calldata,
-        bytes calldata proof,
-        bool callback
+        bytes calldata proof
     ) external;
     function sendMessage(
         bytes32[] memory networkIdFrom,

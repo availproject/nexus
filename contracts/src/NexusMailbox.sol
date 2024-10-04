@@ -28,8 +28,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     function receiveMessage(
         uint256 chainblockNumber,
         Receipt calldata receipt,
-        bytes calldata proof,
-        bool callback
+        bytes calldata proof
     ) public {
         INexusVerifierWrapper verifier = verifierWrappers[
             receipt.networkIdFrom
@@ -49,18 +48,13 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         verifier.parseAndVerify(chainblockNumber, receiptHash, proof);
         verifiedReceipts[key] = receipt;
 
-        if (callback) {
-            address to = search(receipt.networkIdTo, receipt.to);
-            if (to != address(0)) {
-                (bool success, ) = to.call(
-                    abi.encodeWithSignature(
-                        "onNexusMessage(bytes)",
-                        receipt.data
-                    )
-                );
-                if (!success) {
-                    emit CallbackFailed(to, receipt.data);
-                }
+        address to = search(receipt.networkIdTo, receipt.to);
+        if (to != address(0)) {
+            (bool success, ) = to.call(
+                abi.encodeWithSignature("onNexusMessage(bytes)", receipt.data)
+            );
+            if (!success) {
+                emit CallbackFailed(to, receipt.data);
             }
         }
     }
