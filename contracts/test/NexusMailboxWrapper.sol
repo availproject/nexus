@@ -3,7 +3,7 @@ pragma solidity ^0.8.21;
 
 import {NexusMailbox} from "../src/NexusMailbox.sol";
 import {INexusVerifierWrapper} from "../src/interfaces/INexusVerifierWrapper.sol";
-import {Receipt} from "../src/interfaces/INexusMailbox.sol";
+import {MailboxMessage} from "../src/interfaces/INexusMailbox.sol";
 
 contract NexusMailboxWrapper is NexusMailbox {
     function updateSendMessages(uint256 key, bytes32 value) public {
@@ -12,7 +12,7 @@ contract NexusMailboxWrapper is NexusMailbox {
 
     function checkVerificationOfEncoding(
         uint256 chainblockNumber,
-        Receipt memory receipt,
+        MailboxMessage memory receipt,
         bytes32 from,
         bytes32 receiptHash,
         bytes calldata proof

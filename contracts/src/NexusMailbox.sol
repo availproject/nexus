@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.21;
 
-import {Receipt, INexusMailbox} from "./interfaces/INexusMailbox.sol";
+import {MailboxMessage, INexusMailbox} from "./interfaces/INexusMailbox.sol";
 import {INexusVerifierWrapper} from "./interfaces/INexusVerifierWrapper.sol";
 import {INexusReceiver} from "./interfaces/INexusReceiver.sol";
 import {Initializable} from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
@@ -14,7 +14,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
     mapping(bytes32 => bytes32) public messages;
     mapping(bytes32 => INexusVerifierWrapper) public verifierWrappers;
-    mapping(bytes32 => Receipt) public verifiedReceipts;
+    mapping(bytes32 => MailboxMessage) public verifiedReceipts;
 
     bytes32 public networkId;
 
@@ -27,7 +27,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
     function receiveMessage(
         uint256 chainblockNumber,
-        Receipt calldata receipt,
+        MailboxMessage calldata receipt,
         bytes calldata proof
     ) public {
         INexusVerifierWrapper verifier = verifierWrappers[
@@ -40,7 +40,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(receipt.networkIdFrom, receiptHash));
 
-        /// @dev we check if not exists, using chainId = 0 since this can is imposed by mailbox that the chainID is not 0 when storing
+        /// @dev we check if not exists, using networkId = 0 since this can is imposed by mailbox that the networkId is not 0 when storing
         if (verifiedReceipts[key].networkIdFrom != bytes32(0)) {
             revert StateAlreadyUpdated();
         }
@@ -70,7 +70,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             revert InvalidParameters();
         }
         quickSort(networkIdTo, to, 0, int256(networkIdTo.length - 1));
-        Receipt memory receipt = Receipt({
+        MailboxMessage memory receipt = MailboxMessage({
             networkIdFrom: networkId,
             networkIdTo: networkIdTo,
             data: data,
@@ -81,7 +81,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(msg.sender, receiptHash));
         messages[key] = receiptHash;
-        emit ReceiptEvent(networkId, networkIdTo, data, msg.sender, to, nonce);
+        emit MailboxEvent(networkId, networkIdTo, data, msg.sender, to, nonce);
     }
 
     function quickSort(
