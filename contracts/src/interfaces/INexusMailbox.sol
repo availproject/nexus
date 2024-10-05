@@ -2,8 +2,8 @@
 pragma solidity ^0.8.21;
 
 struct MailboxMessage {
-    bytes32 networkIdFrom;
-    bytes32[] networkIdTo;
+    bytes32 nexusAppIdFrom;
+    bytes32[] nexusAppIdTo;
     bytes data;
     address from;
     address[] to; // if specified on verification, the callback on "to" function will be called
@@ -12,8 +12,8 @@ struct MailboxMessage {
 
 interface INexusMailbox {
     event MailboxEvent(
-        bytes32 indexed networkIdFrom,
-        bytes32[] networkIdTo,
+        bytes32 indexed nexusAppIdFrom,
+        bytes32[] nexusAppIdTo,
         bytes data,
         address indexed from,
         address[] to,
@@ -26,7 +26,7 @@ interface INexusMailbox {
         bytes calldata proof
     ) external;
     function sendMessage(
-        bytes32[] memory networkIdFrom,
+        bytes32[] memory nexusAppIdFrom,
         address[] memory to,
         uint256 nonce,
         bytes calldata data

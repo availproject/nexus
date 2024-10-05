@@ -20,7 +20,7 @@ contract MailBoxTest is Test {
 
     bytes32 appid =
         0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
-    uint256 targetNetworkId = 137;
+    uint256 targetnexusAppId = 137;
 
     function setUp() public {
         mailbox = new NexusMailboxWrapper();
@@ -36,23 +36,23 @@ contract MailBoxTest is Test {
             IZKSyncNexusManagerRouter(address(zksyncDiamond)),
             smt
         );
-        mailbox.addOrUpdateWrapper(bytes32(targetNetworkId), wrapper);
+        mailbox.addOrUpdateWrapper(bytes32(targetnexusAppId), wrapper);
     }
 
     function testSendMessage() public {
         uint256 length = 1;
-        bytes32[] memory networkIdTo = new bytes32[](length);
-        networkIdTo[0] = bytes32(targetNetworkId);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        nexusAppIdTo[0] = bytes32(targetnexusAppId);
         address[] memory to = new address[](length);
         to[0] = address(0);
         bytes memory data = bytes("test");
-        bytes32 networkId = mailbox.networkId();
+        bytes32 nexusAppId = mailbox.nexusAppId();
         uint256 mailboxNonce = 1;
-        mailbox.sendMessage(networkIdTo, to, mailboxNonce, data);
+        mailbox.sendMessage(nexusAppIdTo, to, mailboxNonce, data);
 
         NexusReceipt memory receipt = NexusReceipt({
-            networkIdFrom: networkId,
-            networkIdTo: networkIdTo,
+            nexusAppIdFrom: nexusAppId,
+            nexusAppIdTo: nexusAppIdTo,
             data: data,
             from: address(this),
             to: to,
@@ -111,17 +111,17 @@ contract MailBoxTest is Test {
         mailbox.updateSendMessages(key, value);
 
         uint256 length = 1;
-        bytes32[] memory networkIdTo = new bytes32[](length);
-        networkIdTo[0] = bytes32(targetNetworkId);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        nexusAppIdTo[0] = bytes32(targetnexusAppId);
         address[] memory to = new address[](length);
         to[0] = address(0);
         bytes memory data = bytes("test");
         uint256 mailboxNonce = 1;
-        mailbox.sendMessage(networkIdTo, to, mailboxNonce, data);
+        mailbox.sendMessage(nexusAppIdTo, to, mailboxNonce, data);
 
         NexusReceipt memory receipt = NexusReceipt({
-            networkIdFrom: mailbox.networkId(),
-            networkIdTo: networkIdTo,
+            nexusAppIdFrom: mailbox.nexusAppId(),
+            nexusAppIdTo: nexusAppIdTo,
             data: data,
             from: address(this),
             to: to,
@@ -131,7 +131,7 @@ contract MailBoxTest is Test {
         mailbox.checkVerificationOfEncoding(
             0,
             receipt,
-            bytes32(targetNetworkId),
+            bytes32(targetnexusAppId),
             value,
             encoding
         );
@@ -139,12 +139,12 @@ contract MailBoxTest is Test {
 
     function testSortingAlgorithm() public view {
         uint256 length = 5;
-        bytes32[] memory networkIdTo = new bytes32[](length);
-        networkIdTo[0] = bytes32(targetNetworkId);
-        networkIdTo[1] = bytes32(targetNetworkId - 1);
-        networkIdTo[2] = bytes32(targetNetworkId + 1);
-        networkIdTo[3] = bytes32(targetNetworkId + 2);
-        networkIdTo[4] = bytes32(targetNetworkId - 2);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        nexusAppIdTo[0] = bytes32(targetnexusAppId);
+        nexusAppIdTo[1] = bytes32(targetnexusAppId - 1);
+        nexusAppIdTo[2] = bytes32(targetnexusAppId + 1);
+        nexusAppIdTo[3] = bytes32(targetnexusAppId + 2);
+        nexusAppIdTo[4] = bytes32(targetnexusAppId - 2);
 
         address[] memory to = new address[](length);
         to[0] = address(0);
@@ -153,18 +153,18 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (networkIdTo, to) = mailbox.sortWrapper(
-            networkIdTo,
+        (nexusAppIdTo, to) = mailbox.sortWrapper(
+            nexusAppIdTo,
             to,
             0,
             int256(length - 1)
         );
 
-        assertEq(networkIdTo[0], bytes32(targetNetworkId - 2));
-        assertEq(networkIdTo[1], bytes32(targetNetworkId - 1));
-        assertEq(networkIdTo[2], bytes32(targetNetworkId));
-        assertEq(networkIdTo[3], bytes32(targetNetworkId + 1));
-        assertEq(networkIdTo[4], bytes32(targetNetworkId + 2));
+        assertEq(nexusAppIdTo[0], bytes32(targetnexusAppId - 2));
+        assertEq(nexusAppIdTo[1], bytes32(targetnexusAppId - 1));
+        assertEq(nexusAppIdTo[2], bytes32(targetnexusAppId));
+        assertEq(nexusAppIdTo[3], bytes32(targetnexusAppId + 1));
+        assertEq(nexusAppIdTo[4], bytes32(targetnexusAppId + 2));
 
         assertEq(to[0], vm.addr(4));
         assertEq(to[1], vm.addr(1));
@@ -175,13 +175,13 @@ contract MailBoxTest is Test {
 
     function testSearchAlgorithm() public view {
         uint256 length = 5;
-        bytes32[] memory networkIdTo = new bytes32[](length);
-        bytes32 networkId = mailbox.networkId();
-        networkIdTo[0] = networkId;
-        networkIdTo[1] = bytes32(targetNetworkId - 1);
-        networkIdTo[2] = bytes32(targetNetworkId + 1);
-        networkIdTo[3] = bytes32(targetNetworkId + 2);
-        networkIdTo[4] = bytes32(targetNetworkId - 2);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        bytes32 nexusAppId = mailbox.nexusAppId();
+        nexusAppIdTo[0] = nexusAppId;
+        nexusAppIdTo[1] = bytes32(targetnexusAppId - 1);
+        nexusAppIdTo[2] = bytes32(targetnexusAppId + 1);
+        nexusAppIdTo[3] = bytes32(targetnexusAppId + 2);
+        nexusAppIdTo[4] = bytes32(targetnexusAppId - 2);
 
         address[] memory to = new address[](length);
         to[0] = vm.addr(2);
@@ -190,14 +190,14 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (networkIdTo, to) = mailbox.sortWrapper(
-            networkIdTo,
+        (nexusAppIdTo, to) = mailbox.sortWrapper(
+            nexusAppIdTo,
             to,
             0,
             int256(length - 1)
         );
 
-        address toAddr = mailbox.searchWrapper(networkIdTo, to);
+        address toAddr = mailbox.searchWrapper(nexusAppIdTo, to);
         assertEq(toAddr, vm.addr(2));
     }
 }
