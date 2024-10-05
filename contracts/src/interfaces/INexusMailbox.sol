@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.21;
 
-struct Receipt {
+struct MailboxMessage {
     bytes32 networkIdFrom;
     bytes32[] networkIdTo;
     bytes data;
@@ -11,7 +11,7 @@ struct Receipt {
 }
 
 interface INexusMailbox {
-    event ReceiptEvent(
+    event MailboxEvent(
         bytes32 indexed networkIdFrom,
         bytes32[] networkIdTo,
         bytes data,
@@ -22,7 +22,7 @@ interface INexusMailbox {
 
     function receiveMessage(
         uint256 chainblockNumber,
-        Receipt calldata,
+        MailboxMessage calldata,
         bytes calldata proof
     ) external;
     function sendMessage(

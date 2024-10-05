@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 import "forge-std/test.sol";
-import {Receipt as NexusReceipt} from "../src/interfaces/INexusMailbox.sol";
+import {MailboxMessage as NexusReceipt} from "../src/interfaces/INexusMailbox.sol";
 import "../src/NexusProofManager.sol";
 import "../src/interfaces/INexusProofManager.sol";
 import "../src/mock/ERC20.sol";
