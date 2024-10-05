@@ -1,13 +1,13 @@
-use std::marker::PhantomData;
-use std::collections::HashMap;
 use crate::{
     types::{
-        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusHeader, RollupPublicInputsV2,
-        StatementDigest, SubmitProof, TransactionZKVM, TxParamsV2, H256,
+        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, RollupPublicInputsV2,
+        SubmitProof, TransactionZKVM, TxParamsV2, H256,
     },
     zkvm::traits::ZKVMEnv,
 };
 use anyhow::{anyhow, Error};
+use std::collections::HashMap;
+use std::marker::PhantomData;
 pub struct StateTransitionFunction<Z: ZKVMEnv> {
     z: PhantomData<Z>,
 }

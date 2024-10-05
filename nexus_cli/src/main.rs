@@ -30,6 +30,10 @@ enum Commands {
         /// Runs the command in development mode
         #[arg(long)]
         dev: bool,
+
+        /// Optional app_id
+        #[arg(long, default_value_t = 100)]
+        app_id: u64,
     },
 
     /// Cleans the database(s)
@@ -93,7 +97,7 @@ fn main() {
                 }
             }
         }
-        Commands::Zksync { url, dev } => run_zksync(&url, &zksync_dir, dev),
+        Commands::Zksync { url, dev, app_id } => run_zksync(&url, &zksync_dir, dev, app_id),
         Commands::Nexus { dev } => run_nexus(&nexus_dir, dev),
         Commands::Init { env } => init_env(env),
     }
@@ -119,14 +123,17 @@ fn clean_db(dir: &std::path::Path) -> Result<(), std::io::Error> {
     }
 }
 
-fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool) {
+fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool, app_id: u64) {
     println!("Running zksync commands with API URL: {}", api_url);
+    println!("Using app_id: {}", app_id);
 
     let mut command = Cmd::new("cargo");
     command
         .arg("run")
         .arg("--")
         .arg(api_url)
+        .arg("--app_id")
+        .arg(app_id.to_string())
         .current_dir(zksync_dir);
 
     if dev {

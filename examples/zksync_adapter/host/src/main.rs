@@ -7,12 +7,17 @@ use nexus_core::types::{
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
+use nexus_core::zkvm::traits::ZKVMProof;
 use proof_api::ProofAPIResponse;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
+use serde_json::{self, Value as SerdeValue};
+use std::collections::HashMap;
 use std::env::args;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zksync_core::{L1BatchWithMetadata, MockProof, STF};
@@ -21,7 +26,7 @@ use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 mod proof_api;
 // Your NodeDB struct and methods implementation here
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 struct AdapterStateData {
     last_height: u32,
     adapter_config: AdapterConfig,
@@ -29,57 +34,122 @@ struct AdapterStateData {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    // Retrieve Ethereum node URL and --dev flag from command line arguments
+    // Retrieve Ethereum node URL and command-line arguments
     let args: Vec<String> = args().collect();
-
     if args.len() <= 2 {
         if args.len() == 2 && args[1] == "--dev" {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
 
         if args.len() < 2 {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
     }
+
     let zksync_proof_api_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
+
+    // Default app_id
+    let mut app_id = 100;
+
+    // Parse the --app_id argument if provided
+    if let Some(app_id_index) = args.iter().position(|arg| arg == "--app_id") {
+        if let Some(app_id_value) = args.get(app_id_index + 1) {
+            match app_id_value.parse::<u32>() {
+                Ok(id) => app_id = id,
+                Err(_) => {
+                    eprintln!("Invalid app_id value. Please provide a valid number.");
+                    return Ok(());
+                }
+            }
+        } else {
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+            return Ok(());
+        }
+    }
+
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
     // Create or open the database
-    let db_path = "db";
-    let db = NodeDB::from_path(db_path);
+    let db_path = format!("db/{:?}", app_id);
+    let db = NodeDB::from_path(&db_path);
 
     // If --dev flag is used, purge the database
     if dev_flag {
+        println!("purging data base");
         db.delete(b"adapter_state_data")?;
     }
 
     // Retrieve or initialize the adapter state data from the database
-    let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state")? {
-        data
-    } else {
-        // Initialize with default values if no data found in the database
-        let adapter_config = AdapterConfig {
-            app_id: AppId(100),
-            elf: ZKSYNC_ADAPTER_ELF.to_vec(),
-            adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
-            vk: [0u8; 32],
-            rollup_start_height: 606460,
+    let adapter_state_data =
+        if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
+            data
+        } else {
+            // Initialize with default values if no data found in the database
+            let adapter_config = AdapterConfig {
+                app_id: AppId(app_id),
+                elf: ZKSYNC_ADAPTER_ELF.to_vec(),
+                adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                vk: [0u8; 32],
+                rollup_start_height: 606460,
+            };
+            AdapterStateData {
+                last_height: 0,
+                adapter_config,
+            }
         };
-        AdapterStateData {
-            last_height: 0,
-            adapter_config,
-        }
-    };
 
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash: Option<H256> = None;
     let stf = STF::new(ZKSYNC_ADAPTER_ID, ZKSYNC_ADAPTER_ELF.to_vec());
 
+    println!(
+        "Starting nexus with AppAccountId: {:?} \n, and start height {last_height}",
+        AppAccountId::from(adapter_state_data.adapter_config.app_id.clone()),
+    );
+
     let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);
+
+    let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+    let account_with_proof: AccountWithProof = nexus_api
+        .get_account_state(&app_account_id.as_h256())
+        .await?;
+    let height_on_nexus = account_with_proof.account.height;
+
+    if adapter_state_data.adapter_config.adapter_elf_id.clone()
+        != account_with_proof.account.statement.clone()
+    {
+        if account_with_proof.account != AccountState::zero() {
+            println!(
+                "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
+                &adapter_state_data.adapter_config.adapter_elf_id,
+                &account_with_proof.account.statement
+            );
+        }
+    }
+
+    //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
+    //last_height = account_with_proof.account.height;
+
+    if account_with_proof.account == AccountState::zero() {
+        let tx = TransactionV2 {
+            signature: TxSignature([0u8; 64]),
+            params: TxParamsV2::InitAccount(InitAccount {
+                app_id: app_account_id.clone(),
+                statement: StatementDigest(ZKSYNC_ADAPTER_ID),
+                start_nexus_hash: account_with_proof.nexus_header.hash(),
+            }),
+        };
+
+        nexus_api.send_tx(tx).await?;
+
+        println!("Waiting for 10 seconds for account to be initiated");
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    }
+
     loop {
         println!("Processing L1 batch number: {}", last_height + 1);
 
@@ -100,54 +170,44 @@ async fn main() -> Result<(), Error> {
                     };
                 let height_on_nexus = account_with_proof.account.height;
 
+                if adapter_state_data.adapter_config.adapter_elf_id.clone()
+                    != account_with_proof.account.statement.clone()
+                {
+                    if account_with_proof.account != AccountState::zero() {
+                        println!(
+                            "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
+                            &adapter_state_data.adapter_config.adapter_elf_id,
+                            &account_with_proof.account.statement
+                        );
+                    }
+                }
+
                 //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
                 //last_height = account_with_proof.account.height;
 
                 if account_with_proof.account == AccountState::zero() {
-                    let tx = TransactionV2 {
-                        signature: TxSignature([0u8; 64]),
-                        params: TxParamsV2::InitAccount(InitAccount {
-                            app_id: app_account_id.clone(),
-                            statement: StatementDigest(ZKSYNC_ADAPTER_ID),
-                            start_nexus_hash: account_with_proof.nexus_header.hash(),
-                        }),
-                    };
+                    println!("Account state is not initiated, restart may be required");
+                    tokio::time::sleep(Duration::from_secs(2)).await;
 
-                    match nexus_api.send_tx(tx).await {
-                        Ok(i) => {
-                            start_nexus_hash = Some(account_with_proof.nexus_header.hash());
-                            println!(
-                                "Initiated account on nexus. AppAccountId: {:?} Response: {:?}",
-                                &app_account_id, i,
-                            )
-                        }
-                        Err(e) => {
-                            println!("Error when iniating account: {:?}", e);
-
-                            continue;
-                        }
-                    }
+                    continue;
                 }
 
-                let (prev_proof_with_pi, init_account): (
+                let (prev_proof_with_pi, account_state): (
                     Option<RiscZeroProof>,
-                    Option<InitAccount>,
+                    Option<(AppAccountId, AccountState)>,
                 ) = if last_height == 0 {
                     (
                         None,
-                        Some(InitAccount {
-                            app_id: app_account_id.clone(),
-                            statement: StatementDigest(ZKSYNC_ADAPTER_ID),
-                            start_nexus_hash: account_with_proof.nexus_header.hash(),
-                        }),
+                        //TODO: Remove this clone of app account id.
+                        Some((app_account_id.clone(), account_with_proof.account.clone())),
                     )
                 } else {
                     match db.get(&last_height.to_be_bytes())? {
-                    Some(i) => (Some(i), None),
-                    None => {
-                        return Err(anyhow!("previous proof and metadata not found for last height as per adapter state"))
+                        Some(i) => (Some(i), None),
+                        None => {
+                            return Err(anyhow!("previous proof and metadata not found for last height as per adapter state"))
+                        }
                     }
-                }
                 };
                 let range = match nexus_api.get_range().await {
                     Ok(i) => i,
@@ -165,11 +225,25 @@ async fn main() -> Result<(), Error> {
 
                 let recursive_proof = stf.create_recursive_proof(
                     prev_proof_with_pi,
-                    init_account,
+                    account_state,
                     proof,
                     batch_metadata.clone(),
                     range[0],
                 )?;
+
+                println!(
+                    "Current proof data: {:?}",
+                    recursive_proof.public_inputs::<RollupPublicInputsV2>()
+                );
+
+                match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
+                    Ok(()) => {
+                        println!("Proof verification successful");
+
+                        ()
+                    }
+                    Err(e) => return Err(anyhow!("Proof generated is invalid.")),
+                }
 
                 if current_height > height_on_nexus {
                     let public_inputs = RollupPublicInputsV2 {
@@ -217,7 +291,7 @@ async fn main() -> Result<(), Error> {
                         }
                     }
                 } else {
-                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, last_height);
+                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, height_on_nexus);
                 }
 
                 // Persist adapter state data to the database

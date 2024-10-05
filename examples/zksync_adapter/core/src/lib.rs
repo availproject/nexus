@@ -2,6 +2,8 @@ use adapter_sdk::types::AdapterPublicInputs;
 use anyhow::anyhow;
 use ethers_core::abi::{self, token};
 use hex;
+#[cfg(any(feature = "native"))]
+use nexus_core::types::AccountState;
 use nexus_core::types::InitAccount;
 use nexus_core::types::H256 as NexusH256;
 use nexus_core::types::{AppAccountId, RollupPublicInputsV2, StatementDigest};
@@ -11,6 +13,8 @@ use nexus_core::zkvm::{
     traits::{ZKVMProof, ZKVMProver},
 };
 use serde::{Deserialize, Serialize};
+#[cfg(any(feature = "native"))]
+use types::L1BatchNumber;
 use zksync_basic_types::{
     ethabi::{Bytes, Token},
     web3::keccak256,
@@ -52,7 +56,6 @@ impl STF {
     ) -> Result<LogProcessingOutput, anyhow::Error> {
         let mut log_output = LogProcessingOutput::new();
         let emitted_l2_logs = new_batch.system_logs;
-        println!("Emitted logs length: {}", emitted_l2_logs.len());
 
         for i in (0..emitted_l2_logs.len()).step_by(L2_TO_L1_LOG_SERIALIZE_SIZE) {
             let (log_sender, _) = utils::read_address(&emitted_l2_logs, i + L2_LOG_ADDRESS_OFFSET);
@@ -86,8 +89,6 @@ impl STF {
             // else if(log_key == U256::from(SystemLogKey::ExpectedSystemContractUpgradeTxHashKey)) {}
             // else if(log_key > U256::from(SystemLogKey::ExpectedSystemContractUpgradeTxHashKey)) {}
         }
-
-        println!("Log output: {:?}", log_output);
 
         Ok(log_output)
     }
@@ -333,7 +334,7 @@ impl STF {
         )
         .unwrap();
 
-        let mut blob_commitments: H256Vec = [H256::zero(); MAX_NUMBER_OF_BLOBS];
+        // let mut blob_commitments: H256Vec = [H256::zero(); MAX_NUMBER_OF_BLOBS];
 
         // when pub data source is selected as blob which is default
         Self::verify_blob_information(
@@ -346,20 +347,27 @@ impl STF {
         // let start = U256::from(SystemLogKey::BlobOneHashKey as u16).low_u32() as usize;
         // let end = U256::from(SystemLogKey::BlobSixHashKey as u16).low_u32() as usize;
 
+        // // when pub data source is selected as blob which is default
+        // // Self::verify_blob_information(new_batch.pubdata_commitments.clone(), log_output.blob_hashes);
+
+        // let start = U256::from(SystemLogKey::BlobOneHashKey as u16).low_u32() as usize;
+        // let end = U256::from(SystemLogKey::BlobSixHashKey as u16).low_u32() as usize;
+        // // this we do in case when pricing mode is validium
+
         // for i in start..=end {
         //     log_output.blob_hashes
         //         [i - (U256::from(SystemLogKey::BlobOneHashKey as u16).low_u64() as usize)] =
         //         H256::zero();
         // }
 
-        let commitment: H256 = Self::create_batch_commitment(
-            commit_batch_info.clone(),
-            log_output.state_diff_hash,
-            blob_commitments,
-            log_output.blob_hashes,
-        );
+        // let commitment: H256 = Self::create_batch_commitment(
+        //     commit_batch_info.clone(),
+        //     log_output.state_diff_hash,
+        //     blob_commitments,
+        //     log_output.blob_hashes,
+        // );
 
-        let mut public_inputs = previous_adapter_pi.clone();
+        // let mut public_inputs = previous_adapter_pi.clone();
 
         if new_rollup_pi.header.number.0 > 1 {
             // state root of current proof should be same as batch hash of previous batch
@@ -391,25 +399,23 @@ impl STF {
         &self,
         //previous_adapter_pi: AdapterPublicInputs,
         prev_adapter_proof: Option<RiscZeroProof>,
-        init_account: Option<InitAccount>,
+        init_account: Option<(AppAccountId, AccountState)>,
         new_rollup_proof: MockProof,
         new_rollup_pi: L1BatchWithMetadata,
         nexus_hash: NexusH256,
     ) -> Result<RiscZeroProof, anyhow::Error> {
-        use types::L1BatchNumber;
-
         let prev_adapter_pi: AdapterPublicInputs = match &prev_adapter_proof {
             Some(i) => i.public_inputs()?,
             None => {
                 if new_rollup_pi.header.number == L1BatchNumber(1) {
                     match init_account {
                         Some(i) => AdapterPublicInputs {
-                            start_nexus_hash: i.start_nexus_hash,
+                            start_nexus_hash: NexusH256::from(i.1.start_nexus_hash),
                             nexus_hash,
                             state_root: NexusH256::zero(),
                             height: 0,
-                            app_id: i.app_id,
-                            img_id: i.statement,
+                            app_id: i.0,
+                            img_id: i.1.statement,
                         },
                         None => return Err(anyhow!("Init account details not provided which is required for first recursive proof")),
                     }
@@ -439,11 +445,18 @@ impl STF {
         prover.add_input(&self.img_id)?;
         prover.add_input(&new_batch)?;
         prover.add_input(&nexus_hash)?;
-        match prev_adapter_proof {
+        match prev_adapter_proof.clone() {
             Some(i) => prover.add_proof_for_recursion(i)?,
             None => (),
         };
 
-        prover.prove()
+        let conditional_proof = prover.prove()?;
+
+        // match prev_adapter_proof {
+        //     Some(i) => RiscZeroProof(risczero::recursion::resolve(conditional_proof, i.0)),
+        //     None => Ok(conditional_proof),
+        // }
+
+        Ok(conditional_proof)
     }
 }

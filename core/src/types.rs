@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::hash::Hash;
 
 use crate::utils::hasher::{Digest as RiscZeroDigestTrait, Sha256};
@@ -28,7 +29,7 @@ use crate::zkvm::traits::ZKVMProof;
 use core::fmt::Debug as DebugTrait;
 pub use sparse_merkle_tree::H256;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct AppAccountId(pub [u8; 32]);
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
@@ -460,5 +461,17 @@ impl NexusHeader {
         hasher.0.update(&serialized);
 
         hasher.finish()
+    }
+}
+
+impl fmt::Display for AppAccountId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.0))
+    }
+}
+
+impl fmt::Debug for AppAccountId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AppAccountId({})", hex::encode(&self.0))
     }
 }
