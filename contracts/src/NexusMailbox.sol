@@ -16,12 +16,12 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     mapping(bytes32 => INexusVerifierWrapper) public verifierWrappers;
     mapping(bytes32 => MailboxMessage) public verifiedReceipts;
 
-    bytes32 public networkId;
+    bytes32 public nexusAppId;
 
     event CallbackFailed(address indexed to, bytes data);
 
     function initialize() public initializer {
-        networkId = bytes32(block.chainid);
+        nexusAppId = bytes32(block.chainid);
         __Ownable_init(msg.sender);
     }
 
@@ -31,29 +31,31 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes calldata proof
     ) public {
         INexusVerifierWrapper verifier = verifierWrappers[
-            receipt.networkIdFrom
+            receipt.nexusAppIdFrom
         ];
         if (address(verifier) == address(0)) {
             revert WrapperNotAvailable();
         }
 
         bytes32 receiptHash = keccak256(abi.encode(receipt));
-        bytes32 key = keccak256(abi.encode(receipt.networkIdFrom, receiptHash));
+        bytes32 key = keccak256(
+            abi.encode(receipt.nexusAppIdFrom, receiptHash)
+        );
 
-        /// @dev we check if not exists, using networkId = 0 since this can is imposed by mailbox that the networkId is not 0 when storing
-        if (verifiedReceipts[key].networkIdFrom != bytes32(0)) {
+        /// @dev we check if not exists, using nexusAppId = 0 since this can is imposed by mailbox that the nexusAppId is not 0 when storing
+        if (verifiedReceipts[key].nexusAppIdFrom != bytes32(0)) {
             revert StateAlreadyUpdated();
         }
 
         verifier.parseAndVerify(chainblockNumber, receiptHash, proof);
         verifiedReceipts[key] = receipt;
 
-        address to = search(receipt.networkIdTo, receipt.to);
+        address to = search(receipt.nexusAppIdTo, receipt.to);
         if (to != address(0)) {
             (bool success, ) = to.call(
                 abi.encodeWithSignature(
                     "onNexusMessage(bytes32, address, bytes)",
-                    receipt.networkIdFrom,
+                    receipt.nexusAppIdFrom,
                     receipt.from,
                     receipt.data
                 )
@@ -66,18 +68,18 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
     // @dev we take nonce from the msg.sender since they manage and create deterministic receipt structures.
     function sendMessage(
-        bytes32[] memory networkIdTo,
+        bytes32[] memory nexusAppIdTo,
         address[] memory to,
         uint256 nonce,
         bytes calldata data
     ) public {
-        if (networkIdTo.length != to.length) {
+        if (nexusAppIdTo.length != to.length) {
             revert InvalidParameters();
         }
-        quickSort(networkIdTo, to, 0, int256(networkIdTo.length - 1));
+        quickSort(nexusAppIdTo, to, 0, int256(nexusAppIdTo.length - 1));
         MailboxMessage memory receipt = MailboxMessage({
-            networkIdFrom: networkId,
-            networkIdTo: networkIdTo,
+            nexusAppIdFrom: nexusAppId,
+            nexusAppIdTo: nexusAppIdTo,
             data: data,
             from: msg.sender,
             to: to,
@@ -86,11 +88,18 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(msg.sender, receiptHash));
         messages[key] = receiptHash;
-        emit MailboxEvent(networkId, networkIdTo, data, msg.sender, to, nonce);
+        emit MailboxEvent(
+            nexusAppId,
+            nexusAppIdTo,
+            data,
+            msg.sender,
+            to,
+            nonce
+        );
     }
 
     function quickSort(
-        bytes32[] memory networkIdTo,
+        bytes32[] memory nexusAppIdTo,
         address[] memory to,
         int256 left,
         int256 right
@@ -98,14 +107,14 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         int256 i = left;
         int256 j = right;
         if (i == j) return;
-        bytes32 pivot = networkIdTo[uint256(left + (right - left) / 2)];
+        bytes32 pivot = nexusAppIdTo[uint256(left + (right - left) / 2)];
         while (i <= j) {
-            while (networkIdTo[uint256(i)] < pivot) i++;
-            while (pivot < networkIdTo[uint256(j)]) j--;
+            while (nexusAppIdTo[uint256(i)] < pivot) i++;
+            while (pivot < nexusAppIdTo[uint256(j)]) j--;
             if (i <= j) {
-                (networkIdTo[uint256(i)], networkIdTo[uint256(j)]) = (
-                    networkIdTo[uint256(j)],
-                    networkIdTo[uint256(i)]
+                (nexusAppIdTo[uint256(i)], nexusAppIdTo[uint256(j)]) = (
+                    nexusAppIdTo[uint256(j)],
+                    nexusAppIdTo[uint256(i)]
                 );
                 (to[uint256(i)], to[uint256(j)]) = (
                     to[uint256(j)],
@@ -116,32 +125,32 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             }
         }
         if (left < j) {
-            quickSort(networkIdTo, to, left, j);
+            quickSort(nexusAppIdTo, to, left, j);
         }
         if (i < right) {
-            quickSort(networkIdTo, to, i, right);
+            quickSort(nexusAppIdTo, to, i, right);
         }
     }
 
     function search(
-        bytes32[] memory networkIdTo,
+        bytes32[] memory nexusAppIdTo,
         address[] memory to
     ) internal view returns (address) {
-        if (networkIdTo.length == 0) {
+        if (nexusAppIdTo.length == 0) {
             return (address(0));
         }
 
         int256 left = 0;
-        int256 right = int256(networkIdTo.length - 1);
+        int256 right = int256(nexusAppIdTo.length - 1);
 
         while (left <= right) {
             int256 mid = left + (right - left) / 2;
 
-            if (networkIdTo[uint256(mid)] == networkId) {
+            if (nexusAppIdTo[uint256(mid)] == nexusAppId) {
                 return to[uint256(mid)];
             }
 
-            if (networkIdTo[uint256(mid)] < networkId) {
+            if (nexusAppIdTo[uint256(mid)] < nexusAppId) {
                 left = mid + 1;
             } else {
                 right = mid - 1;
