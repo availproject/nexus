@@ -8,7 +8,7 @@ use ark_poly::{domain, Polynomial};
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
     ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, protocol_version::ProtocolVersionId,
-    web3::keccak256, Address, H160, H256, U256,
+    web3::keccak256, Address, H160, H256, U256, ethabi::Token
 };
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;
@@ -58,6 +58,21 @@ pub struct CommitBatchInfo {
     pub system_logs: Bytes,
     pub pubdata_commitments: Bytes,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProofWithL1BatchMetaData {
+    pub bytes: Token,
+    pub metadata: L1BatchWithMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProofWithCommitmentAndL1BatchMetaData {
+    pub proof_with_l1_batch_metadata: ProofWithL1BatchMetaData,
+    pub blob_commitments: Vec<H256>,
+    pub pubdata_commitments: Vec<u8>,
+    pub versioned_hashes: Vec<[u8; 32]>
+}
+
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct L1BatchWithMetadata {
@@ -351,4 +366,37 @@ pub struct VerificationKey {
     pub lookup_selector: G1Point,
     pub lookup_table_type: G1Point,
     pub recursive_flag: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RootState {
+    pub last_leaf_index: u64,
+    pub root_hash: H256,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct L1BatchPassThroughData {
+    pub shared_states: Vec<RootState>,
+}
+
+impl L1BatchPassThroughData {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        // We assume that currently we have only two shared state: Rollup and ZkPorter where porter is always zero
+        const SERIALIZED_SIZE: usize = 8 + 32 + 8 + 32;
+        let mut result = Vec::with_capacity(SERIALIZED_SIZE);
+        for state in self.shared_states.iter() {
+            result.extend_from_slice(&state.last_leaf_index.to_be_bytes());
+            result.extend_from_slice(state.root_hash.as_bytes());
+        }
+        assert_eq!(
+            result.len(),
+            SERIALIZED_SIZE,
+            "Serialized size for BlockPassThroughData is bigger than expected"
+        );
+        result
+    }
+
+    pub fn hash(&self) -> H256 {
+        H256::from_slice(&keccak256(&self.to_bytes()))
+    }
 }

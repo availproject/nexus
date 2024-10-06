@@ -130,6 +130,7 @@ pub fn verify_proof<P: RollupProof>(
                     start_nexus_hash: i.start_nexus_hash,
                     app_id: app_account_id,
                     img_id: i.img_id,
+                    rollup_hash: i.rollup_hash
                 },
                 None => AdapterPublicInputs {
                     nexus_hash: nexus_hash.clone(),
@@ -138,6 +139,7 @@ pub fn verify_proof<P: RollupProof>(
                     start_nexus_hash: nexus_hash,
                     app_id: app_account_id,
                     img_id: img_id.clone(),
+                    rollup_hash: Some(H256::zero())
                 },
             });
         }
@@ -164,6 +166,7 @@ pub fn verify_proof<P: RollupProof>(
                         start_nexus_hash: nexus_hash,
                         app_id: app_account_id,
                         img_id: img_id.clone(),
+                        rollup_hash: Some(H256::zero())
                     })
                 }
             }
@@ -195,5 +198,6 @@ pub fn verify_proof<P: RollupProof>(
         start_nexus_hash: prev_public_input.start_nexus_hash,
         app_id: app_account_id,
         img_id: img_id.clone(),
+        rollup_hash: prev_public_input.rollup_hash
     })
 }

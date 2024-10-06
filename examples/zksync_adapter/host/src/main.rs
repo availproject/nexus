@@ -20,7 +20,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
-use zksync_core::{L1BatchWithMetadata, MockProof, STF};
+use zksync_core::{L1BatchWithMetadata, MockProof, ProofWithCommitmentAndL1BatchMetaData, STF};
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
 mod proof_api;
@@ -119,17 +119,17 @@ async fn main() -> Result<(), Error> {
         .await?;
     let height_on_nexus = account_with_proof.account.height;
 
-    if adapter_state_data.adapter_config.adapter_elf_id.clone()
-        != account_with_proof.account.statement.clone()
-    {
-        if account_with_proof.account != AccountState::zero() {
-            println!(
-                "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
-                &adapter_state_data.adapter_config.adapter_elf_id,
-                &account_with_proof.account.statement
-            );
-        }
-    }
+    // if adapter_state_data.adapter_config.adapter_elf_id.clone()
+    //     != account_with_proof.account.statement.clone()
+    // {
+    //     if account_with_proof.account != AccountState::zero() {
+    //         println!(
+    //             "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
+    //             &adapter_state_data.adapter_config.adapter_elf_id,
+    //             &account_with_proof.account.statement
+    //         );
+    //     }
+    // }
 
     //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
     //last_height = account_with_proof.account.height;
@@ -154,8 +154,17 @@ async fn main() -> Result<(), Error> {
         println!("Processing L1 batch number: {}", last_height + 1);
 
         match proof_api.get_proof_for_l1_batch(last_height + 1).await {
-            Ok(ProofAPIResponse::Found((batch_metadata, proof))) => {
+            Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof))) => {
+
+                let ProofWithCommitmentAndL1BatchMetaData { 
+                    proof_with_l1_batch_metadata, 
+                    blob_commitments, 
+                    pubdata_commitments, 
+                    versioned_hashes 
+                } = proof_with_commitment_and_l1_batch_meta_data; 
+                let batch_metadata = proof_with_l1_batch_metadata.metadata;
                 let current_height = batch_metadata.header.number.0;
+                // println!("metadata: {:?}", batch_metadata);
 
                 let app_account_id =
                     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
@@ -170,17 +179,17 @@ async fn main() -> Result<(), Error> {
                     };
                 let height_on_nexus = account_with_proof.account.height;
 
-                if adapter_state_data.adapter_config.adapter_elf_id.clone()
-                    != account_with_proof.account.statement.clone()
-                {
-                    if account_with_proof.account != AccountState::zero() {
-                        println!(
-                            "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
-                            &adapter_state_data.adapter_config.adapter_elf_id,
-                            &account_with_proof.account.statement
-                        );
-                    }
-                }
+                // if adapter_state_data.adapter_config.adapter_elf_id.clone()
+                //     != account_with_proof.account.statement.clone()
+                // {
+                //     if account_with_proof.account != AccountState::zero() {
+                //         println!(
+                //             "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
+                //             &adapter_state_data.adapter_config.adapter_elf_id,
+                //             &account_with_proof.account.statement
+                //         );
+                //     }
+                // }
 
                 //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
                 //last_height = account_with_proof.account.height;
@@ -219,7 +228,6 @@ async fn main() -> Result<(), Error> {
 
                 if range.is_empty() {
                     println!("Nexus does not have a valid range, retrying.");
-
                     continue;
                 }
 
@@ -228,6 +236,8 @@ async fn main() -> Result<(), Error> {
                     account_state,
                     proof,
                     batch_metadata.clone(),
+                    pubdata_commitments,
+                    versioned_hashes,
                     range[0],
                 )?;
 
@@ -235,6 +245,7 @@ async fn main() -> Result<(), Error> {
                     "Current proof data: {:?}",
                     recursive_proof.public_inputs::<RollupPublicInputsV2>()
                 );
+                let rollup_hash = recursive_proof.public_inputs::<RollupPublicInputsV2>().unwrap().rollup_hash.unwrap();
 
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
                     Ok(()) => {
@@ -258,6 +269,7 @@ async fn main() -> Result<(), Error> {
                         }),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                        rollup_hash: Some(rollup_hash)
                     };
 
                     let tx = TransactionV2 {

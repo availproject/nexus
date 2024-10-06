@@ -89,6 +89,7 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
             start_nexus_hash: H256::from(pre_state.1.start_nexus_hash.clone()),
             state_root: params.state_root.clone(),
             img_id: pre_state.1.statement.clone(),
+            rollup_hash: None
         };
 
         if public_inputs.app_id != pre_state.0.clone() {

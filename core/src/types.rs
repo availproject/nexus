@@ -103,6 +103,7 @@ pub struct RollupPublicInputsV2 {
     pub start_nexus_hash: H256,
     pub app_id: AppAccountId,
     pub img_id: StatementDigest,
+    pub rollup_hash: Option<H256>
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]

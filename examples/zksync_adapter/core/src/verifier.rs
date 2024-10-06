@@ -12,6 +12,7 @@ use ark_ff::{
     UniformRand, Zero,
 };
 use ark_poly::{domain, Polynomial};
+use ethers_core::k256::U256;
 use num_bigint::*;
 
 use std::fmt::{format, Debug, DebugMap, Display};
@@ -38,24 +39,24 @@ impl ZksyncVerifier {
         Self
     }
 
-    fn compute_challenges(pvs: &mut PartialVerifierState) {
+    fn compute_challenges(pvs: &mut PartialVerifierState, public_input: Fr, proof: Proof) {
         let mut transcript = Transcript::new_transcript();
 
-        transcript.update_transcript(&get_u8arr_from_fr(get_public_inputs()));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_0.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_0.y));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_1.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_1.y));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_2.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_2.y));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_3.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().state_poly_3.y));
+        transcript.update_transcript(&get_u8arr_from_fr(public_input));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_0.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_0.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_1.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_1.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_2.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_2.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_3.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_3.y));
 
         let etaaa = transcript.get_transcript_challenge(0);
 
         //round 1.5
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().lookup_s_poly.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().lookup_s_poly.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_s_poly.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_s_poly.y));
 
         let betaa = transcript.get_transcript_challenge(1);
         let gammma = transcript.get_transcript_challenge(2);
@@ -63,10 +64,10 @@ impl ZksyncVerifier {
         //round 2
 
         transcript.update_transcript(&get_u8arr_from_fq(
-            get_mock_proof().copy_permutation_grand_product.x,
+            proof.copy_permutation_grand_product.x,
         ));
         transcript.update_transcript(&get_u8arr_from_fq(
-            get_mock_proof().copy_permutation_grand_product.y,
+            proof.copy_permutation_grand_product.y,
         ));
 
         let beta_lookuppp = transcript.get_transcript_challenge(3);
@@ -74,21 +75,21 @@ impl ZksyncVerifier {
 
         //round 2.5
 
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().lookup_grand_product.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().lookup_grand_product.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_grand_product.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_grand_product.y));
 
         let alphaaa = transcript.get_transcript_challenge(5);
 
         //round 3
 
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_0.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_0.y));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_1.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_1.y));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_2.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_2.y));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_3.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().quotient_poly_parts_3.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_0.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_0.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_1.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_1.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_2.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_2.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_3.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_3.y));
 
         let zz = transcript.get_transcript_challenge(6);
         let zz_in_domain_size = get_fr_from_u8arr(zz.to_vec()).pow([get_domain_size()]);
@@ -96,75 +97,75 @@ impl ZksyncVerifier {
         //round 4
 
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().quotient_poly_opening_at_z,
+            proof.quotient_poly_opening_at_z,
         ));
 
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().state_poly_0_opening_at_z,
+            proof.state_poly_0_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().state_poly_1_opening_at_z,
+            proof.state_poly_1_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().state_poly_2_opening_at_z,
+            proof.state_poly_2_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().state_poly_3_opening_at_z,
-        ));
-
-        transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().state_poly_3_opening_at_z_omega,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().gate_selectors_0_opening_at_z,
+            proof.state_poly_3_opening_at_z,
         ));
 
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().copy_permutation_polys_0_opening_at_z,
+            proof.state_poly_3_opening_at_z_omega,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().copy_permutation_polys_1_opening_at_z,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().copy_permutation_polys_2_opening_at_z,
+            proof.gate_selectors_0_opening_at_z,
         ));
 
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().copy_permutation_grand_product_opening_at_z_omega,
+            proof.copy_permutation_polys_0_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().lookup_t_poly_opening_at_z,
+            proof.copy_permutation_polys_1_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().lookup_selector_poly_opening_at_z,
+            proof.copy_permutation_polys_2_opening_at_z,
+        ));
+
+        transcript.update_transcript(&get_u8arr_from_fr(
+            proof.copy_permutation_grand_product_opening_at_z_omega,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().lookup_table_type_poly_opening_at_z,
+            proof.lookup_t_poly_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().lookup_s_poly_opening_at_z_omega,
+            proof.lookup_selector_poly_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().lookup_grand_product_opening_at_z_omega,
+            proof.lookup_table_type_poly_opening_at_z,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().lookup_t_poly_opening_at_z_omega,
+            proof.lookup_s_poly_opening_at_z_omega,
         ));
         transcript.update_transcript(&get_u8arr_from_fr(
-            get_mock_proof().linearisation_poly_opening_at_z,
+            proof.lookup_grand_product_opening_at_z_omega,
+        ));
+        transcript.update_transcript(&get_u8arr_from_fr(
+            proof.lookup_t_poly_opening_at_z_omega,
+        ));
+        transcript.update_transcript(&get_u8arr_from_fr(
+            proof.linearisation_poly_opening_at_z,
         ));
 
         let vv = transcript.get_transcript_challenge(7);
 
         // round 5
 
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().opening_proof_at_z.x));
-        transcript.update_transcript(&get_u8arr_from_fq(get_mock_proof().opening_proof_at_z.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.y));
         transcript.update_transcript(&get_u8arr_from_fq(
-            get_mock_proof().opening_proof_at_z_omega.x,
+            proof.opening_proof_at_z_omega.x,
         ));
         transcript.update_transcript(&get_u8arr_from_fq(
-            get_mock_proof().opening_proof_at_z_omega.y,
+            proof.opening_proof_at_z_omega.y,
         ));
 
         let uu = transcript.get_transcript_challenge(8);
@@ -206,36 +207,37 @@ impl ZksyncVerifier {
     fn permutation_quotient_contribution(
         pvs: &mut PartialVerifierState,
         l0_at_z: Fp256<FrParameters>,
+        proof: Proof
     ) -> Fp256<FrParameters> {
         let mut res = pvs
             .power_of_alpha_4
-            .mul(get_mock_proof().copy_permutation_grand_product_opening_at_z_omega);
+            .mul(proof.copy_permutation_grand_product_opening_at_z_omega);
         let mut factor_multiplier;
 
-        factor_multiplier = get_mock_proof()
+        factor_multiplier = proof
             .copy_permutation_polys_0_opening_at_z
             .mul(pvs.beta);
 
         factor_multiplier = factor_multiplier.add(pvs.gamma);
-        factor_multiplier = factor_multiplier.add(get_mock_proof().state_poly_0_opening_at_z);
+        factor_multiplier = factor_multiplier.add(proof.state_poly_0_opening_at_z);
 
         res = res.mul(factor_multiplier);
 
-        factor_multiplier = get_mock_proof()
+        factor_multiplier = proof
             .copy_permutation_polys_1_opening_at_z
             .mul(pvs.beta);
         factor_multiplier = factor_multiplier.add(pvs.gamma);
-        factor_multiplier = factor_multiplier.add(get_mock_proof().state_poly_1_opening_at_z);
+        factor_multiplier = factor_multiplier.add(proof.state_poly_1_opening_at_z);
         res = res.mul(factor_multiplier);
 
-        factor_multiplier = get_mock_proof()
+        factor_multiplier = proof
             .copy_permutation_polys_2_opening_at_z
             .mul(pvs.beta);
         factor_multiplier = factor_multiplier.add(pvs.gamma);
-        factor_multiplier = factor_multiplier.add(get_mock_proof().state_poly_2_opening_at_z);
+        factor_multiplier = factor_multiplier.add(proof.state_poly_2_opening_at_z);
         res = res.mul(factor_multiplier);
 
-        res = res.mul(get_mock_proof().state_poly_3_opening_at_z.add(pvs.gamma));
+        res = res.mul(proof.state_poly_3_opening_at_z.add(pvs.gamma));
         res = get_scalar_field().sub(res);
         let mut temp_l0atz = l0_at_z.clone();
         temp_l0atz = temp_l0atz.mul(pvs.power_of_alpha_5);
@@ -243,17 +245,17 @@ impl ZksyncVerifier {
         res
     }
 
-    fn lookup_quotient_contribution(pvs: &mut PartialVerifierState) -> Fp256<FrParameters> {
+    fn lookup_quotient_contribution(pvs: &mut PartialVerifierState, proof: Proof) -> Fp256<FrParameters> {
         let betaplusone = pvs.beta_lookup.add(Fr::from_str("1").unwrap());
         let beta_gamma = betaplusone.mul(pvs.gamma_lookup);
 
         pvs.beta_gamma_plus_gamma = beta_gamma;
 
-        let mut res = get_mock_proof()
+        let mut res = proof
             .lookup_s_poly_opening_at_z_omega
             .mul(pvs.beta_lookup);
         res = res.add(beta_gamma);
-        res = res.mul(get_mock_proof().lookup_grand_product_opening_at_z_omega);
+        res = res.mul(proof.lookup_grand_product_opening_at_z_omega);
         res = res.mul(pvs.power_of_alpha_6);
 
         let mut last_omega = get_omega().pow([get_domain_size() - 1]);
@@ -271,7 +273,7 @@ impl ZksyncVerifier {
         res
     }
 
-    fn verify_quotient_evaluation(pvs: &mut PartialVerifierState) {
+    fn verify_quotient_evaluation(pvs: &mut PartialVerifierState, public_input: Fr, proof: Proof) {
         let alpha_2 = pvs.alpha.mul(pvs.alpha);
         let alpha_3 = pvs.power_of_alpha_3;
         let alpha_4 = pvs.power_of_alpha_4;
@@ -288,19 +290,19 @@ impl ZksyncVerifier {
         pvs.l_0_at_z = l0atz;
         pvs.l_n_minus_one_at_z = lnminus_1_at_z;
 
-        let state_t = l0atz.mul(get_public_inputs());
+        let state_t = l0atz.mul(public_input);
 
-        let mut result = state_t.mul(get_mock_proof().gate_selectors_0_opening_at_z);
+        let mut result = state_t.mul(proof.gate_selectors_0_opening_at_z);
 
-        result = result.add(Self::permutation_quotient_contribution(pvs, l0atz));
+        result = result.add(Self::permutation_quotient_contribution(pvs, l0atz, proof.clone()));
 
-        result = result.add(Self::lookup_quotient_contribution(pvs));
+        result = result.add(Self::lookup_quotient_contribution(pvs, proof.clone()));
 
-        result = result.add(get_mock_proof().linearisation_poly_opening_at_z);
+        result = result.add(proof.linearisation_poly_opening_at_z);
 
         let vanishing = pvs.z_in_domain_size.add(Fr::from_str("1").unwrap().neg());
 
-        let lhs = get_mock_proof().quotient_poly_opening_at_z.mul(vanishing);
+        let lhs = proof.quotient_poly_opening_at_z.mul(vanishing);
 
         assert_eq!(lhs, result);
     }
@@ -1124,13 +1126,14 @@ impl ZksyncVerifier {
         state_z_slot: Fr,
         mut pairing_pair_generator: GroupAffine<Parameters>,
         mut pairing_buffer_point: GroupAffine<Parameters>,
+        proof: Proof
     ) -> bool {
         pairing_pair_generator = pairing_pair_generator.add(-pairing_buffer_point);
 
         let z_omega = state_z_slot.mul(get_omega());
 
-        let proof_opening_proof_at_z = get_mock_proof().opening_proof_at_z;
-        let proof_opening_proof_at_z_omega = get_mock_proof().opening_proof_at_z_omega;
+        let proof_opening_proof_at_z = proof.opening_proof_at_z;
+        let proof_opening_proof_at_z_omega = proof.opening_proof_at_z_omega;
         pairing_pair_generator = (proof_opening_proof_at_z.mul(state_z_slot))
             .into_affine()
             .add(pairing_pair_generator);
@@ -1138,7 +1141,7 @@ impl ZksyncVerifier {
             .into_affine()
             .add(pairing_pair_generator);
 
-        let mut pairing_pair_with_x = get_mock_proof().opening_proof_at_z;
+        let mut pairing_pair_with_x = proof.opening_proof_at_z;
 
         pairing_pair_with_x = proof_opening_proof_at_z_omega
             .mul(state_u_slot)
@@ -1159,16 +1162,16 @@ impl ZksyncVerifier {
     }
 
     // TODO: remove the hardcoded proof
-    pub fn verify(&self) {
-        // gather relevant stuff for proof verification
-        let proof = get_mock_proof();
-        let public_signal = get_pub_signal();
+    pub fn verify(&self, public_input: String, proof_strings: Vec<String>) -> bool {
+
+        let proof = get_mock_proof(proof_strings);
         let verification_key = get_verification_key();
+        let public_inputs = get_public_inputs(public_input);
 
         // start verification
         let mut pvs = PartialVerifierState::new();
-        Self::compute_challenges(&mut pvs);
-        Self::verify_quotient_evaluation(&mut pvs);
+        Self::compute_challenges(&mut pvs, public_inputs, proof.clone());
+        Self::verify_quotient_evaluation(&mut pvs, public_inputs, proof.clone());
 
         // prepare vk
         let vk_gate_setup_0_affine = verification_key.gate_setup[0];
@@ -1236,8 +1239,11 @@ impl ZksyncVerifier {
             pvs.z,
             pairing_pair_with_generator,
             pairing_pair_buffer_point,
+            proof
         );
 
         println!("Is Proof Verified: {:?}", is_proof_verified);
+
+        is_proof_verified
     }
 }

@@ -10,10 +10,12 @@ risc0_zkvm::guest::entry!(main);
 
 fn main() {
     let previous_adapter_pi: AdapterPublicInputs = env::read();
-    let new_rollup_proof: MockProof = env::read();
+    let new_rollup_proof: Vec<String> = env::read();
     let new_rollup_pi: L1BatchWithMetadata = env::read();
     let img_id: [u32; 8] = env::read();
     let new_batch: CommitBatchInfo = env::read();
+    let pubdata_commitments: Vec<u8> = env::read();
+    let versioned_hashes: Vec<[u8; 32]> = env::read();
     let nexus_hash: H256 = env::read();
     if new_rollup_pi.header.number.0 > 1 {
         env::verify(img_id, &to_vec(&previous_adapter_pi).unwrap()).unwrap();
@@ -24,6 +26,8 @@ fn main() {
         new_rollup_proof,
         new_rollup_pi,
         new_batch,
+        pubdata_commitments,
+        versioned_hashes,
         nexus_hash,
     )
     .unwrap();

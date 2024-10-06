@@ -183,6 +183,7 @@ async fn main() -> Result<(), Error> {
                         }),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ADAPTER_ID),
+                        rollup_hash: Some(H256::zero())
                     };
 
                     let public_input_vec = match to_vec(&public_inputs) {
