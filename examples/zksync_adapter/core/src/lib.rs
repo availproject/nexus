@@ -15,11 +15,8 @@ use nexus_core::zkvm::{
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "native"))]
 use types::L1BatchNumber;
-use zksync_basic_types::{
-    web3::keccak256,
-    H256, U256, U64,
-};
 pub use zksync_basic_types::ethabi::{Bytes, Token};
+use zksync_basic_types::{web3::keccak256, H256, U256, U64};
 // use zksync_types::commitment::serialize_commitments;
 // use zksync_types::commitment::serialize_commitments;
 pub mod constants;
@@ -30,10 +27,13 @@ pub mod verifier;
 //pub use zksync_types::commitment::L1BatchWithMetadata;
 pub use crate::constants::{
     SystemLogKey, L2_LOG_ADDRESS_OFFSET, L2_LOG_KEY_OFFSET, L2_LOG_VALUE_OFFSET,
-    L2_TO_L1_LOG_SERIALIZE_SIZE, MAX_NUMBER_OF_BLOBS, PUBDATA_COMMITMENT_SIZE,
-    TOTAL_BLOBS_IN_COMMITMENT, PUBLIC_INPUT_SHIFT
+    L2_TO_L1_LOG_SERIALIZE_SIZE, MAX_NUMBER_OF_BLOBS, PUBDATA_COMMITMENT_SIZE, PUBLIC_INPUT_SHIFT,
+    TOTAL_BLOBS_IN_COMMITMENT,
 };
-pub use crate::types::{CommitBatchInfo, H256Vec, L1BatchWithMetadata, ProofWithL1BatchMetaData, LogProcessingOutput, ProofWithCommitmentAndL1BatchMetaData, L1BatchPassThroughData, RootState };
+pub use crate::types::{
+    CommitBatchInfo, H256Vec, L1BatchPassThroughData, L1BatchWithMetadata, LogProcessingOutput,
+    ProofWithCommitmentAndL1BatchMetaData, ProofWithL1BatchMetaData, RootState,
+};
 use crate::verifier::ZksyncVerifier;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -94,7 +94,10 @@ impl STF {
     }
 
     #[cfg(any(feature = "native"))]
-    fn get_commit_batch_info(new_rollup_pi: L1BatchWithMetadata, pubdata_commitments: Vec<u8>) -> CommitBatchInfo {
+    fn get_commit_batch_info(
+        new_rollup_pi: L1BatchWithMetadata,
+        pubdata_commitments: Vec<u8>,
+    ) -> CommitBatchInfo {
         let commit_batch_info = CommitBatchInfo {
             batch_number: new_rollup_pi.header.number.0 as u64,
             timestamp: new_rollup_pi.header.timestamp,
@@ -110,7 +113,7 @@ impl STF {
             system_logs: crate::utils::serialize_commitments(&new_rollup_pi.header.system_logs),
             // new_rollup_pi.header.system_logs, need to serialize it somehow
             // TODO: need to confirm calculation
-            pubdata_commitments
+            pubdata_commitments,
         };
         commit_batch_info
     }
@@ -133,15 +136,18 @@ impl STF {
         return hash;
     }
 
-    fn calculate_public_input(prev_batch_commitment: String, current_batch_commitment: String) -> U256 {
+    fn calculate_public_input(
+        prev_batch_commitment: String,
+        current_batch_commitment: String,
+    ) -> U256 {
         let current_batch_commitment = U256::from_str_radix(&current_batch_commitment, 16).unwrap();
-        let prev_batch_commitment  = U256::from_str_radix(&prev_batch_commitment, 16).unwrap();
+        let prev_batch_commitment = U256::from_str_radix(&prev_batch_commitment, 16).unwrap();
         let val = abi::encode_packed(&[
             Token::Uint(prev_batch_commitment),
             Token::Uint(current_batch_commitment),
         ])
         .unwrap();
-        
+
         let public_input = U256::from_big_endian(&keccak256(&val)) >> PUBLIC_INPUT_SHIFT;
         public_input
     }
@@ -155,7 +161,6 @@ impl STF {
         versioned_hashes: Vec<[u8; 32]>,
         nexus_hash: NexusH256,
     ) -> Result<AdapterPublicInputs, anyhow::Error> {
-
         // TODO: need to change
         let expected_system_contract_upgrade_tx_hash = H256::zero(); // zero hash for now
         let mut log_output: LogProcessingOutput = Self::process_l2_logs(
@@ -164,7 +169,7 @@ impl STF {
         )
         .unwrap();
 
-        // alternate way to calculate commitment 
+        // alternate way to calculate commitment
         let mut result = vec![];
         let pass_through_data_hash = Self::batch_pass_through_data(commit_batch_info);
         result.extend_from_slice(pass_through_data_hash.as_bytes());
@@ -175,20 +180,27 @@ impl STF {
 
         let hash = keccak256(&result);
         let current_batch_commitment = H256::from(hash);
-        let current_batch_commitment_string = format!("0x{}", hex::encode(current_batch_commitment.as_bytes()));
+        let current_batch_commitment_string =
+            format!("0x{}", hex::encode(current_batch_commitment.as_bytes()));
 
         // TODO: uncomment this else further batch proving won't work
-        let prev_batch_commitment_string = format!("0x{}", hex::encode(previous_adapter_pi.rollup_hash.unwrap().as_fixed_slice()));
+        let prev_batch_commitment_string = format!(
+            "0x{}",
+            hex::encode(previous_adapter_pi.rollup_hash.unwrap().as_fixed_slice())
+        );
 
         // let genesis_batch_commitment = "0x2d00e5f8d77afcebf58a6b82ae56ba967566fe7dfbcb6760319fb0d215d18ffd".to_string();
         // let prev_batch_commitment_string = genesis_batch_commitment;
 
-        let public_input = Self::calculate_public_input(prev_batch_commitment_string, current_batch_commitment_string);
+        let public_input = Self::calculate_public_input(
+            prev_batch_commitment_string,
+            current_batch_commitment_string,
+        );
 
         let verifier = ZksyncVerifier::new();
         let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
 
-        if(!is_proof_verified) {
+        if (!is_proof_verified) {
             return Err(anyhow!("Proof verification failed"));
         }
 
@@ -208,7 +220,9 @@ impl STF {
             start_nexus_hash: previous_adapter_pi.start_nexus_hash,
             app_id: previous_adapter_pi.app_id,
             img_id: previous_adapter_pi.img_id,
-            rollup_hash: Some(NexusH256::from(current_batch_commitment.as_fixed_bytes().clone())),
+            rollup_hash: Some(NexusH256::from(
+                current_batch_commitment.as_fixed_bytes().clone(),
+            )),
         };
 
         Ok(proof_public_input)
@@ -229,7 +243,9 @@ impl STF {
         // genesis rollup hash
 
         use std::str::FromStr;
-        let genesis_batch_commitment = H256::from_str("0x2d00e5f8d77afcebf58a6b82ae56ba967566fe7dfbcb6760319fb0d215d18ffd").unwrap();
+        let genesis_batch_commitment =
+            H256::from_str("0x2d00e5f8d77afcebf58a6b82ae56ba967566fe7dfbcb6760319fb0d215d18ffd")
+                .unwrap();
 
         let prev_adapter_pi: AdapterPublicInputs = match &prev_adapter_proof {
             Some(i) => i.public_inputs()?,
@@ -254,7 +270,8 @@ impl STF {
         };
 
         // TODO: need to take the input batch
-        let new_batch = Self::get_commit_batch_info(new_rollup_pi.clone(), pubdata_commitments.clone());
+        let new_batch =
+            Self::get_commit_batch_info(new_rollup_pi.clone(), pubdata_commitments.clone());
 
         let check = Self::verify_continuity_and_proof(
             prev_adapter_pi.clone(),

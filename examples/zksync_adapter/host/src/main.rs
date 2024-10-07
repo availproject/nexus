@@ -155,13 +155,12 @@ async fn main() -> Result<(), Error> {
 
         match proof_api.get_proof_for_l1_batch(last_height + 1).await {
             Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof))) => {
-
-                let ProofWithCommitmentAndL1BatchMetaData { 
-                    proof_with_l1_batch_metadata, 
-                    blob_commitments, 
-                    pubdata_commitments, 
-                    versioned_hashes 
-                } = proof_with_commitment_and_l1_batch_meta_data; 
+                let ProofWithCommitmentAndL1BatchMetaData {
+                    proof_with_l1_batch_metadata,
+                    blob_commitments,
+                    pubdata_commitments,
+                    versioned_hashes,
+                } = proof_with_commitment_and_l1_batch_meta_data;
                 let batch_metadata = proof_with_l1_batch_metadata.metadata;
                 let current_height = batch_metadata.header.number.0;
                 // println!("metadata: {:?}", batch_metadata);
@@ -245,7 +244,11 @@ async fn main() -> Result<(), Error> {
                     "Current proof data: {:?}",
                     recursive_proof.public_inputs::<RollupPublicInputsV2>()
                 );
-                let rollup_hash = recursive_proof.public_inputs::<RollupPublicInputsV2>().unwrap().rollup_hash.unwrap();
+                let rollup_hash = recursive_proof
+                    .public_inputs::<RollupPublicInputsV2>()
+                    .unwrap()
+                    .rollup_hash
+                    .unwrap();
 
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
                     Ok(()) => {
@@ -269,7 +272,7 @@ async fn main() -> Result<(), Error> {
                         }),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
-                        rollup_hash: Some(rollup_hash)
+                        rollup_hash: Some(rollup_hash),
                     };
 
                     let tx = TransactionV2 {
@@ -287,6 +290,7 @@ async fn main() -> Result<(), Error> {
                                 }
                             },
                             height: public_inputs.height,
+                            data: public_inputs.rollup_hash.clone(),
                         }),
                     };
                     match nexus_api.send_tx(tx).await {
