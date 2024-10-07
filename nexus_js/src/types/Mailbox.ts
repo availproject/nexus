@@ -23,25 +23,25 @@ import type {
   TypedContractMethod,
 } from "./common";
 
-export type ReceiptStruct = {
-  chainIdFrom: BytesLike;
-  chainIdTo: BytesLike[];
+export type MailboxMessageStruct = {
+  nexusAppIdFrom: BytesLike;
+  nexusAppIdTo: BytesLike[];
   data: BytesLike;
   from: AddressLike;
   to: AddressLike[];
   nonce: BigNumberish;
 };
 
-export type ReceiptStructOutput = [
-  chainIdFrom: string,
-  chainIdTo: string[],
+export type MailboxMessageStructOutput = [
+  nexusAppIdFrom: string,
+  nexusAppIdTo: string[],
   data: string,
   from: string,
   to: string[],
   nonce: bigint
 ] & {
-  chainIdFrom: string;
-  chainIdTo: string[];
+  nexusAppIdFrom: string;
+  nexusAppIdTo: string[];
   data: string;
   from: string;
   to: string[];
@@ -52,13 +52,13 @@ export interface MailboxInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "addOrUpdateWrapper"
-      | "chainId"
-      | "initialise"
+      | "initialize"
+      | "messages"
+      | "nexusAppId"
       | "owner"
       | "receiveMessage"
       | "renounceOwnership"
       | "sendMessage"
-      | "sendMessages"
       | "transferOwnership"
       | "verifiedReceipts"
       | "verifierWrappers"
@@ -68,23 +68,27 @@ export interface MailboxInterface extends Interface {
     nameOrSignatureOrTopic:
       | "CallbackFailed"
       | "Initialized"
+      | "MailboxEvent"
       | "OwnershipTransferred"
-      | "ReceiptEvent"
   ): EventFragment;
 
   encodeFunctionData(
     functionFragment: "addOrUpdateWrapper",
     values: [BytesLike, AddressLike]
   ): string;
-  encodeFunctionData(functionFragment: "chainId", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "initialise",
+    functionFragment: "initialize",
+    values?: undefined
+  ): string;
+  encodeFunctionData(functionFragment: "messages", values: [BytesLike]): string;
+  encodeFunctionData(
+    functionFragment: "nexusAppId",
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "receiveMessage",
-    values: [BigNumberish, ReceiptStruct, BytesLike, boolean]
+    values: [BigNumberish, MailboxMessageStruct, BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
@@ -93,10 +97,6 @@ export interface MailboxInterface extends Interface {
   encodeFunctionData(
     functionFragment: "sendMessage",
     values: [BytesLike[], AddressLike[], BigNumberish, BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "sendMessages",
-    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
@@ -115,8 +115,9 @@ export interface MailboxInterface extends Interface {
     functionFragment: "addOrUpdateWrapper",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "chainId", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "initialise", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "messages", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "nexusAppId", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "receiveMessage",
@@ -128,10 +129,6 @@ export interface MailboxInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "sendMessage",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "sendMessages",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -173,12 +170,30 @@ export namespace InitializedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace OwnershipTransferredEvent {
-  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
-  export type OutputTuple = [previousOwner: string, newOwner: string];
+export namespace MailboxEventEvent {
+  export type InputTuple = [
+    nexusAppIdFrom: BytesLike,
+    nexusAppIdTo: BytesLike[],
+    data: BytesLike,
+    from: AddressLike,
+    to: AddressLike[],
+    nonce: BigNumberish
+  ];
+  export type OutputTuple = [
+    nexusAppIdFrom: string,
+    nexusAppIdTo: string[],
+    data: string,
+    from: string,
+    to: string[],
+    nonce: bigint
+  ];
   export interface OutputObject {
-    previousOwner: string;
-    newOwner: string;
+    nexusAppIdFrom: string;
+    nexusAppIdTo: string[];
+    data: string;
+    from: string;
+    to: string[];
+    nonce: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -186,30 +201,12 @@ export namespace OwnershipTransferredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace ReceiptEventEvent {
-  export type InputTuple = [
-    chainIdFrom: BytesLike,
-    chainIdTo: BytesLike[],
-    data: BytesLike,
-    from: AddressLike,
-    to: AddressLike[],
-    nonce: BigNumberish
-  ];
-  export type OutputTuple = [
-    chainIdFrom: string,
-    chainIdTo: string[],
-    data: string,
-    from: string,
-    to: string[],
-    nonce: bigint
-  ];
+export namespace OwnershipTransferredEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
   export interface OutputObject {
-    chainIdFrom: string;
-    chainIdTo: string[];
-    data: string;
-    from: string;
-    to: string[];
-    nonce: bigint;
+    previousOwner: string;
+    newOwner: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -266,18 +263,19 @@ export interface Mailbox extends BaseContract {
     "nonpayable"
   >;
 
-  chainId: TypedContractMethod<[], [string], "view">;
+  initialize: TypedContractMethod<[], [void], "nonpayable">;
 
-  initialise: TypedContractMethod<[], [void], "nonpayable">;
+  messages: TypedContractMethod<[arg0: BytesLike], [string], "view">;
+
+  nexusAppId: TypedContractMethod<[], [string], "view">;
 
   owner: TypedContractMethod<[], [string], "view">;
 
   receiveMessage: TypedContractMethod<
     [
       chainblockNumber: BigNumberish,
-      receipt: ReceiptStruct,
-      proof: BytesLike,
-      callback: boolean
+      receipt: MailboxMessageStruct,
+      proof: BytesLike
     ],
     [void],
     "nonpayable"
@@ -287,7 +285,7 @@ export interface Mailbox extends BaseContract {
 
   sendMessage: TypedContractMethod<
     [
-      chainIdTo: BytesLike[],
+      nexusAppIdTo: BytesLike[],
       to: AddressLike[],
       nonce: BigNumberish,
       data: BytesLike
@@ -295,8 +293,6 @@ export interface Mailbox extends BaseContract {
     [void],
     "nonpayable"
   >;
-
-  sendMessages: TypedContractMethod<[arg0: BytesLike], [string], "view">;
 
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
@@ -308,7 +304,7 @@ export interface Mailbox extends BaseContract {
     [arg0: BytesLike],
     [
       [string, string, string, bigint] & {
-        chainIdFrom: string;
+        nexusAppIdFrom: string;
         data: string;
         from: string;
         nonce: bigint;
@@ -331,11 +327,14 @@ export interface Mailbox extends BaseContract {
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "chainId"
-  ): TypedContractMethod<[], [string], "view">;
-  getFunction(
-    nameOrSignature: "initialise"
+    nameOrSignature: "initialize"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "messages"
+  ): TypedContractMethod<[arg0: BytesLike], [string], "view">;
+  getFunction(
+    nameOrSignature: "nexusAppId"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
@@ -344,9 +343,8 @@ export interface Mailbox extends BaseContract {
   ): TypedContractMethod<
     [
       chainblockNumber: BigNumberish,
-      receipt: ReceiptStruct,
-      proof: BytesLike,
-      callback: boolean
+      receipt: MailboxMessageStruct,
+      proof: BytesLike
     ],
     [void],
     "nonpayable"
@@ -358,7 +356,7 @@ export interface Mailbox extends BaseContract {
     nameOrSignature: "sendMessage"
   ): TypedContractMethod<
     [
-      chainIdTo: BytesLike[],
+      nexusAppIdTo: BytesLike[],
       to: AddressLike[],
       nonce: BigNumberish,
       data: BytesLike
@@ -366,9 +364,6 @@ export interface Mailbox extends BaseContract {
     [void],
     "nonpayable"
   >;
-  getFunction(
-    nameOrSignature: "sendMessages"
-  ): TypedContractMethod<[arg0: BytesLike], [string], "view">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
@@ -378,7 +373,7 @@ export interface Mailbox extends BaseContract {
     [arg0: BytesLike],
     [
       [string, string, string, bigint] & {
-        chainIdFrom: string;
+        nexusAppIdFrom: string;
         data: string;
         from: string;
         nonce: bigint;
@@ -405,18 +400,18 @@ export interface Mailbox extends BaseContract {
     InitializedEvent.OutputObject
   >;
   getEvent(
+    key: "MailboxEvent"
+  ): TypedContractEvent<
+    MailboxEventEvent.InputTuple,
+    MailboxEventEvent.OutputTuple,
+    MailboxEventEvent.OutputObject
+  >;
+  getEvent(
     key: "OwnershipTransferred"
   ): TypedContractEvent<
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
-  >;
-  getEvent(
-    key: "ReceiptEvent"
-  ): TypedContractEvent<
-    ReceiptEventEvent.InputTuple,
-    ReceiptEventEvent.OutputTuple,
-    ReceiptEventEvent.OutputObject
   >;
 
   filters: {
@@ -442,6 +437,17 @@ export interface Mailbox extends BaseContract {
       InitializedEvent.OutputObject
     >;
 
+    "MailboxEvent(bytes32,bytes32[],bytes,address,address[],uint256)": TypedContractEvent<
+      MailboxEventEvent.InputTuple,
+      MailboxEventEvent.OutputTuple,
+      MailboxEventEvent.OutputObject
+    >;
+    MailboxEvent: TypedContractEvent<
+      MailboxEventEvent.InputTuple,
+      MailboxEventEvent.OutputTuple,
+      MailboxEventEvent.OutputObject
+    >;
+
     "OwnershipTransferred(address,address)": TypedContractEvent<
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
@@ -451,17 +457,6 @@ export interface Mailbox extends BaseContract {
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
-    >;
-
-    "ReceiptEvent(bytes32,bytes32[],bytes,address,address[],uint256)": TypedContractEvent<
-      ReceiptEventEvent.InputTuple,
-      ReceiptEventEvent.OutputTuple,
-      ReceiptEventEvent.OutputObject
-    >;
-    ReceiptEvent: TypedContractEvent<
-      ReceiptEventEvent.InputTuple,
-      ReceiptEventEvent.OutputTuple,
-      ReceiptEventEvent.OutputObject
     >;
   };
 }

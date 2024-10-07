@@ -1,4 +1,4 @@
-export enum Chains {
+export enum Networks {
   Ethereum = "Ethereum",
   ZKSync = "ZKSync",
 }
@@ -8,13 +8,4 @@ export type ChainDetails = {
   stateManagerContract: string;
   appID: string; // nexus app id ?,
   chainId: string;
-};
-
-export type Receipt = {
-  chainIdFrom: string;
-  chainIdTo: string[];
-  data: string;
-  from: string;
-  to: string[];
-  nonce: number;
 };

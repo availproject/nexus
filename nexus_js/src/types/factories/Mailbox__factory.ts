@@ -26,8 +26,21 @@ const _abi = [
   },
   {
     type: "function",
-    name: "chainId",
+    name: "initialize",
     inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "messages",
+    inputs: [
+      {
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
     outputs: [
       {
         name: "",
@@ -39,10 +52,16 @@ const _abi = [
   },
   {
     type: "function",
-    name: "initialise",
+    name: "nexusAppId",
     inputs: [],
-    outputs: [],
-    stateMutability: "nonpayable",
+    outputs: [
+      {
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    stateMutability: "view",
   },
   {
     type: "function",
@@ -69,15 +88,15 @@ const _abi = [
       {
         name: "receipt",
         type: "tuple",
-        internalType: "struct Receipt",
+        internalType: "struct MailboxMessage",
         components: [
           {
-            name: "chainIdFrom",
+            name: "nexusAppIdFrom",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
-            name: "chainIdTo",
+            name: "nexusAppIdTo",
             type: "bytes32[]",
             internalType: "bytes32[]",
           },
@@ -108,11 +127,6 @@ const _abi = [
         type: "bytes",
         internalType: "bytes",
       },
-      {
-        name: "callback",
-        type: "bool",
-        internalType: "bool",
-      },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -129,7 +143,7 @@ const _abi = [
     name: "sendMessage",
     inputs: [
       {
-        name: "chainIdTo",
+        name: "nexusAppIdTo",
         type: "bytes32[]",
         internalType: "bytes32[]",
       },
@@ -151,25 +165,6 @@ const _abi = [
     ],
     outputs: [],
     stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "sendMessages",
-    inputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    outputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    stateMutability: "view",
   },
   {
     type: "function",
@@ -196,7 +191,7 @@ const _abi = [
     ],
     outputs: [
       {
-        name: "chainIdFrom",
+        name: "nexusAppIdFrom",
         type: "bytes32",
         internalType: "bytes32",
       },
@@ -271,35 +266,16 @@ const _abi = [
   },
   {
     type: "event",
-    name: "OwnershipTransferred",
+    name: "MailboxEvent",
     inputs: [
       {
-        name: "previousOwner",
-        type: "address",
-        indexed: true,
-        internalType: "address",
-      },
-      {
-        name: "newOwner",
-        type: "address",
-        indexed: true,
-        internalType: "address",
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: "event",
-    name: "ReceiptEvent",
-    inputs: [
-      {
-        name: "chainIdFrom",
+        name: "nexusAppIdFrom",
         type: "bytes32",
         indexed: true,
         internalType: "bytes32",
       },
       {
-        name: "chainIdTo",
+        name: "nexusAppIdTo",
         type: "bytes32[]",
         indexed: false,
         internalType: "bytes32[]",
@@ -327,6 +303,25 @@ const _abi = [
         type: "uint256",
         indexed: false,
         internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
+      {
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
       },
     ],
     anonymous: false,

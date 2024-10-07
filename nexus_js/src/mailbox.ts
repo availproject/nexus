@@ -1,38 +1,39 @@
 import { Mailbox, Mailbox__factory } from "./types/index";
 import { ethers, Provider } from "ethers";
 import logger from "./logger";
-import { ChainDetails, Chains, Receipt } from "./types";
+import { ChainDetails, Networks } from "./types";
+import { MailboxMessageStruct } from "./types/Mailbox";
 
 class MailboxUtils {
-  protected chains: Map<string, ChainDetails>;
+  protected networks: Map<string, ChainDetails>;
 
-  constructor(chains: { [key in Chains]: ChainDetails }) {
-    this.chains = new Map();
-    for (let key in chains) {
-      const chainKey = key as Chains;
-      this.chains.set(chainKey, chains[chainKey]);
+  constructor(networks: { [key in Networks]: ChainDetails }) {
+    this.networks = new Map();
+    for (let key in networks) {
+      const chainKey = key as Networks;
+      this.networks.set(chainKey, networks[chainKey]);
     }
   }
 
   public getChains(): Map<string, ChainDetails> {
-    return this.chains;
+    return this.networks;
   }
 
   public newReceipt(
-    chain: Chains,
-    chainIdTo: string[],
+    network: Networks,
+    networkTo: string[],
     data: string,
     from: string,
     to: string[],
     nonce: number
-  ): Receipt | undefined {
-    const chainId = this.chains.get(chain)?.chainId;
+  ): MailboxMessageStruct | undefined {
+    const chainId = this.networks.get(network)?.chainId;
     if (!chainId) {
       return;
     }
-    const receipt: Receipt = {
-      chainIdFrom: ethers.encodeBytes32String(chainId),
-      chainIdTo: chainIdTo,
+    const receipt: MailboxMessageStruct = {
+      nexusAppIdFrom: ethers.encodeBytes32String(network),
+      nexusAppIdTo: networkTo,
       data: data,
       from: from,
       to: to,
@@ -41,8 +42,8 @@ class MailboxUtils {
     return receipt;
   }
 
-  protected getMailboxContract(chain: Chains): Mailbox | undefined {
-    const chainInfo = this.chains.get(chain);
+  protected getMailboxContract(chain: Networks): Mailbox | undefined {
+    const chainInfo = this.networks.get(chain);
     const provider = new ethers.JsonRpcProvider(chainInfo?.rpcUrl);
     if (!chainInfo?.mailboxContract) {
       logger.error("Mailbox Contract address missing");
@@ -57,7 +58,7 @@ class MailboxUtils {
 }
 
 export default class MailBoxClient extends MailboxUtils {
-  constructor(chains: { [key in Chains]: ChainDetails }) {
+  constructor(chains: { [key in Networks]: ChainDetails }) {
     if (Object.keys(chains).length === 0) {
       throw new Error("At least one account state mapping must be provided.");
     }
@@ -66,7 +67,7 @@ export default class MailBoxClient extends MailboxUtils {
   }
 
   sendMessage(
-    chain: Chains,
+    chain: Networks,
     chainIdTo: string[],
     to: string[],
     nonce: number,
@@ -77,17 +78,16 @@ export default class MailBoxClient extends MailboxUtils {
   }
 
   receiveMessage(
-    chain: Chains,
+    chain: Networks,
     chainblockNumber: number,
-    receipt: Receipt,
-    proof: string,
-    callback: boolean
+    receipt: MailboxMessageStruct,
+    proof: string
   ) {
     const mailboxContract = this.getMailboxContract(chain);
-    mailboxContract?.receiveMessage(chainblockNumber, receipt, proof, callback);
+    mailboxContract?.receiveMessage(chainblockNumber, receipt, proof);
   }
 
   addChain(key: string, chainDetails: ChainDetails): void {
-    this.chains.set(key, chainDetails);
+    this.networks.set(key, chainDetails);
   }
 }
