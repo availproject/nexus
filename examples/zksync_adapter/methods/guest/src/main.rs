@@ -28,5 +28,6 @@ fn main() {
     )
     .unwrap();
 
+    println!("Cycle count of the program: {:?}", env::cycle_count());
     env::commit(&result);
 }

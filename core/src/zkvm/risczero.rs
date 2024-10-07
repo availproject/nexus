@@ -8,7 +8,7 @@ use anyhow::Error;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 #[cfg(any(feature = "native-risc0"))]
-use risc0_zkvm::{default_prover, ExecutorEnv, ExecutorEnvBuilder};
+use risc0_zkvm::{default_prover, Executor, ExecutorEnv, ExecutorEnvBuilder, Prover};
 use risc0_zkvm::{serde::from_slice, Receipt};
 use serde::{Deserialize, Serialize};
 
@@ -36,9 +36,22 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     }
 
     fn prove(&mut self) -> Result<RiscZeroProof, anyhow::Error> {
+        let start_time = std::time::Instant::now(); // Start time measurement
+
+        //let env_1: ExecutorEnv = self.env_builder.clone().build().map_err(|e| anyhow!(e))?;
         let env: ExecutorEnv = self.env_builder.build().map_err(|e| anyhow!(e))?;
+
         let prover = default_prover();
-        let receipt = prover.prove(env, &self.elf).map_err(|e| anyhow!(e))?;
+        // let stats = prover.execute(env, &self.elf).map_err(|e| anyhow!(e))?;
+        // println!("Execution stats: {:?}", stats);
+        let receipt = prover
+            .prove(env, &self.elf)
+            .map_err(|e| anyhow!("Error when proving: {:?}", e))?;
+
+        let duration = start_time.elapsed(); // Calculate elapsed time
+        println!("Prover stats: {:?}", receipt.stats);
+        println!("Proof generation completed in: {:?}", duration); // Log the elapsed time
+
         Ok(RiscZeroProof(receipt.receipt))
     }
 }

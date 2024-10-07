@@ -1,12 +1,10 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Error};
 use jmt::storage::{LeafNode, Node, NodeBatch, NodeKey, TreeReader, TreeWriter};
 use jmt::{KeyHash, OwnedValue, Version};
 use rocksdb::DB;
 use rocksdb::{WriteBatch, WriteOptions};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
-use sparse_merkle_tree::error::Error;
-use sparse_merkle_tree::traits::{StoreReadOps, StoreWriteOps};
 use sparse_merkle_tree::BranchKey;
 use sparse_merkle_tree::BranchNode;
 use sparse_merkle_tree::H256;
@@ -33,7 +31,7 @@ impl MerkleStore {
         if !committed {
             let cache = match self.cache.lock() {
                 Ok(i) => i,
-                Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+                Err(e) => return Err(anyhow!("No lock obtained.")),
             };
 
             match cache.get(serialized_key) {
@@ -48,40 +46,40 @@ impl MerkleStore {
                 None => {
                     let db = match self.db.lock() {
                         Ok(i) => i,
-                        Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+                        Err(e) => return Err(anyhow!("No lock obtained.")),
                     };
 
                     match db.get(serialized_key) {
                         Ok(Some(i)) => {
                             let deserialized_value: V = match from_slice(&i) {
                                 Ok(v) => v,
-                                Err(e) => return Err(Error::Store(e.to_string())),
+                                Err(e) => return Err(anyhow!(e.to_string())),
                             };
 
                             Ok(Some(deserialized_value))
                         }
                         Ok(None) => Ok(None),
-                        Err(e) => Err(Error::Store(e.to_string())),
+                        Err(e) => Err(anyhow!(e.to_string())),
                     }
                 }
             }
         } else {
             let db = match self.db.lock() {
                 Ok(i) => i,
-                Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+                Err(e) => return Err(anyhow!("No lock obtained.")),
             };
 
             match db.get(serialized_key) {
                 Ok(Some(i)) => {
                     let deserialized_value: V = match from_slice(&i) {
                         Ok(v) => v,
-                        Err(e) => return Err(Error::Store(e.to_string())),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                     };
 
                     Ok(Some(deserialized_value))
                 }
                 Ok(None) => Ok(None),
-                Err(e) => Err(Error::Store(e.to_string())),
+                Err(e) => Err(anyhow!(e.to_string())),
             }
         }
     }
@@ -89,7 +87,7 @@ impl MerkleStore {
     pub fn put<V: Serialize>(&self, serialized_key: &[u8], value: &V) -> Result<(), Error> {
         let mut cache = match self.cache.lock() {
             Ok(i) => i,
-            Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+            Err(e) => return Err(anyhow!("No lock obtained.")),
         };
 
         cache.insert(serialized_key.to_vec(), to_vec(value).unwrap());
@@ -100,7 +98,7 @@ impl MerkleStore {
     pub fn delete(&self, serialized_key: &[u8]) -> Result<(), Error> {
         let mut cache = match self.cache.lock() {
             Ok(i) => i,
-            Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+            Err(e) => return Err(anyhow!("No lock obtained.")),
         };
 
         cache.remove(&serialized_key.to_vec());
@@ -113,26 +111,26 @@ impl MerkleStore {
     pub fn commit(&mut self) -> Result<(), Error> {
         let db = match self.db.lock() {
             Ok(i) => i,
-            Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+            Err(e) => return Err(anyhow!("No lock obtained.")),
         };
         let mut cache = match self.cache.lock() {
             Ok(i) => i,
-            Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+            Err(e) => return Err(anyhow!("No lock obtained.")),
         };
 
         for (key, value) in cache.iter() {
             if !value.is_empty() {
                 match db.put(key, value) {
-                    Err(e) => return Err(Error::Store(e.to_string())),
+                    Err(e) => return Err(anyhow!(e.to_string())),
                     _ => (),
                 }
             } else {
                 //Getting from underlying db below so as to not deserialise the
                 //value as it is not required.
                 match db.get(key) {
-                    Err(e) => return Err(Error::Store(e.to_string())),
+                    Err(e) => return Err(anyhow!(e.to_string())),
                     Ok(Some(_)) => match db.delete(key) {
-                        Err(e) => return Err(Error::Store(e.to_string())),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         _ => (),
                     },
                     Ok(None) => (),
@@ -147,57 +145,10 @@ impl MerkleStore {
     pub fn clear_cache(&mut self) -> Result<(), Error> {
         let mut cache = match self.cache.lock() {
             Ok(i) => i,
-            Err(e) => return Err(Error::Store(String::from("No lock obtained."))),
+            Err(e) => return Err(anyhow!("No lock obtained.")),
         };
 
         Ok(cache.clear())
-    }
-}
-
-impl<V: DeserializeOwned> StoreReadOps<V> for MerkleStore {
-    fn get_branch(&self, branch_key: &BranchKey) -> Result<Option<BranchNode>, Error> {
-        let serialized_key = match to_vec(branch_key) {
-            Err(e) => return Err(Error::Store(e.to_string())),
-            Ok(i) => i,
-        };
-
-        self.get(&serialized_key, false)
-    }
-
-    fn get_leaf(&self, leaf_key: &H256) -> Result<Option<V>, Error> {
-        let key = leaf_key.as_slice();
-
-        self.get(key, false)
-    }
-}
-
-impl<V: Serialize> StoreWriteOps<V> for MerkleStore {
-    fn insert_branch(&mut self, node_key: BranchKey, branch: BranchNode) -> Result<(), Error> {
-        let serialized_key = match to_vec(&node_key) {
-            Err(e) => return Err(Error::Store(e.to_string())),
-            Ok(i) => i,
-        };
-
-        self.put(&serialized_key, &branch)
-    }
-
-    fn insert_leaf(&mut self, leaf_key: H256, leaf: V) -> Result<(), Error> {
-        self.put(leaf_key.as_slice(), &leaf)
-    }
-
-    fn remove_branch(&mut self, node_key: &BranchKey) -> Result<(), Error> {
-        let serialized_key = match to_vec(&node_key) {
-            Err(e) => return Err(Error::Store(e.to_string())),
-            Ok(i) => i,
-        };
-
-        self.delete(&serialized_key)
-    }
-
-    fn remove_leaf(&mut self, leaf_key: &H256) -> Result<(), Error> {
-        let serialized_key = leaf_key.as_slice();
-
-        self.delete(serialized_key)
     }
 }
 
@@ -305,7 +256,7 @@ impl TreeWriter for MerkleStore {
 
         let db = match self.db.lock() {
             Ok(i) => i,
-            Err(e) => return Err(anyhow!(String::from("No lock obtained."))),
+            Err(e) => return Err(anyhow!("No lock obtained.")),
         };
         // Write the batch atomically
         db.write_opt(batch, &WriteOptions::default())
