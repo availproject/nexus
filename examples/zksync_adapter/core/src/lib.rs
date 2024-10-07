@@ -178,10 +178,10 @@ impl STF {
         let current_batch_commitment_string = format!("0x{}", hex::encode(current_batch_commitment.as_bytes()));
 
         // TODO: uncomment this else further batch proving won't work
-        // let prev_batch_commitment_string = format!("0x{}", hex::encode( previous_adapter_pi.rollup_hash.as_bytes()));
+        let prev_batch_commitment_string = format!("0x{}", hex::encode(previous_adapter_pi.rollup_hash.unwrap().as_fixed_slice()));
 
-        let genesis_batch_commitment = "0x2d00e5f8d77afcebf58a6b82ae56ba967566fe7dfbcb6760319fb0d215d18ffd".to_string();
-        let prev_batch_commitment_string = genesis_batch_commitment;
+        // let genesis_batch_commitment = "0x2d00e5f8d77afcebf58a6b82ae56ba967566fe7dfbcb6760319fb0d215d18ffd".to_string();
+        // let prev_batch_commitment_string = genesis_batch_commitment;
 
         let public_input = Self::calculate_public_input(prev_batch_commitment_string, current_batch_commitment_string);
 
