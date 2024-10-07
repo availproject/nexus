@@ -25,6 +25,7 @@ interface INexusMailbox {
         MailboxMessage calldata,
         bytes calldata proof
     ) external;
+
     function sendMessage(
         bytes32[] memory nexusAppIdFrom,
         address[] memory to,

@@ -20,8 +20,8 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
     event CallbackFailed(address indexed to, bytes data);
 
-    function initialize() public initializer {
-        nexusAppId = bytes32(block.chainid);
+    function initialize(bytes32 _nexusAppId) public initializer {
+        nexusAppId = _nexusAppId;
         __Ownable_init(msg.sender);
     }
 
