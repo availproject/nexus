@@ -24,7 +24,7 @@ contract MailBoxTest is Test {
 
     function setUp() public {
         mailbox = new NexusMailboxWrapper();
-        mailbox.initialize();
+        mailbox.initialize(appid);
         erc20 = new ERC20Token("Avail", "Avail");
         proofManager = new NexusProofManager();
         SparseMerkleTree smt = new SparseMerkleTree();
