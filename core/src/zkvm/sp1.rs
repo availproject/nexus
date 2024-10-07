@@ -17,10 +17,6 @@ use sp1_sdk::{
     utils, ProverClient, SP1ProofWithPublicValues, SP1ProvingKey, SP1PublicValues, SP1Stdin,
     SP1VerifyingKey, SP1Proof, SP1Prover
 };
-#[cfg(any(feature = "native-sp1"))]
-use sp1_stark::SP1ProverOpts;
-#[cfg(any(feature = "native-sp1"))]
-use sp1_prover::types::SP1ProofWithMetadata;
 
 #[cfg(any(feature = "native-sp1"))]
 pub struct Sp1Prover {
@@ -168,3 +164,9 @@ impl ZKVMEnv for SP1ZKVM {
         sp1_zkvm::io::commit_slice(byte_slice);
     }
 }
+
+#[cfg(any(feature = "native-sp1"))]
+pub trait ProofConversion: std::convert::From<Sp1Proof> {}
+
+#[cfg(any(feature = "native-sp1"))]
+impl ProofConversion for Sp1Proof {}

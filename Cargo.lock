@@ -5685,9 +5685,7 @@ dependencies = [
  "sha2 0.10.8",
  "solabi",
  "sp1-helper 2.0.0",
- "sp1-prover 1.2.0",
  "sp1-sdk",
- "sp1-stark 1.2.0",
  "sp1-zkvm",
  "sparse-merkle-tree",
  "tokio",
@@ -11194,42 +11192,6 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fde11e88cf1e7fa272ec3accb643845b1d3a13b9b7840a0357b00acdfdbedf9"
-dependencies = [
- "bincode",
- "bytemuck",
- "elf",
- "eyre",
- "generic-array 1.1.0",
- "hashbrown 0.14.5",
- "hex",
- "itertools 0.13.0",
- "log",
- "nohash-hasher",
- "num",
- "p3-field",
- "p3-keccak-air",
- "p3-maybe-rayon",
- "rand 0.8.5",
- "rrs-succinct",
- "serde",
- "serde_with 3.10.0",
- "sp1-curves 1.2.0",
- "sp1-derive 1.2.0",
- "sp1-primitives 1.2.0",
- "sp1-stark 1.2.0",
- "strum 0.26.3",
- "strum_macros 0.26.4",
- "thiserror",
- "tiny-keccak",
- "tracing",
- "typenum",
-]
-
-[[package]]
-name = "sp1-core-executor"
 version = "2.0.0"
 source = "git+https://github.com/succinctlabs/sp1.git#62ff82c8e86f533b3b64eb4cf82a325bb721e3c6"
 dependencies = [
@@ -11252,10 +11214,10 @@ dependencies = [
  "rrs-succinct",
  "serde",
  "serde_with 3.10.0",
- "sp1-curves 2.0.0",
- "sp1-derive 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-curves",
+ "sp1-derive",
+ "sp1-primitives",
+ "sp1-stark",
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "thiserror",
@@ -11267,72 +11229,6 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "748ffa83d438905521f389f46fed2de6f3b05b1da2ffc2273194bede11a258fc"
-dependencies = [
- "anyhow",
- "arrayref",
- "bincode",
- "blake3",
- "bytemuck",
- "cfg-if",
- "curve25519-dalek 4.1.3",
- "elf",
- "elliptic-curve 0.13.8",
- "generic-array 1.1.0",
- "hashbrown 0.14.5",
- "hex",
- "itertools 0.13.0",
- "k256 0.13.4",
- "log",
- "nohash-hasher",
- "num",
- "num-bigint 0.4.6",
- "num_cpus",
- "p3-air",
- "p3-baby-bear",
- "p3-blake3",
- "p3-challenger",
- "p3-commit",
- "p3-dft",
- "p3-field",
- "p3-fri",
- "p3-keccak",
- "p3-keccak-air",
- "p3-matrix",
- "p3-maybe-rayon",
- "p3-merkle-tree",
- "p3-poseidon2",
- "p3-symmetric",
- "p3-uni-stark",
- "p3-util",
- "rand 0.8.5",
- "rayon-scan",
- "rrs-succinct",
- "serde",
- "serde_with 3.10.0",
- "size",
- "snowbridge-amcl",
- "sp1-core-executor 1.2.0",
- "sp1-curves 1.2.0",
- "sp1-derive 1.2.0",
- "sp1-primitives 1.2.0",
- "sp1-stark 1.2.0",
- "static_assertions",
- "strum 0.26.3",
- "strum_macros 0.26.4",
- "tempfile",
- "thiserror",
- "tracing",
- "tracing-forest",
- "tracing-subscriber 0.3.18",
- "typenum",
- "web-time",
-]
-
-[[package]]
-name = "sp1-core-machine"
 version = "2.0.0"
 source = "git+https://github.com/succinctlabs/sp1.git#62ff82c8e86f533b3b64eb4cf82a325bb721e3c6"
 dependencies = [
@@ -11378,11 +11274,11 @@ dependencies = [
  "serde_with 3.10.0",
  "size",
  "snowbridge-amcl",
- "sp1-core-executor 2.0.0",
- "sp1-curves 2.0.0",
- "sp1-derive 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-executor",
+ "sp1-curves",
+ "sp1-derive",
+ "sp1-primitives",
+ "sp1-stark",
  "static_assertions",
  "strum 0.26.3",
  "strum_macros 0.26.4",
@@ -11393,27 +11289,6 @@ dependencies = [
  "tracing-subscriber 0.3.18",
  "typenum",
  "web-time",
-]
-
-[[package]]
-name = "sp1-curves"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c19d1e60fdd17ec53b8453d7634ed3a136800151412c8d9873944f782c4bc89"
-dependencies = [
- "curve25519-dalek 4.1.3",
- "dashu",
- "elliptic-curve 0.13.8",
- "generic-array 1.1.0",
- "itertools 0.13.0",
- "k256 0.13.4",
- "num",
- "p3-field",
- "serde",
- "snowbridge-amcl",
- "sp1-primitives 1.2.0",
- "sp1-stark 1.2.0",
- "typenum",
 ]
 
 [[package]]
@@ -11431,20 +11306,9 @@ dependencies = [
  "p3-field",
  "serde",
  "snowbridge-amcl",
- "sp1-primitives 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-primitives",
+ "sp1-stark",
  "typenum",
-]
-
-[[package]]
-name = "sp1-derive"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74d06fdae1dc74a9085b155d12180825653e530983262b8ad2e57fe15551d17a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -11489,20 +11353,6 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d13f9b8ac43071ecfe5980a135cbcecb26ecad243165adce8de5aa3746a2af59"
-dependencies = [
- "itertools 0.13.0",
- "lazy_static",
- "p3-baby-bear",
- "p3-field",
- "p3-poseidon2",
- "p3-symmetric",
-]
-
-[[package]]
-name = "sp1-primitives"
 version = "2.0.0"
 source = "git+https://github.com/succinctlabs/sp1.git#62ff82c8e86f533b3b64eb4cf82a325bb721e3c6"
 dependencies = [
@@ -11521,46 +11371,6 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf5496754989ea23332537094818b4d8bc55e04171fc4f87161493399c2219ad"
-dependencies = [
- "anyhow",
- "bincode",
- "clap 4.5.19",
- "dirs",
- "hex",
- "itertools 0.13.0",
- "num-bigint 0.4.6",
- "oneshot",
- "p3-baby-bear",
- "p3-bn254-fr",
- "p3-challenger",
- "p3-commit",
- "p3-field",
- "p3-matrix",
- "rayon",
- "serde",
- "serde_json",
- "serial_test",
- "sp1-core-executor 1.2.0",
- "sp1-core-machine 1.2.0",
- "sp1-primitives 1.2.0",
- "sp1-recursion-circuit 1.2.0",
- "sp1-recursion-compiler 1.2.0",
- "sp1-recursion-core 1.2.0",
- "sp1-recursion-gnark-ffi 1.2.0",
- "sp1-recursion-program 1.2.0",
- "sp1-stark 1.2.0",
- "subtle-encoding",
- "tempfile",
- "thiserror",
- "tracing",
- "tracing-subscriber 0.3.18",
-]
-
-[[package]]
-name = "sp1-prover"
 version = "2.0.0"
 source = "git+https://github.com/succinctlabs/sp1.git#62ff82c8e86f533b3b64eb4cf82a325bb721e3c6"
 dependencies = [
@@ -11582,15 +11392,15 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
- "sp1-core-executor 2.0.0",
- "sp1-core-machine 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-recursion-circuit 2.0.0",
- "sp1-recursion-compiler 2.0.0",
- "sp1-recursion-core 2.0.0",
- "sp1-recursion-gnark-ffi 2.0.0",
- "sp1-recursion-program 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-executor",
+ "sp1-core-machine",
+ "sp1-primitives",
+ "sp1-recursion-circuit",
+ "sp1-recursion-compiler",
+ "sp1-recursion-core",
+ "sp1-recursion-gnark-ffi",
+ "sp1-recursion-program",
+ "sp1-stark",
  "subtle-encoding",
  "tempfile",
  "thiserror",
@@ -11600,31 +11410,6 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab0ee89dd4928419672f046a472b3e0114e405805d96de9f39e4e83d323778ab"
-dependencies = [
- "bincode",
- "itertools 0.13.0",
- "p3-air",
- "p3-baby-bear",
- "p3-bn254-fr",
- "p3-commit",
- "p3-field",
- "p3-fri",
- "p3-matrix",
- "p3-util",
- "serde",
- "sp1-core-machine 1.2.0",
- "sp1-recursion-compiler 1.2.0",
- "sp1-recursion-core 1.2.0",
- "sp1-recursion-derive 1.2.0",
- "sp1-recursion-program 1.2.0",
- "sp1-stark 1.2.0",
-]
-
-[[package]]
-name = "sp1-recursion-circuit"
 version = "2.0.0"
 source = "git+https://github.com/succinctlabs/sp1.git#62ff82c8e86f533b3b64eb4cf82a325bb721e3c6"
 dependencies = [
@@ -11639,42 +11424,12 @@ dependencies = [
  "p3-matrix",
  "p3-util",
  "serde",
- "sp1-core-machine 2.0.0",
- "sp1-recursion-compiler 2.0.0",
- "sp1-recursion-core 2.0.0",
- "sp1-recursion-derive 2.0.0",
- "sp1-recursion-program 2.0.0",
- "sp1-stark 2.0.0",
-]
-
-[[package]]
-name = "sp1-recursion-compiler"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d89d0dcf2766edd698ecc336c90d6a228759ee716fc6e24a8e3927210e2536de"
-dependencies = [
- "backtrace",
- "itertools 0.13.0",
- "p3-air",
- "p3-baby-bear",
- "p3-bn254-fr",
- "p3-commit",
- "p3-field",
- "p3-fri",
- "p3-matrix",
- "p3-poseidon2",
- "p3-symmetric",
- "p3-util",
- "rayon",
- "serde",
- "sp1-core-machine 1.2.0",
- "sp1-primitives 1.2.0",
- "sp1-recursion-core 1.2.0",
- "sp1-recursion-core-v2 1.2.0",
- "sp1-recursion-derive 1.2.0",
- "sp1-stark 1.2.0",
- "tracing",
- "vec_map",
+ "sp1-core-machine",
+ "sp1-recursion-compiler",
+ "sp1-recursion-core",
+ "sp1-recursion-derive",
+ "sp1-recursion-program",
+ "sp1-stark",
 ]
 
 [[package]]
@@ -11696,52 +11451,14 @@ dependencies = [
  "p3-util",
  "rayon",
  "serde",
- "sp1-core-machine 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-recursion-core 2.0.0",
- "sp1-recursion-core-v2 2.0.0",
- "sp1-recursion-derive 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-machine",
+ "sp1-primitives",
+ "sp1-recursion-core",
+ "sp1-recursion-core-v2",
+ "sp1-recursion-derive",
+ "sp1-stark",
  "tracing",
  "vec_map",
-]
-
-[[package]]
-name = "sp1-recursion-core"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fef244f580afc3c783880cdee7e26c56eb1d3c4522e2c98bd89f79366c3d92a1"
-dependencies = [
- "arrayref",
- "backtrace",
- "ff 0.13.0",
- "hashbrown 0.14.5",
- "itertools 0.13.0",
- "num_cpus",
- "p3-air",
- "p3-baby-bear",
- "p3-bn254-fr",
- "p3-challenger",
- "p3-commit",
- "p3-dft",
- "p3-field",
- "p3-fri",
- "p3-matrix",
- "p3-maybe-rayon",
- "p3-merkle-tree",
- "p3-poseidon2",
- "p3-symmetric",
- "p3-util",
- "serde",
- "serde_with 3.10.0",
- "sp1-core-executor 1.2.0",
- "sp1-core-machine 1.2.0",
- "sp1-derive 1.2.0",
- "sp1-primitives 1.2.0",
- "sp1-stark 1.2.0",
- "static_assertions",
- "tracing",
- "zkhash",
 ]
 
 [[package]]
@@ -11771,54 +11488,13 @@ dependencies = [
  "p3-util",
  "serde",
  "serde_with 3.10.0",
- "sp1-core-executor 2.0.0",
- "sp1-core-machine 2.0.0",
- "sp1-derive 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-executor",
+ "sp1-core-machine",
+ "sp1-derive",
+ "sp1-primitives",
+ "sp1-stark",
  "static_assertions",
  "tracing",
- "zkhash",
-]
-
-[[package]]
-name = "sp1-recursion-core-v2"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d82adbabcf41de013fb7394c06437937fd740c5005e760a215bfc2196f993ae"
-dependencies = [
- "arrayref",
- "backtrace",
- "ff 0.13.0",
- "hashbrown 0.14.5",
- "itertools 0.13.0",
- "num_cpus",
- "p3-air",
- "p3-baby-bear",
- "p3-bn254-fr",
- "p3-challenger",
- "p3-commit",
- "p3-dft",
- "p3-field",
- "p3-fri",
- "p3-matrix",
- "p3-maybe-rayon",
- "p3-merkle-tree",
- "p3-poseidon2",
- "p3-symmetric",
- "p3-util",
- "serde",
- "serde_with 3.10.0",
- "sp1-core-executor 1.2.0",
- "sp1-core-machine 1.2.0",
- "sp1-derive 1.2.0",
- "sp1-primitives 1.2.0",
- "sp1-recursion-core 1.2.0",
- "sp1-stark 1.2.0",
- "static_assertions",
- "thiserror",
- "tracing",
- "vec_map",
  "zkhash",
 ]
 
@@ -11849,12 +11525,12 @@ dependencies = [
  "p3-util",
  "serde",
  "serde_with 3.10.0",
- "sp1-core-executor 2.0.0",
- "sp1-core-machine 2.0.0",
- "sp1-derive 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-recursion-core 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-executor",
+ "sp1-core-machine",
+ "sp1-derive",
+ "sp1-primitives",
+ "sp1-recursion-core",
+ "sp1-stark",
  "static_assertions",
  "thiserror",
  "tracing",
@@ -11864,50 +11540,12 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168c1e526a6c8b3877f360fae3fb545bdf0ce7e11e77878170775eeb87c9a043"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "sp1-recursion-derive"
 version = "2.0.0"
 source = "git+https://github.com/succinctlabs/sp1.git#62ff82c8e86f533b3b64eb4cf82a325bb721e3c6"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "sp1-recursion-gnark-ffi"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1100ea8ab4374397aafb7f89b6d5d60ed8d5040b51f6db22bd3f9807204b13a1"
-dependencies = [
- "anyhow",
- "bincode",
- "bindgen",
- "cc",
- "cfg-if",
- "hex",
- "log",
- "num-bigint 0.4.6",
- "p3-baby-bear",
- "p3-field",
- "p3-symmetric",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "sha2 0.10.8",
- "sp1-core-machine 1.2.0",
- "sp1-recursion-compiler 1.2.0",
- "sp1-stark 1.2.0",
- "tempfile",
 ]
 
 [[package]]
@@ -11930,42 +11568,10 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
- "sp1-core-machine 2.0.0",
- "sp1-recursion-compiler 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-machine",
+ "sp1-recursion-compiler",
+ "sp1-stark",
  "tempfile",
-]
-
-[[package]]
-name = "sp1-recursion-program"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35252bdd8b0bd54f37d1df5ec9ef10de0d301550e6a5fc660de134f1b126da78"
-dependencies = [
- "itertools 0.13.0",
- "p3-air",
- "p3-baby-bear",
- "p3-challenger",
- "p3-commit",
- "p3-dft",
- "p3-field",
- "p3-fri",
- "p3-matrix",
- "p3-maybe-rayon",
- "p3-merkle-tree",
- "p3-poseidon2",
- "p3-symmetric",
- "p3-util",
- "rand 0.8.5",
- "serde",
- "sp1-core-executor 1.2.0",
- "sp1-core-machine 1.2.0",
- "sp1-primitives 1.2.0",
- "sp1-recursion-compiler 1.2.0",
- "sp1-recursion-core 1.2.0",
- "sp1-stark 1.2.0",
- "stacker",
- "tracing",
 ]
 
 [[package]]
@@ -11989,12 +11595,12 @@ dependencies = [
  "p3-util",
  "rand 0.8.5",
  "serde",
- "sp1-core-executor 2.0.0",
- "sp1-core-machine 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-recursion-compiler 2.0.0",
- "sp1-recursion-core 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-executor",
+ "sp1-core-machine",
+ "sp1-primitives",
+ "sp1-recursion-compiler",
+ "sp1-recursion-core",
+ "sp1-stark",
  "stacker",
  "tracing",
 ]
@@ -12030,11 +11636,11 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
- "sp1-core-executor 2.0.0",
- "sp1-core-machine 2.0.0",
- "sp1-primitives 2.0.0",
- "sp1-prover 2.0.0",
- "sp1-stark 2.0.0",
+ "sp1-core-executor",
+ "sp1-core-machine",
+ "sp1-primitives",
+ "sp1-prover",
+ "sp1-stark",
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "sysinfo",
@@ -12044,37 +11650,6 @@ dependencies = [
  "tracing",
  "twirp-rs",
  "vergen",
-]
-
-[[package]]
-name = "sp1-stark"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfae288fe87c6c9fe5f15c04ad38605f2e8e27f86d1e4228359e36a20f003c68"
-dependencies = [
- "arrayref",
- "getrandom 0.2.15",
- "hashbrown 0.14.5",
- "itertools 0.13.0",
- "p3-air",
- "p3-baby-bear",
- "p3-challenger",
- "p3-commit",
- "p3-dft",
- "p3-field",
- "p3-fri",
- "p3-matrix",
- "p3-maybe-rayon",
- "p3-merkle-tree",
- "p3-poseidon2",
- "p3-symmetric",
- "p3-uni-stark",
- "p3-util",
- "rayon-scan",
- "serde",
- "sp1-derive 1.2.0",
- "sp1-primitives 1.2.0",
- "tracing",
 ]
 
 [[package]]
@@ -12102,8 +11677,8 @@ dependencies = [
  "p3-util",
  "rayon-scan",
  "serde",
- "sp1-derive 2.0.0",
- "sp1-primitives 2.0.0",
+ "sp1-derive",
+ "sp1-primitives",
  "sysinfo",
  "tracing",
 ]

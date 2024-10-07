@@ -2,21 +2,21 @@ use adapter_sdk::types::AdapterPublicInputs;
 use anyhow::anyhow;
 use ethers_core::abi::{self, token};
 use hex;
-// #[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native"))]
 use nexus_core::types::AccountState;
 use nexus_core::types::InitAccount;
 use nexus_core::types::H256 as NexusH256;
 use nexus_core::types::{AppAccountId, StatementDigest};
-// #[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native"))]
 use nexus_core::types::Proof as NexusProof;
 #[cfg(any(feature = "native-risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover};
 use nexus_core::zkvm::traits::ZKVMEnv;
 
-// #[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native"))]
 use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 use serde::{Deserialize, Serialize};
-// #[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native"))]
 use types::L1BatchNumber;
 use zksync_basic_types::{
     ethabi::{Bytes, Token},

@@ -22,7 +22,7 @@ sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git", optional = true }
 digest = { version = "0.10.0" }
 
 [features]
-# default = ["native-risc0"]
+default = ["native-risc0"]
 native = ["relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp"]
 zkvm-sp1 = ["nexus-core/zkvm-sp1", "sp1-zkvm"]
 zkvm-risc0 = ["nexus-core/zkvm-risc0", "risc0-zkvm/std"]

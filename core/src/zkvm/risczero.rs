@@ -126,3 +126,9 @@ impl ZKVMEnv for ZKVM {
         env::commit(data);
     }
 }
+
+#[cfg(any(feature = "native-risc0"))]
+pub trait ProofConversion: std::convert::From<RiscZeroProof> {}
+
+#[cfg(any(feature = "native-risc0"))]
+impl ProofConversion for RiscZeroProof {}

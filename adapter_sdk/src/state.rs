@@ -16,9 +16,9 @@ use nexus_core::types::{
     SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 #[cfg(feature = "native-risc0")]
-use nexus_core::zkvm::risczero::RiscZeroProver;
+use nexus_core::zkvm::risczero::{RiscZeroProver, ProofConversion};
 #[cfg(any(feature = "native-sp1"))]
-use nexus_core::zkvm::sp1::Sp1Prover;
+use nexus_core::zkvm::sp1::{Sp1Prover, ProofConversion};
 use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use relayer::Relayer;
 #[cfg(feature = "native-risc0")]
@@ -81,12 +81,6 @@ pub struct AdapterState<
     pub pp: PhantomData<ZP>,
     pub nexus_api: NexusAPI,
 }
-
-#[cfg(feature = "native-sp1")]
-pub trait ProofConversion: std::convert::From<nexus_core::zkvm::sp1::Sp1Proof> {}
-
-#[cfg(feature = "native-risc0")]
-pub trait ProofConversion: std::convert::From<nexus_core::zkvm::risczero::RiscZeroProof> {}
 
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
