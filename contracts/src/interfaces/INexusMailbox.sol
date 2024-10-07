@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.21;
 
-struct Receipt {
-    bytes32 chainIdFrom;
-    bytes32[] chainIdTo;
+struct MailboxMessage {
+    bytes32 nexusAppIdFrom;
+    bytes32[] nexusAppIdTo;
     bytes data;
     address from;
     address[] to; // if specified on verification, the callback on "to" function will be called
     uint256 nonce;
 }
+
 interface INexusMailbox {
-    event ReceiptEvent(
-        bytes32 indexed chainIdFrom,
-        bytes32[] chainIdTo,
+    event MailboxEvent(
+        bytes32 indexed nexusAppIdFrom,
+        bytes32[] nexusAppIdTo,
         bytes data,
         address indexed from,
         address[] to,
@@ -21,12 +22,11 @@ interface INexusMailbox {
 
     function receiveMessage(
         uint256 chainblockNumber,
-        Receipt calldata,
-        bytes calldata proof,
-        bool callback
+        MailboxMessage calldata,
+        bytes calldata proof
     ) external;
     function sendMessage(
-        bytes32[] memory chainIdTo,
+        bytes32[] memory nexusAppIdFrom,
         address[] memory to,
         uint256 nonce,
         bytes calldata data

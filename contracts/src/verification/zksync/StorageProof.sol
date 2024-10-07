@@ -25,19 +25,32 @@ contract StorageProofVerifier {
     IZKSyncNexusManagerRouter public immutable zksyncDiamondAddress;
     SparseMerkleTree public smt;
 
-    constructor(IZKSyncNexusManagerRouter _zksyncDiamondAddress, SparseMerkleTree _smt) {
+    constructor(
+        IZKSyncNexusManagerRouter _zksyncDiamondAddress,
+        SparseMerkleTree _smt
+    ) {
         zksyncDiamondAddress = _zksyncDiamondAddress;
         smt = _smt;
     }
 
     /// @notice Verifies the storage proof
-    function verify(StorageProof memory _proof) public view returns (bool valid) {
+    function verify(
+        StorageProof memory _proof
+    ) public view returns (bool valid) {
         // Fold the proof path to get hash of L2 state
         bytes32 l2BatchHash = smt.getRootHash(
-            _proof.path, TreeEntry({key: _proof.key, value: _proof.value, leafIndex: _proof.index}), _proof.account
+            _proof.path,
+            TreeEntry({
+                key: _proof.key,
+                value: _proof.value,
+                leafIndex: _proof.index
+            }),
+            _proof.account
         );
 
-        bytes32 l1BatchHash = zksyncDiamondAddress.storedBatchHash(_proof.batchNumber);
+        bytes32 l1BatchHash = zksyncDiamondAddress.storedBatchHash(
+            _proof.batchNumber
+        );
 
         valid = l2BatchHash == l1BatchHash;
     }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 import "forge-std/test.sol";
-import {Receipt as NexusReceipt} from "../src/interfaces/INexusMailbox.sol";
+import {MailboxMessage as NexusReceipt} from "../src/interfaces/INexusMailbox.sol";
 import "../src/NexusProofManager.sol";
 import "../src/interfaces/INexusProofManager.sol";
 import "../src/mock/ERC20.sol";
@@ -20,11 +20,11 @@ contract MailBoxTest is Test {
 
     bytes32 appid =
         0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
-    uint256 targetChainId = 137;
+    uint256 targetnexusAppId = 137;
 
     function setUp() public {
         mailbox = new NexusMailboxWrapper();
-        mailbox.initialise();
+        mailbox.initialize();
         erc20 = new ERC20Token("Avail", "Avail");
         proofManager = new NexusProofManager();
         SparseMerkleTree smt = new SparseMerkleTree();
@@ -36,23 +36,23 @@ contract MailBoxTest is Test {
             IZKSyncNexusManagerRouter(address(zksyncDiamond)),
             smt
         );
-        mailbox.addOrUpdateWrapper(bytes32(targetChainId), wrapper);
+        mailbox.addOrUpdateWrapper(bytes32(targetnexusAppId), wrapper);
     }
 
     function testSendMessage() public {
         uint256 length = 1;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        chainIdTo[0] = bytes32(targetChainId);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        nexusAppIdTo[0] = bytes32(targetnexusAppId);
         address[] memory to = new address[](length);
         to[0] = address(0);
         bytes memory data = bytes("test");
-        bytes32 chainId = mailbox.chainId();
+        bytes32 nexusAppId = mailbox.nexusAppId();
         uint256 mailboxNonce = 1;
-        mailbox.sendMessage(chainIdTo, to, mailboxNonce, data);
+        mailbox.sendMessage(nexusAppIdTo, to, mailboxNonce, data);
 
         NexusReceipt memory receipt = NexusReceipt({
-            chainIdFrom: chainId,
-            chainIdTo: chainIdTo,
+            nexusAppIdFrom: nexusAppId,
+            nexusAppIdTo: nexusAppIdTo,
             data: data,
             from: address(this),
             to: to,
@@ -62,7 +62,7 @@ contract MailBoxTest is Test {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(address(this), receiptHash));
 
-        assertEq(mailbox.sendMessages(key), receiptHash);
+        assertEq(mailbox.messages(key), receiptHash);
     }
 
     function testReceiveReceipt() public {
@@ -111,17 +111,17 @@ contract MailBoxTest is Test {
         mailbox.updateSendMessages(key, value);
 
         uint256 length = 1;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        chainIdTo[0] = bytes32(targetChainId);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        nexusAppIdTo[0] = bytes32(targetnexusAppId);
         address[] memory to = new address[](length);
         to[0] = address(0);
         bytes memory data = bytes("test");
         uint256 mailboxNonce = 1;
-        mailbox.sendMessage(chainIdTo, to, mailboxNonce, data);
+        mailbox.sendMessage(nexusAppIdTo, to, mailboxNonce, data);
 
         NexusReceipt memory receipt = NexusReceipt({
-            chainIdFrom: mailbox.chainId(),
-            chainIdTo: chainIdTo,
+            nexusAppIdFrom: mailbox.nexusAppId(),
+            nexusAppIdTo: nexusAppIdTo,
             data: data,
             from: address(this),
             to: to,
@@ -131,7 +131,7 @@ contract MailBoxTest is Test {
         mailbox.checkVerificationOfEncoding(
             0,
             receipt,
-            bytes32(targetChainId),
+            bytes32(targetnexusAppId),
             value,
             encoding
         );
@@ -139,12 +139,12 @@ contract MailBoxTest is Test {
 
     function testSortingAlgorithm() public view {
         uint256 length = 5;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        chainIdTo[0] = bytes32(targetChainId);
-        chainIdTo[1] = bytes32(targetChainId - 1);
-        chainIdTo[2] = bytes32(targetChainId + 1);
-        chainIdTo[3] = bytes32(targetChainId + 2);
-        chainIdTo[4] = bytes32(targetChainId - 2);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        nexusAppIdTo[0] = bytes32(targetnexusAppId);
+        nexusAppIdTo[1] = bytes32(targetnexusAppId - 1);
+        nexusAppIdTo[2] = bytes32(targetnexusAppId + 1);
+        nexusAppIdTo[3] = bytes32(targetnexusAppId + 2);
+        nexusAppIdTo[4] = bytes32(targetnexusAppId - 2);
 
         address[] memory to = new address[](length);
         to[0] = address(0);
@@ -153,18 +153,18 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (chainIdTo, to) = mailbox.sortWrapper(
-            chainIdTo,
+        (nexusAppIdTo, to) = mailbox.sortWrapper(
+            nexusAppIdTo,
             to,
             0,
             int256(length - 1)
         );
 
-        assertEq(chainIdTo[0], bytes32(targetChainId - 2));
-        assertEq(chainIdTo[1], bytes32(targetChainId - 1));
-        assertEq(chainIdTo[2], bytes32(targetChainId));
-        assertEq(chainIdTo[3], bytes32(targetChainId + 1));
-        assertEq(chainIdTo[4], bytes32(targetChainId + 2));
+        assertEq(nexusAppIdTo[0], bytes32(targetnexusAppId - 2));
+        assertEq(nexusAppIdTo[1], bytes32(targetnexusAppId - 1));
+        assertEq(nexusAppIdTo[2], bytes32(targetnexusAppId));
+        assertEq(nexusAppIdTo[3], bytes32(targetnexusAppId + 1));
+        assertEq(nexusAppIdTo[4], bytes32(targetnexusAppId + 2));
 
         assertEq(to[0], vm.addr(4));
         assertEq(to[1], vm.addr(1));
@@ -175,13 +175,13 @@ contract MailBoxTest is Test {
 
     function testSearchAlgorithm() public view {
         uint256 length = 5;
-        bytes32[] memory chainIdTo = new bytes32[](length);
-        bytes32 chainId = mailbox.chainId();
-        chainIdTo[0] = chainId;
-        chainIdTo[1] = bytes32(targetChainId - 1);
-        chainIdTo[2] = bytes32(targetChainId + 1);
-        chainIdTo[3] = bytes32(targetChainId + 2);
-        chainIdTo[4] = bytes32(targetChainId - 2);
+        bytes32[] memory nexusAppIdTo = new bytes32[](length);
+        bytes32 nexusAppId = mailbox.nexusAppId();
+        nexusAppIdTo[0] = nexusAppId;
+        nexusAppIdTo[1] = bytes32(targetnexusAppId - 1);
+        nexusAppIdTo[2] = bytes32(targetnexusAppId + 1);
+        nexusAppIdTo[3] = bytes32(targetnexusAppId + 2);
+        nexusAppIdTo[4] = bytes32(targetnexusAppId - 2);
 
         address[] memory to = new address[](length);
         to[0] = vm.addr(2);
@@ -190,14 +190,14 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (chainIdTo, to) = mailbox.sortWrapper(
-            chainIdTo,
+        (nexusAppIdTo, to) = mailbox.sortWrapper(
+            nexusAppIdTo,
             to,
             0,
             int256(length - 1)
         );
 
-        address toAddr = mailbox.searchWrapper(chainIdTo, to);
+        address toAddr = mailbox.searchWrapper(nexusAppIdTo, to);
         assertEq(toAddr, vm.addr(2));
     }
 }
