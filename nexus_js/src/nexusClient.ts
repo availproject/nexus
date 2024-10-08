@@ -1,7 +1,7 @@
 import { AccountApiResponse } from "./types/nexus";
 import axios from "axios";
-export default class NexusClient {
-  constructor(private url: string, private appId: string) { };
+class NexusClient {
+  constructor(private url: string, private appId: string) {}
 
   async getAccountState(): Promise<AccountApiResponse> {
     let response = await axios.get(this.url + "/account-hex", {
@@ -17,5 +17,7 @@ export default class NexusClient {
       },
       response: response.data,
     };
-  };
+  }
 }
+
+export { NexusClient };

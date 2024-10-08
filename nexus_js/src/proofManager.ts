@@ -3,7 +3,7 @@ import proofManagerAbi from "./abi/proofManager.json";
 import { Provider } from "zksync-ethers";
 import { AccountState } from "./types/index";
 
-export default class ProofManagerClient {
+class ProofManagerClient {
   // provider = ethers.Provider( ... mail box ....);
   private proofManager: Contract;
 
@@ -12,11 +12,7 @@ export default class ProofManagerClient {
     const wallet = new Wallet(privateKey, provider);
 
     // can make this modular and have a mapping between chain ids and mailbox. Imo not necessary since MailBoxClient already maintains it.
-    this.proofManager = new Contract(
-      address,
-      proofManagerAbi,
-      wallet
-    )
+    this.proofManager = new Contract(address, proofManagerAbi, wallet);
   }
 
   async updateNexusBlock(
@@ -25,12 +21,10 @@ export default class ProofManagerClient {
     blockHash: string,
     proof: string
   ) {
-    const response = await this.proofManager.updateNexusBlock(blockNumber,
-      {
-        stateRoot: stateHash,
-        blockHash,
-      }
-    );
+    const response = await this.proofManager.updateNexusBlock(blockNumber, {
+      stateRoot: stateHash,
+      blockHash,
+    });
   }
 
   async updateChainState(
@@ -47,9 +41,17 @@ export default class ProofManagerClient {
     );
   }
 
-  async getChainState(nexusAppID: string, blockNumber: number = 0): Promise<string> {
-    const response = await this.proofManager.getChainState(blockNumber, nexusAppID);
+  async getChainState(
+    nexusAppID: string,
+    blockNumber: number = 0
+  ): Promise<string> {
+    const response = await this.proofManager.getChainState(
+      blockNumber,
+      nexusAppID
+    );
 
     return response;
   }
 }
+
+export { ProofManagerClient };
