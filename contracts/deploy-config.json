@@ -1,0 +1,12 @@
+{
+  "zksync": {
+    "privateKey": "0x2d64990aa363e3d38ae3417950fd40801d75e3d3bd57b86d17fcc261a6c951c6",
+    "appId": 1,
+    "appId2": 2
+  },
+  "zksync2": {
+    "privateKey": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "appId": 100,
+    "appId2": 101
+  }
+}
