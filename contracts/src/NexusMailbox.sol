@@ -25,22 +25,14 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         __Ownable_init(msg.sender);
     }
 
-    function receiveMessage(
-        uint256 chainblockNumber,
-        MailboxMessage calldata receipt,
-        bytes calldata proof
-    ) public {
-        INexusVerifierWrapper verifier = verifierWrappers[
-            receipt.nexusAppIdFrom
-        ];
+    function receiveMessage(uint256 chainblockNumber, MailboxMessage calldata receipt, bytes calldata proof) public {
+        INexusVerifierWrapper verifier = verifierWrappers[receipt.nexusAppIdFrom];
         if (address(verifier) == address(0)) {
             revert WrapperNotAvailable();
         }
 
         bytes32 receiptHash = keccak256(abi.encode(receipt));
-        bytes32 key = keccak256(
-            abi.encode(receipt.nexusAppIdFrom, receiptHash)
-        );
+        bytes32 key = keccak256(abi.encode(receipt.nexusAppIdFrom, receiptHash));
 
         /// @dev we check if not exists, using nexusAppId = 0 since this can is imposed by mailbox that the nexusAppId is not 0 when storing
         if (verifiedReceipts[key].nexusAppIdFrom != bytes32(0)) {
@@ -52,12 +44,9 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
         address to = search(receipt.nexusAppIdTo, receipt.to);
         if (to != address(0)) {
-            (bool success, ) = to.call(
+            (bool success,) = to.call(
                 abi.encodeWithSignature(
-                    "onNexusMessage(bytes32, address, bytes)",
-                    receipt.nexusAppIdFrom,
-                    receipt.from,
-                    receipt.data
+                    "onNexusMessage(bytes32, address, bytes)", receipt.nexusAppIdFrom, receipt.from, receipt.data
                 )
             );
             if (!success) {
@@ -67,12 +56,9 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     }
 
     // @dev we take nonce from the msg.sender since they manage and create deterministic receipt structures.
-    function sendMessage(
-        bytes32[] memory nexusAppIdTo,
-        address[] memory to,
-        uint256 nonce,
-        bytes calldata data
-    ) public {
+    function sendMessage(bytes32[] memory nexusAppIdTo, address[] memory to, uint256 nonce, bytes calldata data)
+        public
+    {
         if (nexusAppIdTo.length != to.length) {
             revert InvalidParameters();
         }
@@ -88,22 +74,10 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
         bytes32 key = keccak256(abi.encode(msg.sender, receiptHash));
         messages[key] = receiptHash;
-        emit MailboxEvent(
-            nexusAppId,
-            nexusAppIdTo,
-            data,
-            msg.sender,
-            to,
-            nonce
-        );
+        emit MailboxEvent(nexusAppId, nexusAppIdTo, data, msg.sender, to, nonce);
     }
 
-    function quickSort(
-        bytes32[] memory nexusAppIdTo,
-        address[] memory to,
-        int256 left,
-        int256 right
-    ) internal pure {
+    function quickSort(bytes32[] memory nexusAppIdTo, address[] memory to, int256 left, int256 right) internal pure {
         int256 i = left;
         int256 j = right;
         if (i == j) return;
@@ -112,14 +86,9 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             while (nexusAppIdTo[uint256(i)] < pivot) i++;
             while (pivot < nexusAppIdTo[uint256(j)]) j--;
             if (i <= j) {
-                (nexusAppIdTo[uint256(i)], nexusAppIdTo[uint256(j)]) = (
-                    nexusAppIdTo[uint256(j)],
-                    nexusAppIdTo[uint256(i)]
-                );
-                (to[uint256(i)], to[uint256(j)]) = (
-                    to[uint256(j)],
-                    to[uint256(i)]
-                );
+                (nexusAppIdTo[uint256(i)], nexusAppIdTo[uint256(j)]) =
+                    (nexusAppIdTo[uint256(j)], nexusAppIdTo[uint256(i)]);
+                (to[uint256(i)], to[uint256(j)]) = (to[uint256(j)], to[uint256(i)]);
                 i++;
                 j--;
             }
@@ -132,10 +101,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         }
     }
 
-    function search(
-        bytes32[] memory nexusAppIdTo,
-        address[] memory to
-    ) internal view returns (address) {
+    function search(bytes32[] memory nexusAppIdTo, address[] memory to) internal view returns (address) {
         if (nexusAppIdTo.length == 0) {
             return (address(0));
         }
@@ -161,10 +127,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     }
 
     // @dev This function can reset a verifier wrapper back to address(0)
-    function addOrUpdateWrapper(
-        bytes32 wrapperChainId,
-        INexusVerifierWrapper wrapper
-    ) public onlyOwner {
+    function addOrUpdateWrapper(bytes32 wrapperChainId, INexusVerifierWrapper wrapper) public onlyOwner {
         verifierWrappers[wrapperChainId] = wrapper;
     }
 }

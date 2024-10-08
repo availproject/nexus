@@ -19,6 +19,7 @@ contract NexusDeployment is Script {
     }
 
     NetworkConfig config;
+
     function setUp() public {
         getConfig();
     }
@@ -31,17 +32,11 @@ contract NexusDeployment is Script {
 
         // Parse privateKey
         string memory privateKeyPath = string.concat(basePath, ".privateKey");
-        config.deployerPrivateKey = abi.decode(
-            vm.parseJson(jsonConfig, privateKeyPath),
-            (uint256)
-        );
+        config.deployerPrivateKey = abi.decode(vm.parseJson(jsonConfig, privateKeyPath), (uint256));
 
         // Parse appId
         string memory appIdPath = string.concat(basePath, ".appId");
-        bytes32 appIdUint = abi.decode(
-            vm.parseJson(jsonConfig, appIdPath),
-            (bytes32)
-        );
+        bytes32 appIdUint = abi.decode(vm.parseJson(jsonConfig, appIdPath), (bytes32));
         config.appId = bytes32(appIdUint);
     }
 
@@ -58,25 +53,18 @@ contract NexusDeployment is Script {
         console.log("Mailbox deployed to: ", address(mailbox));
 
         // Deploy ZKSyncNexusManagerRouter
-        ZKSyncNexusManagerRouter zksyncdiamond = new ZKSyncNexusManagerRouter(
-            INexusProofManager(address(nexusManager)),
-            config.appId
-        );
+        ZKSyncNexusManagerRouter zksyncdiamond =
+            new ZKSyncNexusManagerRouter(INexusProofManager(address(nexusManager)), config.appId);
 
         // Deploy SparseMerkleTree
         SparseMerkleTree sparseMerkleTree = new SparseMerkleTree();
 
         // Deploy VerifierWrapper
-        VerifierWrapper verifierWrapper = new VerifierWrapper(
-            IZKSyncNexusManagerRouter(address(zksyncdiamond)),
-            sparseMerkleTree
-        );
+        VerifierWrapper verifierWrapper =
+            new VerifierWrapper(IZKSyncNexusManagerRouter(address(zksyncdiamond)), sparseMerkleTree);
 
         // Add or update wrapper in mailbox
-        mailbox.addOrUpdateWrapper(
-            config.appId,
-            INexusVerifierWrapper(address(verifierWrapper))
-        );
+        mailbox.addOrUpdateWrapper(config.appId, INexusVerifierWrapper(address(verifierWrapper)));
 
         vm.stopBroadcast();
     }
