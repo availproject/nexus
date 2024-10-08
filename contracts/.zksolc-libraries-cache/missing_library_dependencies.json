@@ -1,0 +1,7 @@
+[
+  {
+    "contract_name": "JellyfishMerkleTreeVerifier",
+    "contract_path": "src/lib/JellyfishMerkleTreeVerifier.sol",
+    "missing_libraries": []
+  }
+]
