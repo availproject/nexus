@@ -6,3 +6,4 @@ export type { ProofManager } from "./ProofManager";
 export * as factories from "./factories";
 export { Mailbox__factory } from "./factories/Mailbox__factory";
 export { ProofManager__factory } from "./factories/ProofManager__factory";
+export * from "./nexus";

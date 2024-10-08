@@ -1,37 +1,55 @@
-type AccountState = {
-  statementDigest: string;
-  tateRoot: string;
-  startNexusHash: string;
-  lastProofHeight: number;
-  height: number;
-};
+import { Contract, Wallet } from "ethers";
+import proofManagerAbi from "./abi/proofManager.json";
+import { Provider } from "zksync-ethers";
+import { AccountState } from "./types/index";
 
-export default class MailBoxClient {
+export default class ProofManagerClient {
   // provider = ethers.Provider( ... mail box ....);
+  private proofManager: Contract;
 
-  constructor(address: string, rpc: string) {
+  constructor(address: string, rpc: string, privateKey: string) {
+    const provider = new Provider(rpc);
+    const wallet = new Wallet(privateKey, provider);
+
     // can make this modular and have a mapping between chain ids and mailbox. Imo not necessary since MailBoxClient already maintains it.
+    this.proofManager = new Contract(
+      address,
+      proofManagerAbi,
+      wallet
+    )
   }
 
-  updateNexusBlock(
-    blocknumber: number,
+  async updateNexusBlock(
+    blockNumber: number,
     stateHash: string,
     blockHash: string,
     proof: string
   ) {
-    // calls update nexus block on state manager
+    const response = await this.proofManager.updateNexusBlock(blockNumber,
+      {
+        stateRoot: stateHash,
+        blockHash,
+      }
+    );
   }
 
-  updateChainState(
-    blocknumber: number,
+  async updateChainState(
+    blockNumber: number,
     siblings: string[],
-    key: string,
+    nexusAppID: string,
     accountState: AccountState
   ) {
-    // update the state of a particular chain
+    const response = await this.proofManager.updateChainState(
+      blockNumber,
+      siblings,
+      "0x" + nexusAppID,
+      accountState
+    );
   }
 
-  getChainState(nexusAppID: string, blocknumber?: number) {
-    //get the nexus state. If block number not provided, take it as 0, SC returns the latest known in that case
+  async getChainState(nexusAppID: string, blockNumber: number = 0): Promise<string> {
+    const response = await this.proofManager.getChainState(blockNumber, nexusAppID);
+
+    return response;
   }
 }
