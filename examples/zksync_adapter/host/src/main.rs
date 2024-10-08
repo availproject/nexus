@@ -29,7 +29,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
-use zksync_core::{L1BatchWithMetadata, MockProof, STF};
+use zksync_core::{L1BatchWithMetadata, ProofWithCommitmentAndL1BatchMetaData, STF};
 
 #[cfg(any(feature = "sp1"))]
 use sp1_sdk::{utils};
@@ -196,8 +196,16 @@ async fn main() -> Result<(), Error> {
         println!("Processing L1 batch number: {}", last_height + 1);
 
         match proof_api.get_proof_for_l1_batch(last_height + 1).await {
-            Ok(ProofAPIResponse::Found((batch_metadata, proof))) => {
+            Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof))) => {
+                let ProofWithCommitmentAndL1BatchMetaData {
+                    proof_with_l1_batch_metadata,
+                    blob_commitments,
+                    pubdata_commitments,
+                    versioned_hashes,
+                } = proof_with_commitment_and_l1_batch_meta_data;
+                let batch_metadata = proof_with_l1_batch_metadata.metadata;
                 let current_height = batch_metadata.header.number.0;
+                // println!("metadata: {:?}", batch_metadata);
 
                 let app_account_id =
                     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
@@ -261,7 +269,6 @@ async fn main() -> Result<(), Error> {
 
                 if range.is_empty() {
                     println!("Nexus does not have a valid range, retrying.");
-
                     continue;
                 }
 
@@ -270,6 +277,8 @@ async fn main() -> Result<(), Error> {
                     account_state,
                     proof,
                     batch_metadata.clone(),
+                    pubdata_commitments,
+                    versioned_hashes,
                     range[0],
                 )?;
                 
@@ -277,6 +286,11 @@ async fn main() -> Result<(), Error> {
                     "Current proof data: {:?}",
                     recursive_proof.public_inputs::<RollupPublicInputsV2>()
                 );
+                let rollup_hash = recursive_proof
+                    .public_inputs::<RollupPublicInputsV2>()
+                    .unwrap()
+                    .rollup_hash
+                    .unwrap();
 
                 #[cfg(feature = "risc0")]                
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
@@ -309,6 +323,7 @@ async fn main() -> Result<(), Error> {
                         }),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                        rollup_hash: Some(rollup_hash),
                     };
 
                     let tx = TransactionV2 {
@@ -326,6 +341,7 @@ async fn main() -> Result<(), Error> {
                                 }
                             },
                             height: public_inputs.height,
+                            data: public_inputs.rollup_hash.clone(),
                         }),
                     };
                     match nexus_api.send_tx(tx).await {

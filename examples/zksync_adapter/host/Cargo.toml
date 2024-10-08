@@ -22,8 +22,11 @@ warp = "0.3.6"
 web3 = "0.19.0"
 reqwest = { version = "0.12.5", features = ["json"] }
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true }
+num-bigint = "0.4"
+primitive-types = "0.12"
 
 [features]
 default = ["risc0"]
 sp1 = ["sp1-sdk", "nexus-core/native" , "zksync-methods/sp1" , "zksync-core/sp1" , "adapter_sdk/zkvm-sp1"]
 risc0 = ["risc0-zkvm/std", "nexus-core/native" , "zksync-methods/risc0" , "zksync-core/risc0" , "adapter_sdk/zkvm-risc0"]
+

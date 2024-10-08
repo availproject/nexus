@@ -282,6 +282,7 @@ where
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,
                         app_id: latest_proof.1.app_id,
+                        data: None,
                     }),
                 };
 
