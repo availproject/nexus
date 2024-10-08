@@ -1,0 +1,12 @@
+{
+  "ethereum": {
+    "privateKey": "<>",
+    "appId": "...",
+    "appId2": "..."
+  },
+  "sepolia": {
+    "privateKey": "<>",
+    "appId": "...",
+    "appId2": "..."
+  }
+}
