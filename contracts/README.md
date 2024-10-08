@@ -99,6 +99,20 @@ Note: ZKSync compiler and deployment process doesn't deploy libraries by default
 
 #### Build
 
+Find the missing libraries:
+
 ```
-forge build --zksync
+forge build --zksync --zk-detect-missing-libraries
+```
+
+First Deploy libraries:
+
+```
+forge create src/lib/JellyfishMerkleTreeVerifier.sol:JellyfishMerkleTreeVerifier --private-key <> --rpc-url <RPC_URL> --chain 271 --zksync
+```
+
+Deploy:
+
+```
+forge script script/Nexus.sol --rpc-url <RPC_URL> --libraries src/lib/JellyfishMerkleTreeVerifier.sol:JellyfishMerkleTreeVerifier:<ADDRESS_FROM_PREVIOUS_STEP> --zksync
 ```
