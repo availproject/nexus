@@ -1,29 +1,22 @@
-## Foundry
+## Nexus Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+### Project Structure
 
-Foundry consists of:
-
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Project Structure
-
-This project contains a variety of Solidity contracts organized into different directories for clarity and modularity.
-
-## src
+#### src
 
 The `src` directory is the root of all Solidity contracts in the project. It includes the main contracts, interfaces, libraries, mocks, and verification modules.
 
-### Main Contracts
+#### Main Contracts
 
 - **NexusProofManager.sol**: The main contract managing Nexus proof mechanisms.
+- **NexusMailbox.sol**: The mailbox for easy cross-chain messaging.
 
 ### Interfaces
 
 - **interfaces/INexusProofManager.sol**: Interface for the `NexusProofManager` contract, defining the necessary functions and events.
+- **interfaces/INexusMailbox.sol**: Interface for the `NexusMailbox` contract, defining the necessary functions and events.
+- **interfaces/INexusReceiver.sol**: Interface for the receiver contract, defining the necessary functions and events.
+- **interfaces/INexusVerifierWrapper.sol**: Interface for the `INexusVerifierWrapper` contract for verification modules, defining the necessary functions and events.
 
 ### Libraries
 
@@ -49,6 +42,15 @@ The `verification` directory contains contracts related to verification mechanis
 $ forge build
 ```
 
+### Deploy
+
+- Copy `.env.example` to `.env` and fill the values.
+- Copy `deploy-config.example.json` to `deploy-config.json` and fill the values.
+
+```
+$ forge script scripts/Nexus.sol --rpc-url <URL> --broadcast
+```
+
 ### Test
 
 ```shell
@@ -67,18 +69,6 @@ $ forge fmt
 $ forge snapshot
 ```
 
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
 ### Cast
 
 ```shell
@@ -91,4 +81,24 @@ $ cast <subcommand>
 $ forge --help
 $ anvil --help
 $ cast --help
+```
+
+---
+
+### ZKSync
+
+#### Instalation
+
+Run the following command to attach zksync to foundry:
+
+```
+curl -L https://raw.githubusercontent.com/matter-labs/foundry-zksync/main/install-foundry-zksync | bash
+```
+
+Note: ZKSync compiler and deployment process doesn't deploy libraries by default. They have to be deployed seperately and linked via the compiler
+
+#### Build
+
+```
+forge build --zksync
 ```
