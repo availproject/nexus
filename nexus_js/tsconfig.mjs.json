@@ -5,15 +5,16 @@
       "es2020.number",
       "DOM"
     ],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext", // Output ES modules (.mjs)
+    "moduleResolution": "node",
     "declaration": true,
-    "outDir": "./dist",
+    "declarationDir": "./dist", // Ensure declaration files are shared
+    "outDir": "./dist/esm", // ES Module output directory
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
+    "resolveJsonModule": true
   },
   "include": [
     "src/**/*"
