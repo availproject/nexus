@@ -112,8 +112,7 @@ impl STF {
                 .bootloader_initial_content_commitment
                 .unwrap(),
             events_queue_state_hash: new_rollup_pi.metadata.events_queue_commitment.unwrap(),
-            system_logs: [0u8; 32].to_vec(),
-            // crate::utils::serialize_commitments(&new_rollup_pi.header.system_logs),
+            system_logs: crate::utils::serialize_commitments(&new_rollup_pi.header.system_logs),
             // new_rollup_pi.header.system_logs, need to serialize it somehow
             // TODO: need to confirm calculation
             pubdata_commitments,
