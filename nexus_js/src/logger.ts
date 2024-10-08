@@ -6,7 +6,7 @@ const logFormat = winston.format.combine(
     format: "YYYY-MM-DD HH:mm:ss",
   }),
   winston.format.printf(
-    (info: { timestamp: any; level: string; message: any }) =>
+    (info) =>
       `${info.timestamp} ${info.level.toUpperCase()}: ${info.message}`
   )
 );

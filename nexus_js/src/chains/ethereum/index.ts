@@ -1,1 +1,1 @@
-export { default as EthereumVerifier } from "./ethereum";
+//export { default as EthereumVerifier } from "./ethereum";

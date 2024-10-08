@@ -8,4 +8,5 @@ export type ChainDetails = {
   stateManagerContract: string;
   appID: string; // nexus app id ?,
   chainId: string;
+  type: Networks,
 };
