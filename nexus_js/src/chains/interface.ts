@@ -1,18 +1,17 @@
-import { Receipt } from "../types";
+import { MailboxMessageStruct } from "../types/Mailbox";
 
-export default abstract class ChainInterface {
+export default abstract class ChainInterface<T> {
   protected chainId: string;
 
   constructor(_chainId: string) {
     this.chainId = _chainId;
   }
 
-  abstract sendMessage(chainIdTo: string[], to: string[], data: string): void;
+  abstract sendMessage(chainIdTo: string[], to: string[], nonce: number, data: string): Promise<void>;
 
   abstract receiveMessage(
     chainblockNumber: number,
-    receipt: Receipt,
-    callback: boolean,
-    ...args: any[]
-  ): void;
+    receipt: MailboxMessageStruct,
+    args: T
+  ): Promise<void>;
 }

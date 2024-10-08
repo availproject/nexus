@@ -1,6 +1,7 @@
 import { Provider } from "zksync-ethers";
 import { ZKSYNC_CHAIN_ID } from "../../constants";
-import { ChainDetails, Chains, Receipt } from "../../types";
+import { ChainDetails } from "../../types";
+import { MailboxMessageStruct } from "../../types/Mailbox";
 import ChainInterface from "../interface";
 import { RpcProof, StorageProofProvider } from "./storageManager";
 import MailBoxClient from "../../mailbox";
@@ -16,7 +17,11 @@ type Proof = {
   index: number;
 };
 
-export default class ZKSyncVerifier extends ChainInterface {
+type ReceiveMessageArgs = {
+  storageKey: string
+};
+
+export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
   private chainDetails: ChainDetails;
   private mailbox: MailBoxClient;
   private provider: Provider;
@@ -31,16 +36,16 @@ export default class ZKSyncVerifier extends ChainInterface {
     this.mailbox = _mailbox;
   }
 
-  async sendMessage(chainIdTo: string[], to: string[], data: string) {
-    await this.mailbox.sendMessage(Chains.ZKSync, chainIdTo, to, data);
+  async sendMessage(chainIdTo: string[], to: string[], nonce: number, data: string) {
+    await this.mailbox.sendMessage(this.chainDetails.appID, chainIdTo, to, nonce, data);
   }
+
   async receiveMessage(
     chainblockNumber: number,
-    receipt: Receipt,
-    callback: boolean,
-    storageKey: string
+    receipt: MailboxMessageStruct,
+    args: ReceiveMessageArgs
   ) {
-    const proof = await this.getStorageProof(storageKey, chainblockNumber);
+    const proof = await this.getStorageProof(args.storageKey, chainblockNumber);
     if (!proof) return undefined;
     const proofSC: Proof = {
       account: proof.account,
@@ -64,11 +69,10 @@ export default class ZKSyncVerifier extends ChainInterface {
     );
 
     await this.mailbox.receiveMessage(
-      Chains.ZKSync,
+      this.chainDetails.appID,
       chainblockNumber,
       receipt,
       encodedProof,
-      callback
     );
   }
 
