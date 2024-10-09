@@ -114,5 +114,5 @@ forge create src/lib/JellyfishMerkleTreeVerifier.sol:JellyfishMerkleTreeVerifier
 Deploy:
 
 ```
-forge script script/Nexus.sol --rpc-url <RPC_URL> --libraries src/lib/JellyfishMerkleTreeVerifier.sol:JellyfishMerkleTreeVerifier:<ADDRESS_FROM_PREVIOUS_STEP> --zksync
+forge script script/Nexus-zksync.sol --rpc-url <RPC_URL> --libraries src/lib/JellyfishMerkleTreeVerifier.sol:JellyfishMerkleTreeVerifier:<ADDRESS_FROM_PREVIOUS_STEP> --zksync
 ```
