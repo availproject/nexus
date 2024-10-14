@@ -236,7 +236,8 @@ where
                      ))
                         }
                     };
-
+                    
+                    #[cfg(feature = "risc0")]
                     zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
 
@@ -253,8 +254,10 @@ where
         zkvm_prover.add_input(&state_update.1).unwrap();
         zkvm_prover.add_input(&header).unwrap();
         zkvm_prover.add_input(&header_store).unwrap();
-        let proof = zkvm_prover.prove()?;
+        let mut proof = zkvm_prover.prove()?;
+
         let result: NexusHeader = proof.public_inputs()?;
+        println!("Proof: {:?}", proof);
         (proof, result)
     };
 

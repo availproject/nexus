@@ -83,6 +83,7 @@ pub struct SubmitProof {
     pub state_root: H256,
     pub height: u32,
     pub app_id: AppAccountId,
+    pub data: Option<H256>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
@@ -103,6 +104,7 @@ pub struct RollupPublicInputsV2 {
     pub start_nexus_hash: H256,
     pub app_id: AppAccountId,
     pub img_id: StatementDigest,
+    pub rollup_hash: Option<H256>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
@@ -434,7 +436,7 @@ impl RollupPublicInputsV2 {
     }
 }
 
-#[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native-risc0"))]
 impl TryFrom<risc0_zkvm::Receipt> for Proof {
     type Error = Error;
 
@@ -443,7 +445,7 @@ impl TryFrom<risc0_zkvm::Receipt> for Proof {
     }
 }
 
-#[cfg(any(feature = "native"))]
+#[cfg(any(feature = "native-risc0"))]
 impl TryInto<risc0_zkvm::Receipt> for Proof {
     type Error = Error;
 

@@ -15,12 +15,15 @@ use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
     SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
-use nexus_core::zkvm::risczero::RiscZeroProver;
-#[cfg(any(feature = "sp1"))]
-use nexus_core::zkvm::sp1::SpOneProver;
+#[cfg(feature = "native-risc0")]
+use nexus_core::zkvm::risczero::{RiscZeroProver, ProofConversion};
+#[cfg(any(feature = "native-sp1"))]
+use nexus_core::zkvm::sp1::{Sp1Prover, ProofConversion};
 use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use relayer::Relayer;
+#[cfg(feature = "native-risc0")]
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
+#[cfg(feature = "native-risc0")]
 use risc0_zkvm::{serde::from_slice, ExecutorEnv};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -34,11 +37,11 @@ use std::{clone, thread};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
-#[cfg(feature = "sp1")]
+#[cfg(feature = "native-sp1")]
 use sp1_sdk::{utils, ProverClient, SP1PublicValues, SP1Stdin};
 
-#[cfg(feature = "sp1")]
-const ELF: &[u8] = include_bytes!("../../demo_rollup/program/elf/riscv32im-succinct-zkvm-elf");
+// #[cfg(feature = "native-sp1")]
+//const ELF: &[u8] = include_bytes!("../../zksync_adapter/methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InclusionProof(pub Vec<u8>);
@@ -89,7 +92,8 @@ impl<
             + Serialize
             + Send
             + TryInto<Proof>
-            + Debug,
+            + Debug
+            + ProofConversion
     > AdapterState<P, Z, ZP>
 where
     <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
@@ -201,6 +205,7 @@ where
             let nexus_api = nexus_api_clone;
             Self::manage_submissions(db_clone_2, &nexus_api).await
         });
+
         match self.process_queue().await {
             Ok(_) => (),
             Err(e) => println!("Exiting because of error: {:?}", e),
@@ -277,6 +282,7 @@ where
                         nexus_hash: latest_proof.1.nexus_hash,
                         state_root: latest_proof.1.state_root,
                         app_id: latest_proof.1.app_id,
+                        data: None,
                     }),
                 };
 
@@ -306,8 +312,10 @@ where
             }
         }
     }
-
-    async fn process_queue(&mut self) -> Result<Receipt, Error> {
+    
+    async fn process_queue(&mut self) -> Result<ZP, Error> 
+        where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug
+    {
         loop {
             let queue_item = {
                 let queue_lock = self.queue.lock().await;
@@ -350,7 +358,7 @@ where
         }
     }
 
-    pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) -> Result<(), Error> {
+    pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) ->  Result<(), Error> {
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -382,7 +390,8 @@ where
         &mut self,
         queue_item: &QueueItem<P>,
         // TODO change the return type to ZP
-    ) -> Result<(), Error> {
+    ) -> Result<(ZP), Error> 
+            where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug {
         let nexus_header: NexusHeader =
             self.nexus_api.get_header(&queue_item.header.hash()).await?;
 
@@ -403,33 +412,34 @@ where
             Some(i) => Some(i.clone()),
         };
 
-        let prover = default_prover();
+        #[cfg(feature = "native-sp1")]
+        let mut zkvm = Sp1Prover::new(self.elf.clone());
 
-        #[cfg(feature = "sp1")]
-        let mut zkvm = SpOneProver::new(self.elf);
-
-        #[cfg(feature = "native")]
+        #[cfg(feature = "native-risc0")]
         let mut zkvm = RiscZeroProver::new(self.elf.clone());
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
             None => None,
             Some((receipt, pi, _)) => {
                 // env_builder.add_assumption(receipt);
-
                 Some(pi)
             }
         };
-        #[cfg(feature = "native")]
-        {
-            zkvm.add_input(&prev_pi);
-            zkvm.add_input(&queue_item.proof);
-            zkvm.add_input(&private_inputs);
-            zkvm.add_input(&self.elf_id);
-            zkvm.add_input(&self.vk);
 
-            zkvm.prove();
-        }
+        zkvm.add_input(&prev_pi);
+        zkvm.add_input(&queue_item.proof);
+        zkvm.add_input(&private_inputs);
+        zkvm.add_input(&self.elf_id);
+        zkvm.add_input(&self.vk);
 
-        Ok(())
+        let zkvm_proof = zkvm.prove();
+
+        let zkvm_proof = match zkvm_proof {
+            Ok(i) => {
+                let proof: ZP = i.try_into().map_err(|_| anyhow!("Conversion failed"))?;
+                return Ok(proof);
+            }
+            Err(e) => return Err(anyhow!(e)),
+        };
     }
 }

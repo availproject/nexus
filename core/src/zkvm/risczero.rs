@@ -62,11 +62,15 @@ pub struct RiscZeroProof(pub Receipt);
 
 #[cfg(any(feature = "native-risc0"))]
 impl ZKVMProof for RiscZeroProof {
-    fn public_inputs<V: serde::de::DeserializeOwned>(&self) -> Result<V, anyhow::Error> {
+    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error> {
         from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
     }
 
-    fn verify(&self, img_id: [u8; 32]) -> Result<(), anyhow::Error> {
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error> {
+        let img_id = match img_id {
+            Some(id) => id,
+            None => return Err(anyhow!("ELF is required")),
+        };
         self.0.verify(img_id).map_err(|e| anyhow!(e))
     }
 }
@@ -122,3 +126,9 @@ impl ZKVMEnv for ZKVM {
         env::commit(data);
     }
 }
+
+#[cfg(any(feature = "native-risc0"))]
+pub trait ProofConversion: std::convert::From<RiscZeroProof> {}
+
+#[cfg(any(feature = "native-risc0"))]
+impl ProofConversion for RiscZeroProof {}

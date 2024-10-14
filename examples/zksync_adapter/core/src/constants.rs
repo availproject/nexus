@@ -10,6 +10,8 @@ pub const L2_LOG_VALUE_OFFSET: usize = 56;
 pub const PUBDATA_COMMITMENT_SIZE: usize = 144;
 pub const TOTAL_BLOBS_IN_COMMITMENT: usize = 16;
 
+pub const PUBLIC_INPUT_SHIFT: usize = 32;
+
 pub enum SystemLogKey {
     L2ToL1LogsTreeRootKey,
     TotalL2ToL1PubdataKey,
