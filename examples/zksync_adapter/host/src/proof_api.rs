@@ -53,10 +53,7 @@ impl ProofAPI {
 
             let tokens = proof_with_commitment_and_l1_batch_meta_data.clone().proof_with_l1_batch_metadata.bytes;
             let proof = serialized_proof_bigint_strings_array(&tokens);
-            let commitments = proof_with_commitment_and_l1_batch_meta_data.clone().blob_commitments;
             let pubdata_commitments = proof_with_commitment_and_l1_batch_meta_data.clone().pubdata_commitments;
-            let pubdata_commiment_hex =  pubdata_commitments.iter().map(|b| format!("{:02x}", b)).collect::<String>();
-            let versioned_hashes = proof_with_commitment_and_l1_batch_meta_data.clone().versioned_hashes;
 
             // Assuming you have a way to get MockProof; otherwise, return an appropriate variant
             Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof)))

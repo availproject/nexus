@@ -162,6 +162,7 @@ impl STF {
         pubdata_commitments: Vec<u8>,
         versioned_hashes: Vec<[u8; 32]>,
         nexus_hash: NexusH256,
+        dev_flag: bool
     ) -> Result<AdapterPublicInputs, anyhow::Error> {
 
         // TODO: need to change
@@ -200,11 +201,14 @@ impl STF {
             current_batch_commitment_string,
         );
 
-        let verifier = ZksyncVerifier::new();
-        let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
-
-        if (!is_proof_verified) {
-            return Err(anyhow!("Proof verification failed"));
+        // don't perform proof verification with dev flag
+        if !dev_flag {
+            let verifier = ZksyncVerifier::new();
+            let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
+    
+            if (!is_proof_verified) {
+                return Err(anyhow!("Proof verification failed"));
+            }
         }
 
         if new_rollup_pi.header.number.0 > 1 {
@@ -246,6 +250,7 @@ impl STF {
         pubdata_commitments: Vec<u8>,
         versioned_hashes: Vec<[u8; 32]>,
         nexus_hash: NexusH256,
+        dev_flag: bool
     ) -> Result<P, anyhow::Error>
     where
         <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
@@ -292,6 +297,7 @@ impl STF {
             pubdata_commitments.clone(),
             versioned_hashes.clone(),
             nexus_hash.clone(),
+            dev_flag
         )?;
 
         let mut prover = Z::new(self.elf.clone());
@@ -304,6 +310,7 @@ impl STF {
         prover.add_input(&pubdata_commitments.clone())?;
         prover.add_input(&versioned_hashes.clone())?;
         prover.add_input(&nexus_hash)?;
+        prover.add_input(&dev_flag)?;
         
         // TODO: Need to write a program for add proof for recursion
         #[cfg(feature = "risc0")]

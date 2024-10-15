@@ -15,6 +15,7 @@ pub fn run<Z: ZKVMEnv>() {
     let pubdata_commitments: Vec<u8> = Z::read_input::<Vec<u8>>().unwrap();
     let versioned_hashes: Vec<[u8; 32]> = Z::read_input::<Vec<[u8; 32]>>().unwrap();
     let nexus_hash: H256 = Z::read_input::<H256>().unwrap();
+    let dev_flag: bool = Z::read_input::<bool>().unwrap();
     
     // if new_rollup_pi.header.number.0 > 1 {
     //     env::verify(img_id, &to_vec(&previous_adapter_pi).unwrap()).unwrap();
@@ -28,6 +29,7 @@ pub fn run<Z: ZKVMEnv>() {
         pubdata_commitments,
         versioned_hashes,
         nexus_hash,
+        dev_flag
     ).expect("Should not have panicked.");
 
     Z::commit(&result);

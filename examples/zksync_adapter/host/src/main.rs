@@ -280,6 +280,7 @@ async fn main() -> Result<(), Error> {
                     pubdata_commitments,
                     versioned_hashes,
                     range[0],
+                    dev_flag
                 )?;
                 
                 println!(
