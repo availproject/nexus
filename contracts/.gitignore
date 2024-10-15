@@ -12,3 +12,7 @@ docs/
 
 # Dotenv file
 .env
+deploy-config.json
+zkout
+out
+.zksolc-libraries-cache

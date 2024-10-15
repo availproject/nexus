@@ -20,16 +20,8 @@ interface INexusMailbox {
         uint256 nonce
     );
 
-    function receiveMessage(
-        uint256 chainblockNumber,
-        MailboxMessage calldata,
-        bytes calldata proof
-    ) external;
+    function receiveMessage(uint256 chainblockNumber, MailboxMessage calldata, bytes calldata proof) external;
 
-    function sendMessage(
-        bytes32[] memory nexusAppIdFrom,
-        address[] memory to,
-        uint256 nonce,
-        bytes calldata data
-    ) external;
+    function sendMessage(bytes32[] memory nexusAppIdFrom, address[] memory to, uint256 nonce, bytes calldata data)
+        external;
 }
