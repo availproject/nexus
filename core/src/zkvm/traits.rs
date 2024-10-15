@@ -1,5 +1,7 @@
 use crate::types::Proof as NexusProof;
 use serde::{de::DeserializeOwned, Serialize};
+#[cfg(any(feature = "native-risc0",feature = "zkvm-risc0"))]
+use risc0_zkvm::SegmentReceipt;
 
 #[cfg(any(feature = "native"))]
 pub trait ZKVMProver<R: ZKVMProof> {
@@ -13,6 +15,8 @@ pub trait ZKVMProver<R: ZKVMProof> {
 pub trait ZKVMProof: Sized {
     fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error>;
     fn public_inputs<V: Serialize + DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error>;
+    #[cfg(any(feature = "native-risc0",feature = "zkvm-risc0"))]
+    fn get_segments(&self) -> Result<Vec<SegmentReceipt>,anyhow::Error>;
 }
 
 // pub trait ZKProof {

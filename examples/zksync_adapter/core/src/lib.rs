@@ -2,6 +2,7 @@ use adapter_sdk::types::AdapterPublicInputs;
 use anyhow::anyhow;
 use ethers_core::abi::{self, token};
 use hex;
+use std::collections::VecDeque;
 #[cfg(any(feature = "native"))]
 use nexus_core::types::AccountState;
 use nexus_core::types::InitAccount;
@@ -12,7 +13,10 @@ use nexus_core::types::Proof as NexusProof;
 #[cfg(any(feature = "native-risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover};
 use nexus_core::zkvm::traits::ZKVMEnv;
-
+#[cfg(any(feature = "risc0"))]
+use risc0_zkvm::{SegmentReceipt,SuccinctReceipt,ReceiptClaim};
+#[cfg(any(feature = "risc0"))]
+use risc0_zkvm::recursion::{join,lift};
 #[cfg(any(feature = "native"))]
 use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 use serde::{Deserialize, Serialize};
@@ -306,12 +310,48 @@ impl STF {
         prover.add_input(&nexus_hash)?;
         
         // TODO: Need to write a program for add proof for recursion
-        #[cfg(feature = "risc0")]
-        match prev_adapter_proof.clone() {
-            Some(i) => prover.add_proof_for_recursion(i)?,
-            None => (),
-        };
+        // #[cfg(feature = "risc0")]
+        // match prev_adapter_proof.clone() {
+        //     Some(i) => prover.add_proof_for_recursion(i)?,
+        //     None => (),
+        // };
         
-        prover.prove()
+        let proof = prover.prove();  
+
+        if cfg!(any(feature = "sp1")) {
+            proof
+        }else if cfg!(any(feature = "risc0")) { 
+            // let proof = proof.unwrap();
+            let segments_1: Vec<SegmentReceipt>;
+             match proof {
+                    Ok(proof) => {
+                    segments_1 = proof.get_segments()?;
+                },
+                Err(_) => {
+                    segments_1 = Vec::new();
+                }
+            }
+            
+            let segments_2: Vec<SegmentReceipt> = match prev_adapter_proof.clone() {
+                Some(ref result) => result.get_segments()?, 
+                None => Vec::new(), 
+            };
+            let mut succinct_receipts_vec : Vec<SuccinctReceipt<ReceiptClaim>> = Vec::new();
+            for segment in segments_1 {
+                succinct_receipts_vec.push(lift(&segment)?);
+            }
+            for segment in segments_2 {
+                succinct_receipts_vec.push(lift(&segment)?);
+            }
+            let mut queue = VecDeque::from(succinct_receipts_vec);
+            while queue.len() > 1 {
+                let first = queue.pop_front().unwrap();
+                let second = queue.pop_front().unwrap();
+                let succinct_receipt = join(&first,&second); 
+            }
+           let aggregated_receipt : SuccinctReceipt<ReceiptClaim> = queue.pop_front().unwrap();
+           //need to add how to handle after this receipt is generated since now sp1 and risc0 are generating different types of proofs
+        }
+
     }
 }

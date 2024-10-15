@@ -9,7 +9,7 @@ use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 #[cfg(any(feature = "native-risc0"))]
 use risc0_zkvm::{default_prover, Executor, ExecutorEnv, ExecutorEnvBuilder, Prover};
-use risc0_zkvm::{serde::from_slice, Receipt};
+use risc0_zkvm::{serde::from_slice, Receipt,SegmentReceipt,InnerReceipt};
 use serde::{Deserialize, Serialize};
 
 #[cfg(any(feature = "native-risc0"))]
@@ -72,6 +72,17 @@ impl ZKVMProof for RiscZeroProof {
             None => return Err(anyhow!("ELF is required")),
         };
         self.0.verify(img_id).map_err(|e| anyhow!(e))
+    }
+
+    fn get_segments(&self) -> Result<Vec<SegmentReceipt>, anyhow::Error> {
+        let receipt = &self.0; 
+    
+        if let InnerReceipt::Composite(composite_receipt) = &receipt.inner {
+            
+            return Ok(composite_receipt.segments.clone());
+        } else {
+            return Err(anyhow::anyhow!("not a composite proof")); // Return an error
+        }
     }
 }
 
