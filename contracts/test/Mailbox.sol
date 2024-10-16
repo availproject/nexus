@@ -18,8 +18,7 @@ contract MailBoxTest is Test {
     NexusProofManager proofManager;
     ERC20Token erc20;
 
-    bytes32 appid =
-        0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
+    bytes32 appid = 0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
     uint256 targetnexusAppId = 137;
 
     function setUp() public {
@@ -28,14 +27,9 @@ contract MailBoxTest is Test {
         erc20 = new ERC20Token("Avail", "Avail");
         proofManager = new NexusProofManager();
         SparseMerkleTree smt = new SparseMerkleTree();
-        ZKSyncNexusManagerRouter zksyncDiamond = new ZKSyncNexusManagerRouter(
-            INexusProofManager(address(proofManager)),
-            appid
-        );
-        VerifierWrapper wrapper = new VerifierWrapper(
-            IZKSyncNexusManagerRouter(address(zksyncDiamond)),
-            smt
-        );
+        ZKSyncNexusManagerRouter zksyncDiamond =
+            new ZKSyncNexusManagerRouter(INexusProofManager(address(proofManager)), appid);
+        VerifierWrapper wrapper = new VerifierWrapper(IZKSyncNexusManagerRouter(address(zksyncDiamond)), smt);
         mailbox.addOrUpdateWrapper(bytes32(targetnexusAppId), wrapper);
     }
 
@@ -69,33 +63,15 @@ contract MailBoxTest is Test {
         uint256 key = 0xfaaf1897615a4d5824a81780f33dd422a304cae5e7b14f0f9215d1a3deeea9e2;
         bytes32 value = 0x7fc8e033e28402e82ae3c4a4e6d7d02ab3941505362bdb58c429a2ffc9870802;
         bytes32[] memory dynamicPath = new bytes32[](9);
-        dynamicPath[0] = bytes32(
-            0xba5325838c32aa67257f995767d0a51bb9652e86b162dcc8fbb43b15cc5c7ae5
-        );
-        dynamicPath[1] = bytes32(
-            0x01de01ebbdc33833eb4e9049fa9bb20f0268737312999115a14d553c661a3b6c
-        );
-        dynamicPath[2] = bytes32(
-            0xc89cb40d1ae178bbc7e18800b0aa460f53a070d710c4c70ebc8731f0d3812e22
-        );
-        dynamicPath[3] = bytes32(
-            0xc631fffdfdbc27ed0e4f61bc50b799ee0d9b67d5e9cac886e703144e9572712d
-        );
-        dynamicPath[4] = bytes32(
-            0x4e1e5eb29f3378179f87112827a22ce510fd6b80b11d4ea70b8ca50414e1e67b
-        );
-        dynamicPath[5] = bytes32(
-            0xdd2ee4dcfdab21b5746de659fc8742cf5671520826ee90216e142b165c26eb3f
-        );
-        dynamicPath[6] = bytes32(
-            0xe01a1ba6f8acab9e567849199d1af48b883532a642724b269d824745f07d959a
-        );
-        dynamicPath[7] = bytes32(
-            0xbd4efdde3e1211ff26d4549887187e6b4ab232b718f4902e5e7ccf00493e7b68
-        );
-        dynamicPath[8] = bytes32(
-            0xdc9a374febf417a247dbf3974ca6b39344266105d9c93f32a9fa2301e6d19a98
-        );
+        dynamicPath[0] = bytes32(0xba5325838c32aa67257f995767d0a51bb9652e86b162dcc8fbb43b15cc5c7ae5);
+        dynamicPath[1] = bytes32(0x01de01ebbdc33833eb4e9049fa9bb20f0268737312999115a14d553c661a3b6c);
+        dynamicPath[2] = bytes32(0xc89cb40d1ae178bbc7e18800b0aa460f53a070d710c4c70ebc8731f0d3812e22);
+        dynamicPath[3] = bytes32(0xc631fffdfdbc27ed0e4f61bc50b799ee0d9b67d5e9cac886e703144e9572712d);
+        dynamicPath[4] = bytes32(0x4e1e5eb29f3378179f87112827a22ce510fd6b80b11d4ea70b8ca50414e1e67b);
+        dynamicPath[5] = bytes32(0xdd2ee4dcfdab21b5746de659fc8742cf5671520826ee90216e142b165c26eb3f);
+        dynamicPath[6] = bytes32(0xe01a1ba6f8acab9e567849199d1af48b883532a642724b269d824745f07d959a);
+        dynamicPath[7] = bytes32(0xbd4efdde3e1211ff26d4549887187e6b4ab232b718f4902e5e7ccf00493e7b68);
+        dynamicPath[8] = bytes32(0xdc9a374febf417a247dbf3974ca6b39344266105d9c93f32a9fa2301e6d19a98);
 
         StorageProof memory proof = StorageProof(
             123,
@@ -128,13 +104,7 @@ contract MailBoxTest is Test {
             nonce: mailboxNonce
         });
 
-        mailbox.checkVerificationOfEncoding(
-            0,
-            receipt,
-            bytes32(targetnexusAppId),
-            value,
-            encoding
-        );
+        mailbox.checkVerificationOfEncoding(0, receipt, bytes32(targetnexusAppId), value, encoding);
     }
 
     function testSortingAlgorithm() public view {
@@ -153,12 +123,7 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (nexusAppIdTo, to) = mailbox.sortWrapper(
-            nexusAppIdTo,
-            to,
-            0,
-            int256(length - 1)
-        );
+        (nexusAppIdTo, to) = mailbox.sortWrapper(nexusAppIdTo, to, 0, int256(length - 1));
 
         assertEq(nexusAppIdTo[0], bytes32(targetnexusAppId - 2));
         assertEq(nexusAppIdTo[1], bytes32(targetnexusAppId - 1));
@@ -190,12 +155,7 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (nexusAppIdTo, to) = mailbox.sortWrapper(
-            nexusAppIdTo,
-            to,
-            0,
-            int256(length - 1)
-        );
+        (nexusAppIdTo, to) = mailbox.sortWrapper(nexusAppIdTo, to, 0, int256(length - 1));
 
         address toAddr = mailbox.searchWrapper(nexusAppIdTo, to);
         assertEq(toAddr, vm.addr(2));
