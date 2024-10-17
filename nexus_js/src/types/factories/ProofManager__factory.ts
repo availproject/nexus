@@ -3,7 +3,7 @@
 /* eslint-disable */
 
 import { Contract, Interface, type ContractRunner } from "ethers";
-import type { ProofManager, ProofManagerInterface } from "../ProofManager";
+import type { ProofManager, ProofManagerInterface } from "../ProofManager.js";
 
 const _abi = [
   {

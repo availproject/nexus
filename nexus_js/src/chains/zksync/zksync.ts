@@ -1,12 +1,12 @@
 import { Provider } from "zksync-ethers";
-import { ZKSYNC_CHAIN_ID } from "../../constants";
-import { ChainDetails } from "../../types";
-import { MailboxMessageStruct } from "../../types/Mailbox";
-import ChainInterface from "../interface";
-import { RpcProof, StorageProofProvider } from "./storageManager";
-import MailBoxClient from "../../mailbox";
+import { ZKSYNC_CHAIN_ID } from "../../constants.js";
+import { ChainDetails } from "../../types.js";
+import { MailboxMessageStruct } from "../../types/Mailbox.js";
+import ChainInterface from "../interface.js";
+import { RpcProof, StorageProofProvider } from "./storageManager.js";
+import MailBoxClient from "../../mailbox.js";
 import { AbiCoder, ethers } from "ethers";
-import logger from "../../logger";
+import logger from "../../logger.js";
 
 type Proof = {
   batchNumber: number;

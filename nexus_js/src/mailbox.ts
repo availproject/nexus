@@ -1,8 +1,8 @@
-import { Mailbox, Mailbox__factory } from "./types/index";
+import { Mailbox, Mailbox__factory } from "./types/index.js";
 import { ethers, Provider } from "ethers";
-import logger from "./logger";
-import { ChainDetails, Networks } from "./types";
-import { MailboxMessageStruct } from "./types/Mailbox";
+import logger from "./logger.js";
+import { ChainDetails, Networks } from "./types.js";
+import { MailboxMessageStruct } from "./types/Mailbox.js";
 
 class MailboxUtils {
   protected chains: Map<string, ChainDetails>;

@@ -1,5 +1,5 @@
 import { Provider as L2Provider } from "zksync-ethers";
-import { RpcProof } from "./types";
+import { RpcProof } from "./types.js";
 
 /** Storage proof provider for zkSync */
 export class StorageProofProvider {
@@ -9,7 +9,7 @@ export class StorageProofProvider {
   */
   readonly BLOCK_QUERY_OFFSET = 150;
 
-  constructor(public l2Provider: L2Provider) {}
+  constructor(public l2Provider: L2Provider) { }
 
   /** Updates L2 provider */
   public setL2Provider(provider: L2Provider) {
@@ -83,4 +83,4 @@ export class StorageProofProvider {
   }
 }
 
-export * from "./types";
+export * from "./types.js";

@@ -1,1 +1,1 @@
-export { default as ZKSyncVerifier } from "./zksync";
+export { default as ZKSyncVerifier } from "./zksync.js";

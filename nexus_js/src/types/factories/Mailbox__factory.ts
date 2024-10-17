@@ -3,7 +3,7 @@
 /* eslint-disable */
 
 import { Contract, Interface, type ContractRunner } from "ethers";
-import type { Mailbox, MailboxInterface } from "../Mailbox";
+import type { Mailbox, MailboxInterface } from "../Mailbox.js";
 
 const _abi = [
   {

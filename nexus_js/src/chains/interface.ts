@@ -1,4 +1,4 @@
-import { MailboxMessageStruct } from "../types/Mailbox";
+import { MailboxMessageStruct } from "../types/Mailbox.js";
 
 export default abstract class ChainInterface<T> {
   protected chainId: string;
