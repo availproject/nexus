@@ -11,7 +11,7 @@ use nexus_core::types::{
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
 #[cfg(feature = "sp1")]
-use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM };
+use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
 
 use nexus_core::zkvm::traits::ZKVMProof;
 use proof_api::ProofAPIResponse;
@@ -32,7 +32,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use zksync_core::{L1BatchWithMetadata, ProofWithCommitmentAndL1BatchMetaData, STF};
 
 #[cfg(any(feature = "sp1"))]
-use sp1_sdk::{utils};
+use sp1_sdk::utils;
 
 #[cfg(feature = "risc0")] // for now
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
@@ -48,7 +48,6 @@ struct AdapterStateData {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-
     #[cfg(any(feature = "sp1"))]
     utils::setup_logger();
 
@@ -280,20 +279,27 @@ async fn main() -> Result<(), Error> {
                     pubdata_commitments,
                     versioned_hashes,
                     range[0],
-                    dev_flag
+                    dev_flag,
                 )?;
-                
+
                 println!(
                     "Current proof data: {:?}",
-                    recursive_proof.public_inputs::<RollupPublicInputsV2>()
+                    recursive_proof
+                        .clone()
+                        .public_inputs::<RollupPublicInputsV2>()
+                        .unwrap()
+                        .rollup_hash
+                        .unwrap()
                 );
+
                 let rollup_hash = recursive_proof
+                    .clone()
                     .public_inputs::<RollupPublicInputsV2>()
                     .unwrap()
                     .rollup_hash
                     .unwrap();
 
-                #[cfg(feature = "risc0")]                
+                #[cfg(feature = "risc0")]
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
                     Ok(()) => {
                         println!("Proof verification successful");
@@ -302,7 +308,7 @@ async fn main() -> Result<(), Error> {
                     Err(e) => return Err(anyhow!("Proof generated is invalid.")),
                 }
 
-                #[cfg(feature = "sp1")]                
+                #[cfg(feature = "sp1")]
                 match recursive_proof.verify(None, Some(ZKSYNC_ADAPTER_ELF.to_vec())) {
                     Ok(()) => {
                         println!("Proof verification successful");
