@@ -15,7 +15,7 @@ serde = "1.0.203"
 serde_json = "1.0.113"
 anyhow = "1.0.81"
 warp = { version = "0.3", optional = true }
-risc0-zkvm = {version = "1.0.5", default-features = false, features = ["std"], optional = true}
+risc0-zkvm = {version = "1.1.1", default-features = false, features = ["std"], optional = true}
 relayer = { path = "../relayer", optional = true}
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", optional = true }
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git", optional = true }
