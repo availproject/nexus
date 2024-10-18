@@ -10,17 +10,21 @@ tokio = { version = "1.36.0", optional = true }
 hex = { version = "0.4", optional = true }
 tokio-stream = { version = "0.1.14", optional = true}
 reqwest = {version = "0.11.24", features = ["json"], optional = true}
-nexus-core = { path = "../core", default-features = false }
+nexus-core = { path = "../core", default-features = false, optional = true }
 serde = "1.0.203"
 serde_json = "1.0.113"
 anyhow = "1.0.81"
 warp = { version = "0.3", optional = true }
-risc0-zkvm = {version = "1.0.5", default-features = false, features = ["std"]}
+risc0-zkvm = {version = "1.0.5", default-features = false, features = ["std"], optional = true}
 relayer = { path = "../relayer", optional = true}
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", optional = true }
+sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git", optional = true }
+digest = { version = "0.10.0" }
 
 [features]
-default = ["native"]
-native = ["relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp", "risc0-zkvm/default", "nexus-core/native-risc0"]
-# TODO: Replace with risc0 and sp1 feature flag.
-zkvm = ["nexus-core/zkvm-risc0"]
+default = ["native-risc0"]
+native = ["relayer", "reqwest", "hex", "tokio", "tokio-stream", "warp"]
+zkvm-sp1 = ["nexus-core/zkvm-sp1", "sp1-zkvm"]
+zkvm-risc0 = ["nexus-core/zkvm-risc0", "risc0-zkvm/std"]
+native-risc0 = ["risc0-zkvm/default", "nexus-core/native-risc0", "native"]
+native-sp1 = ["sp1-sdk", "nexus-core/native-sp1", "native"]

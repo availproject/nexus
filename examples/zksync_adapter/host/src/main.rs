@@ -3,14 +3,23 @@ use anyhow::{anyhow, Context, Error};
 use nexus_core::db::NodeDB;
 use nexus_core::state::sparse_merkle_tree::traits::Value;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, RollupPublicInputsV2,
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
-use nexus_core::zkvm::risczero::RiscZeroProof;
+
+#[cfg(feature = "risc0")]
+use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
+
+#[cfg(feature = "sp1")]
+use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
+
 use nexus_core::zkvm::traits::ZKVMProof;
 use proof_api::ProofAPIResponse;
+#[cfg(feature = "risc0")]
 use risc0_zkvm::guest::env;
+#[cfg(feature = "risc0")]
 use risc0_zkvm::serde::to_vec;
+#[cfg(feature = "risc0")]
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value as SerdeValue};
@@ -20,7 +29,12 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
-use zksync_core::{L1BatchWithMetadata, MockProof, STF};
+use zksync_core::{L1BatchWithMetadata, ProofWithCommitmentAndL1BatchMetaData, STF};
+
+#[cfg(any(feature = "sp1"))]
+use sp1_sdk::utils;
+
+#[cfg(feature = "risc0")] // for now
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
 mod proof_api;
@@ -34,6 +48,9 @@ struct AdapterStateData {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    #[cfg(any(feature = "sp1"))]
+    utils::setup_logger();
+
     // Retrieve Ethereum node URL and command-line arguments
     let args: Vec<String> = args().collect();
     if args.len() <= 2 {
@@ -82,7 +99,31 @@ async fn main() -> Result<(), Error> {
         db.delete(b"adapter_state_data")?;
     }
 
+    #[cfg(feature = "sp1")]
+    let ZKSYNC_ADAPTER_ELF: &[u8] =
+        include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+
+    #[cfg(feature = "sp1")]
+    let ZKSYNC_ADAPTER_ID = [0u32; 8]; // since sp1 doesn't implements verify method on proof object
+
     // Retrieve or initialize the adapter state data from the database
+    let adapter_state_data =
+        if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
+            data
+        } else {
+            // Initialize with default values if no data found in the database
+            let adapter_config = AdapterConfig {
+                app_id: AppId(app_id),
+                elf: ZKSYNC_ADAPTER_ELF.to_vec(),
+                adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                vk: [0u8; 32],
+                rollup_start_height: 606460,
+            };
+            AdapterStateData {
+                last_height: 0,
+                adapter_config,
+            }
+        };
     let adapter_state_data =
         if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
             data
@@ -119,17 +160,17 @@ async fn main() -> Result<(), Error> {
         .await?;
     let height_on_nexus = account_with_proof.account.height;
 
-    if adapter_state_data.adapter_config.adapter_elf_id.clone()
-        != account_with_proof.account.statement.clone()
-    {
-        if account_with_proof.account != AccountState::zero() {
-            println!(
-                "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
-                &adapter_state_data.adapter_config.adapter_elf_id,
-                &account_with_proof.account.statement
-            );
-        }
-    }
+    // if adapter_state_data.adapter_config.adapter_elf_id.clone()
+    //     != account_with_proof.account.statement.clone()
+    // {
+    //     if account_with_proof.account != AccountState::zero() {
+    //         println!(
+    //             "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
+    //             &adapter_state_data.adapter_config.adapter_elf_id,
+    //             &account_with_proof.account.statement
+    //         );
+    //     }
+    // }
 
     //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
     //last_height = account_with_proof.account.height;
@@ -154,8 +195,16 @@ async fn main() -> Result<(), Error> {
         println!("Processing L1 batch number: {}", last_height + 1);
 
         match proof_api.get_proof_for_l1_batch(last_height + 1).await {
-            Ok(ProofAPIResponse::Found((batch_metadata, proof))) => {
+            Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof))) => {
+                let ProofWithCommitmentAndL1BatchMetaData {
+                    proof_with_l1_batch_metadata,
+                    blob_commitments,
+                    pubdata_commitments,
+                    versioned_hashes,
+                } = proof_with_commitment_and_l1_batch_meta_data;
+                let batch_metadata = proof_with_l1_batch_metadata.metadata;
                 let current_height = batch_metadata.header.number.0;
+                // println!("metadata: {:?}", batch_metadata);
 
                 let app_account_id =
                     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
@@ -170,17 +219,17 @@ async fn main() -> Result<(), Error> {
                     };
                 let height_on_nexus = account_with_proof.account.height;
 
-                if adapter_state_data.adapter_config.adapter_elf_id.clone()
-                    != account_with_proof.account.statement.clone()
-                {
-                    if account_with_proof.account != AccountState::zero() {
-                        println!(
-                            "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
-                            &adapter_state_data.adapter_config.adapter_elf_id,
-                            &account_with_proof.account.statement
-                        );
-                    }
-                }
+                // if adapter_state_data.adapter_config.adapter_elf_id.clone()
+                //     != account_with_proof.account.statement.clone()
+                // {
+                //     if account_with_proof.account != AccountState::zero() {
+                //         println!(
+                //             "❌ ❌ ❌, statement digest not matching \n{:?} \n== \n{:?}",
+                //             &adapter_state_data.adapter_config.adapter_elf_id,
+                //             &account_with_proof.account.statement
+                //         );
+                //     }
+                // }
 
                 //Commenting below, as last height should be last height known to adapter, and should create proofs from that point.
                 //last_height = account_with_proof.account.height;
@@ -193,7 +242,7 @@ async fn main() -> Result<(), Error> {
                 }
 
                 let (prev_proof_with_pi, account_state): (
-                    Option<RiscZeroProof>,
+                    Option<Proof>,
                     Option<(AppAccountId, AccountState)>,
                 ) = if last_height == 0 {
                     (
@@ -219,27 +268,50 @@ async fn main() -> Result<(), Error> {
 
                 if range.is_empty() {
                     println!("Nexus does not have a valid range, retrying.");
-
                     continue;
                 }
 
-                let recursive_proof = stf.create_recursive_proof(
+                let mut recursive_proof = stf.create_recursive_proof::<Prover, Proof, ZKVM>(
                     prev_proof_with_pi,
                     account_state,
                     proof,
                     batch_metadata.clone(),
+                    pubdata_commitments,
+                    versioned_hashes,
                     range[0],
+                    dev_flag,
                 )?;
 
                 println!(
                     "Current proof data: {:?}",
-                    recursive_proof.public_inputs::<RollupPublicInputsV2>()
+                    recursive_proof
+                        .clone()
+                        .public_inputs::<RollupPublicInputsV2>()
+                        .unwrap()
+                        .rollup_hash
+                        .unwrap()
                 );
 
+                let rollup_hash = recursive_proof
+                    .clone()
+                    .public_inputs::<RollupPublicInputsV2>()
+                    .unwrap()
+                    .rollup_hash
+                    .unwrap();
+
+                #[cfg(feature = "risc0")]
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
                     Ok(()) => {
                         println!("Proof verification successful");
+                        ()
+                    }
+                    Err(e) => return Err(anyhow!("Proof generated is invalid.")),
+                }
 
+                #[cfg(feature = "sp1")]
+                match recursive_proof.verify(None, Some(ZKSYNC_ADAPTER_ELF.to_vec())) {
+                    Ok(()) => {
+                        println!("Proof verification successful");
                         ()
                     }
                     Err(e) => return Err(anyhow!("Proof generated is invalid.")),
@@ -258,6 +330,7 @@ async fn main() -> Result<(), Error> {
                         }),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                        rollup_hash: Some(rollup_hash),
                     };
 
                     let tx = TransactionV2 {
@@ -275,6 +348,7 @@ async fn main() -> Result<(), Error> {
                                 }
                             },
                             height: public_inputs.height,
+                            data: public_inputs.rollup_hash.clone(),
                         }),
                     };
                     match nexus_api.send_tx(tx).await {

@@ -1,6 +1,8 @@
 use anyhow::anyhow;
 use reqwest::Client;
-use zksync_core::{L1BatchWithMetadata, MockProof};
+use zksync_core::{L1BatchWithMetadata, ProofWithL1BatchMetaData, ProofWithCommitmentAndL1BatchMetaData, Token};
+use num_bigint::BigUint;
+use primitive_types::U256;
 
 pub struct ProofAPI {
     url: String,
@@ -10,7 +12,27 @@ pub struct ProofAPI {
 pub enum ProofAPIResponse {
     Pruned,
     Pending,
-    Found((L1BatchWithMetadata, MockProof)),
+    Found((ProofWithCommitmentAndL1BatchMetaData, Vec<String>)),
+}
+
+fn u256_to_string(uint: &U256) -> String {
+    let mut bytes = [0u8; 32];
+    uint.to_big_endian(&mut bytes);
+    BigUint::from_bytes_be(&bytes).to_string()
+}
+
+fn serialized_proof_bigint_strings_array(token: &Token) -> Vec<String> {
+    fn process_token(token: &Token) -> Vec<String> {
+        match token {
+            Token::Array(arr) => arr.iter().flat_map(process_token).collect(),
+            Token::FixedArray(arr) => arr.iter().flat_map(process_token).collect(),
+            Token::Tuple(tuple) => tuple.iter().flat_map(process_token).collect(),
+            Token::Uint(uint) => vec![u256_to_string(uint)],
+            _ => vec![], // Ignore other token types
+        }
+    }
+
+    process_token(token)
 }
 
 impl ProofAPI {
@@ -27,12 +49,14 @@ impl ProofAPI {
         // Check if the status is 200 OK
         if response.status().is_success() {
             // Parse the JSON response into L1BatchWithMetadata
-            let metadata: L1BatchWithMetadata = response.json().await?;
+            let proof_with_commitment_and_l1_batch_meta_data: ProofWithCommitmentAndL1BatchMetaData = response.json().await?;
+
+            let tokens = proof_with_commitment_and_l1_batch_meta_data.clone().proof_with_l1_batch_metadata.bytes;
+            let proof = serialized_proof_bigint_strings_array(&tokens);
+            let pubdata_commitments = proof_with_commitment_and_l1_batch_meta_data.clone().pubdata_commitments;
 
             // Assuming you have a way to get MockProof; otherwise, return an appropriate variant
-            let proof = MockProof(()); // Or fetch it from somewhere
-
-            Ok(ProofAPIResponse::Found((metadata, proof)))
+            Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof)))
         } else {
             // Handle different status codes as needed
             match response.status().as_u16() {
