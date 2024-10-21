@@ -3,6 +3,7 @@ use crate::types::Proof;
 use super::traits::ZKVMEnv;
 #[cfg(any(feature = "native-risc0"))]
 use super::traits::{ZKVMProof, ZKVMProver};
+use super::ProverMode;
 use anyhow::anyhow;
 use anyhow::Error;
 use risc0_zkvm::guest::env;
@@ -16,13 +17,18 @@ use serde::{Deserialize, Serialize};
 pub struct RiscZeroProver<'a> {
     env_builder: ExecutorEnvBuilder<'a>,
     elf: Vec<u8>,
+    prover_mode: ProverMode,
 }
 
 #[cfg(any(feature = "native-risc0"))]
 impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
-    fn new(elf: Vec<u8>) -> Self {
+    fn new(elf: Vec<u8>, prover_mode: ProverMode) -> Self {
         let env_builder = ExecutorEnv::builder();
-        Self { env_builder, elf }
+        Self {
+            env_builder,
+            elf,
+            prover_mode,
+        }
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
@@ -62,7 +68,9 @@ pub struct RiscZeroProof(pub Receipt);
 
 #[cfg(any(feature = "native-risc0"))]
 impl ZKVMProof for RiscZeroProof {
-    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error> {
+    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(
+        &mut self,
+    ) -> Result<V, anyhow::Error> {
         from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
     }
 

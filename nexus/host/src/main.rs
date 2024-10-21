@@ -12,7 +12,10 @@ use nexus_core::{
         AvailHeader, HeaderStore, NexusHeader, Proof as NexusProof, RollupPublicInputsV2,
         TransactionV2, TransactionZKVM, TxParamsV2, H256,
     },
-    zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
+    zkvm::{
+        traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
+        ProverMode,
+    },
 };
 
 #[cfg(any(feature = "risc0"))]
@@ -28,10 +31,10 @@ use rocksdb::{Options, DB};
 use serde::ser::StdError;
 use serde::{Deserialize, Serialize};
 use sp_runtime::DeserializeOwned;
-use std::fmt::Debug as DebugTrait;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::{collections::HashMap, sync::Arc};
+use std::{env::args, fmt::Debug as DebugTrait};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 use warp::Filter;
@@ -41,6 +44,18 @@ use crate::rpc::routes;
 mod rpc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = args().collect();
+    let dev_flag = args.iter().any(|arg| arg == "--dev");
+    if dev_flag {
+        println!("⚠️ Running in dev mode. Proofs are not valid");
+    }
+
+    let prover_mode = if dev_flag {
+        ProverMode::MockProof
+    } else {
+        ProverMode::Compressed
+    };
+
     let node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
     let mut db_options = Options::default();
     db_options.create_if_missing(true);
@@ -126,6 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut state_machine,
                     &AvailHeader::from(&header),
                     &mut old_headers,
+                    prover_mode.clone()
                 ).await {
                     Ok((_, result)) => {
                         let db_lock = db.lock().await;
@@ -202,6 +218,7 @@ async fn execute_batch<
     state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
+    prover_mode: ProverMode,
 ) -> Result<(P, NexusHeader), Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
@@ -211,14 +228,11 @@ where
         .await?;
 
     let (proof, result) = {
-        #[cfg(any(feature = "risc0"))]
-        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
-
         #[cfg(any(feature = "sp1"))]
         let NEXUS_RUNTIME_ELF: &[u8] =
             include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
-        #[cfg(any(feature = "sp1"))]
-        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.clone().to_vec());
+
+        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode);
 
         let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
             .iter()
@@ -227,16 +241,16 @@ where
                     //TODO: Remove transactions that error out from mempool
                     let proof = submit_proof_tx.proof.clone();
                     let receipt: P = P::try_from(proof).unwrap();
-                    let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
-                        Some(i) => i,
-                        None => {
-                            return Err(anyhow!(
-                         "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
-                         submit_proof_tx.app_id
-                     ))
-                        }
-                    };
-                    
+                    // let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
+                    //     Some(i) => i,
+                    //     None => {
+                    //         return Err(anyhow!(
+                    //      "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
+                    //      submit_proof_tx.app_id
+                    //  ))
+                    //     }
+                    // };
+
                     #[cfg(feature = "risc0")]
                     zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
@@ -257,7 +271,6 @@ where
         let mut proof = zkvm_prover.prove()?;
 
         let result: NexusHeader = proof.public_inputs()?;
-        println!("Proof: {:?}", proof);
         (proof, result)
     };
 

@@ -14,6 +14,7 @@ use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prove
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
 
 use nexus_core::zkvm::traits::ZKVMProof;
+use nexus_core::zkvm::ProverMode;
 use proof_api::ProofAPIResponse;
 #[cfg(feature = "risc0")]
 use risc0_zkvm::guest::env;
@@ -67,6 +68,11 @@ async fn main() -> Result<(), Error> {
 
     let zksync_proof_api_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
+    let prover_mode = if dev_flag {
+        ProverMode::MockProof
+    } else {
+        ProverMode::Compressed
+    };
 
     // Default app_id
     let mut app_id = 100;
@@ -93,12 +99,6 @@ async fn main() -> Result<(), Error> {
     let db_path = format!("db/{:?}", app_id);
     let db = NodeDB::from_path(&db_path);
 
-    // If --dev flag is used, purge the database
-    if dev_flag {
-        println!("purging data base");
-        db.delete(b"adapter_state_data")?;
-    }
-
     #[cfg(feature = "sp1")]
     let ZKSYNC_ADAPTER_ELF: &[u8] =
         include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
@@ -118,6 +118,7 @@ async fn main() -> Result<(), Error> {
                 adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
                 vk: [0u8; 32],
                 rollup_start_height: 606460,
+                prover_mode: prover_mode.clone(),
             };
             AdapterStateData {
                 last_height: 0,
@@ -135,6 +136,7 @@ async fn main() -> Result<(), Error> {
                 adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
                 vk: [0u8; 32],
                 rollup_start_height: 606460,
+                prover_mode: prover_mode.clone(),
             };
             AdapterStateData {
                 last_height: 0,
@@ -145,7 +147,11 @@ async fn main() -> Result<(), Error> {
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash: Option<H256> = None;
-    let stf = STF::new(ZKSYNC_ADAPTER_ID, ZKSYNC_ADAPTER_ELF.to_vec());
+    let stf = STF::new(
+        ZKSYNC_ADAPTER_ID,
+        ZKSYNC_ADAPTER_ELF.to_vec(),
+        prover_mode.clone(),
+    );
 
     println!(
         "Starting nexus with AppAccountId: {:?} \n, and start height {last_height}",
@@ -279,7 +285,6 @@ async fn main() -> Result<(), Error> {
                     pubdata_commitments,
                     versioned_hashes,
                     range[0],
-                    dev_flag,
                 )?;
 
                 println!(

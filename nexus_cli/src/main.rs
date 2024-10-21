@@ -19,6 +19,8 @@ enum Commands {
         /// Runs the command in development mode
         #[arg(long)]
         dev: bool,
+        #[command(subcommand)]
+        zkvm: Option<ZKVMOptions>,
     },
 
     /// Runs example/zksync_adapter/host with an optional API URL
@@ -34,6 +36,8 @@ enum Commands {
         /// Optional app_id
         #[arg(long, default_value_t = 100)]
         app_id: u64,
+        #[command(subcommand)]
+        zkvm: Option<ZKVMOptions>,
     },
 
     /// Cleans the database(s)
@@ -60,6 +64,12 @@ enum CleanCommands {
 
     /// Cleans the databases in both nexus/host and examples/zksync_adapter/host
     All,
+}
+
+#[derive(Subcommand, Debug)]
+enum ZKVMOptions {
+    Risc0,
+    SP1,
 }
 
 fn main() {
@@ -97,8 +107,13 @@ fn main() {
                 }
             }
         }
-        Commands::Zksync { url, dev, app_id } => run_zksync(&url, &zksync_dir, dev, app_id),
-        Commands::Nexus { dev } => run_nexus(&nexus_dir, dev),
+        Commands::Zksync {
+            url,
+            dev,
+            app_id,
+            zkvm,
+        } => run_zksync(&url, &zksync_dir, dev, app_id, zkvm),
+        Commands::Nexus { dev, zkvm } => run_nexus(&nexus_dir, dev, zkvm),
         Commands::Init { env } => init_env(env),
     }
 }
@@ -123,13 +138,30 @@ fn clean_db(dir: &std::path::Path) -> Result<(), std::io::Error> {
     }
 }
 
-fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool, app_id: u64) {
+fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool, app_id: u64, zkvm: Option<ZKVMOptions>) {
     println!("Running zksync commands with API URL: {}", api_url);
     println!("Using app_id: {}", app_id);
+    let zkvm = match zkvm {
+        Some(i) => i,
+        None => ZKVMOptions::SP1,
+    };
 
     let mut command = Cmd::new("cargo");
+    match zkvm {
+        ZKVMOptions::Risc0 => {
+            command.arg("run").current_dir(zksync_dir);
+        }
+        ZKVMOptions::SP1 => {
+            command
+                .arg("run")
+                .arg("--no-default-features")
+                .arg("--features=sp1")
+                .arg("--release")
+                .current_dir(zksync_dir);
+        }
+    }
+
     command
-        .arg("run")
         .arg("--")
         .arg(api_url)
         .arg("--app_id")
@@ -138,6 +170,7 @@ fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool, app_id: u64) {
 
     if dev {
         command.env("RISC0_DEV_MODE", "true");
+        command.arg("--dev");
     }
 
     let status_zksync = command.status().expect("Failed to execute zksync run");
@@ -148,14 +181,32 @@ fn run_zksync(api_url: &str, zksync_dir: &Path, dev: bool, app_id: u64) {
     }
 }
 
-fn run_nexus(nexus_dir: &Path, dev: bool) {
+fn run_nexus(nexus_dir: &Path, dev: bool, zkvm: Option<ZKVMOptions>) {
     println!("Running nexus at {:?}", nexus_dir);
 
     let mut command = Cmd::new("cargo");
-    command.arg("run").current_dir(nexus_dir);
+    let zkvm = match zkvm {
+        Some(i) => i,
+        None => ZKVMOptions::SP1,
+    };
+
+    match zkvm {
+        ZKVMOptions::Risc0 => {
+            command.arg("run").current_dir(nexus_dir);
+        }
+        ZKVMOptions::SP1 => {
+            command
+                .arg("run")
+                .arg("--no-default-features")
+                .arg("--features=sp1")
+                .arg("--release")
+                .current_dir(nexus_dir);
+        }
+    }
 
     if dev {
         command.env("RISC0_DEV_MODE", "true");
+        command.arg("--").arg("--dev");
     }
 
     let status = command.status().expect("Failed to execute `cargo run`");

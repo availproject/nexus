@@ -8,6 +8,7 @@ use nexus_core::types::{
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
+use nexus_core::zkvm::ProverMode;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
@@ -45,16 +46,16 @@ async fn main() -> Result<(), Error> {
     }
     let ethereum_node_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
+    let prover_mode = if dev_flag {
+        ProverMode::MockProof
+    } else {
+        ProverMode::Compressed
+    };
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
     // Create or open the database
     let db_path = "db";
     let db = NodeDB::from_path(db_path);
-
-    // If --dev flag is used, purge the database
-    if dev_flag {
-        db.delete(b"adapter_state_data")?;
-    }
 
     // Retrieve or initialize the adapter state data from the database
     let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state")? {
@@ -67,6 +68,7 @@ async fn main() -> Result<(), Error> {
             adapter_elf_id: StatementDigest(ADAPTER_ID),
             vk: [0u8; 32],
             rollup_start_height: 606460,
+            prover_mode,
         };
         AdapterStateData {
             last_height: 0,
