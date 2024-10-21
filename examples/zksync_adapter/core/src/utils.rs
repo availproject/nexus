@@ -40,7 +40,7 @@ pub fn read_bytes32(bytes: &[u8], start: usize) -> (H256, U256) {
     (H256::from(result), offset.into())
 }
 
-pub fn get_mock_proof(proof: Vec<String>) -> Proof {
+pub fn parse_proof(proof: Vec<String>) -> Proof {
     let proof_serialized: Vec<&str> = proof.iter().map(|p| p.as_str()).collect();
     let state_poly_0_x =
         <G1Point as AffineCurve>::BaseField::from_str(proof_serialized[0]).unwrap();
@@ -767,8 +767,7 @@ pub fn get_g2_elements() -> (G2Affine, G2Affine) {
 
 pub fn get_public_inputs(pub_input: String) -> Fp256<FrParameters> {
     let ttt = get_fr_mask().into_repr().0[0] & get_fr_mask().into_repr().0[1];
-    let pi = Fr::from_str(&pub_input)
-        .unwrap();
+    let pi = Fr::from_str(&pub_input).unwrap();
     let mut res = apply_fr_mask(padd_bytes32(get_u8arr_from_fr(pi)));
     get_fr_from_u8arr(res)
 }

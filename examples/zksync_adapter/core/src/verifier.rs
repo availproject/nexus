@@ -27,9 +27,9 @@ use crate::transcript::Transcript;
 use crate::types::{G1Point, PartialVerifierState, Proof};
 use crate::utils::{
     apply_fr_mask, get_bigint_from_fr, get_domain_size, get_fr_from_u8arr, get_fr_mask,
-    get_g2_elements, get_mock_proof, get_omega, get_pub_signal, get_public_inputs,
-    get_scalar_field, get_u8arr_from_fq, get_u8arr_from_fr, get_verification_key, padd_bytes3,
-    padd_bytes32,
+    get_g2_elements, get_omega, get_pub_signal, get_public_inputs, get_scalar_field,
+    get_u8arr_from_fq, get_u8arr_from_fr, get_verification_key, padd_bytes3, padd_bytes32,
+    parse_proof,
 };
 
 pub struct ZksyncVerifier;
@@ -63,12 +63,8 @@ impl ZksyncVerifier {
 
         //round 2
 
-        transcript.update_transcript(&get_u8arr_from_fq(
-            proof.copy_permutation_grand_product.x,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fq(
-            proof.copy_permutation_grand_product.y,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.copy_permutation_grand_product.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.copy_permutation_grand_product.y));
 
         let beta_lookuppp = transcript.get_transcript_challenge(3);
         let gamma_lookuppp = transcript.get_transcript_challenge(4);
@@ -96,29 +92,15 @@ impl ZksyncVerifier {
 
         //round 4
 
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.quotient_poly_opening_at_z,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.quotient_poly_opening_at_z));
 
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.state_poly_0_opening_at_z,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.state_poly_1_opening_at_z,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.state_poly_2_opening_at_z,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.state_poly_3_opening_at_z,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.state_poly_0_opening_at_z));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.state_poly_1_opening_at_z));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.state_poly_2_opening_at_z));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.state_poly_3_opening_at_z));
 
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.state_poly_3_opening_at_z_omega,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.gate_selectors_0_opening_at_z,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.state_poly_3_opening_at_z_omega));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.gate_selectors_0_opening_at_z));
 
         transcript.update_transcript(&get_u8arr_from_fr(
             proof.copy_permutation_polys_0_opening_at_z,
@@ -133,27 +115,17 @@ impl ZksyncVerifier {
         transcript.update_transcript(&get_u8arr_from_fr(
             proof.copy_permutation_grand_product_opening_at_z_omega,
         ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.lookup_t_poly_opening_at_z,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.lookup_selector_poly_opening_at_z,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.lookup_t_poly_opening_at_z));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.lookup_selector_poly_opening_at_z));
         transcript.update_transcript(&get_u8arr_from_fr(
             proof.lookup_table_type_poly_opening_at_z,
         ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.lookup_s_poly_opening_at_z_omega,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.lookup_s_poly_opening_at_z_omega));
         transcript.update_transcript(&get_u8arr_from_fr(
             proof.lookup_grand_product_opening_at_z_omega,
         ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.lookup_t_poly_opening_at_z_omega,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fr(
-            proof.linearisation_poly_opening_at_z,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.lookup_t_poly_opening_at_z_omega));
+        transcript.update_transcript(&get_u8arr_from_fr(proof.linearisation_poly_opening_at_z));
 
         let vv = transcript.get_transcript_challenge(7);
 
@@ -161,12 +133,8 @@ impl ZksyncVerifier {
 
         transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.x));
         transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.y));
-        transcript.update_transcript(&get_u8arr_from_fq(
-            proof.opening_proof_at_z_omega.x,
-        ));
-        transcript.update_transcript(&get_u8arr_from_fq(
-            proof.opening_proof_at_z_omega.y,
-        ));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z_omega.x));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z_omega.y));
 
         let uu = transcript.get_transcript_challenge(8);
 
@@ -207,32 +175,26 @@ impl ZksyncVerifier {
     fn permutation_quotient_contribution(
         pvs: &mut PartialVerifierState,
         l0_at_z: Fp256<FrParameters>,
-        proof: Proof
+        proof: Proof,
     ) -> Fp256<FrParameters> {
         let mut res = pvs
             .power_of_alpha_4
             .mul(proof.copy_permutation_grand_product_opening_at_z_omega);
         let mut factor_multiplier;
 
-        factor_multiplier = proof
-            .copy_permutation_polys_0_opening_at_z
-            .mul(pvs.beta);
+        factor_multiplier = proof.copy_permutation_polys_0_opening_at_z.mul(pvs.beta);
 
         factor_multiplier = factor_multiplier.add(pvs.gamma);
         factor_multiplier = factor_multiplier.add(proof.state_poly_0_opening_at_z);
 
         res = res.mul(factor_multiplier);
 
-        factor_multiplier = proof
-            .copy_permutation_polys_1_opening_at_z
-            .mul(pvs.beta);
+        factor_multiplier = proof.copy_permutation_polys_1_opening_at_z.mul(pvs.beta);
         factor_multiplier = factor_multiplier.add(pvs.gamma);
         factor_multiplier = factor_multiplier.add(proof.state_poly_1_opening_at_z);
         res = res.mul(factor_multiplier);
 
-        factor_multiplier = proof
-            .copy_permutation_polys_2_opening_at_z
-            .mul(pvs.beta);
+        factor_multiplier = proof.copy_permutation_polys_2_opening_at_z.mul(pvs.beta);
         factor_multiplier = factor_multiplier.add(pvs.gamma);
         factor_multiplier = factor_multiplier.add(proof.state_poly_2_opening_at_z);
         res = res.mul(factor_multiplier);
@@ -245,15 +207,16 @@ impl ZksyncVerifier {
         res
     }
 
-    fn lookup_quotient_contribution(pvs: &mut PartialVerifierState, proof: Proof) -> Fp256<FrParameters> {
+    fn lookup_quotient_contribution(
+        pvs: &mut PartialVerifierState,
+        proof: Proof,
+    ) -> Fp256<FrParameters> {
         let betaplusone = pvs.beta_lookup.add(Fr::from_str("1").unwrap());
         let beta_gamma = betaplusone.mul(pvs.gamma_lookup);
 
         pvs.beta_gamma_plus_gamma = beta_gamma;
 
-        let mut res = proof
-            .lookup_s_poly_opening_at_z_omega
-            .mul(pvs.beta_lookup);
+        let mut res = proof.lookup_s_poly_opening_at_z_omega.mul(pvs.beta_lookup);
         res = res.add(beta_gamma);
         res = res.mul(proof.lookup_grand_product_opening_at_z_omega);
         res = res.mul(pvs.power_of_alpha_6);
@@ -294,7 +257,11 @@ impl ZksyncVerifier {
 
         let mut result = state_t.mul(proof.gate_selectors_0_opening_at_z);
 
-        result = result.add(Self::permutation_quotient_contribution(pvs, l0atz, proof.clone()));
+        result = result.add(Self::permutation_quotient_contribution(
+            pvs,
+            l0atz,
+            proof.clone(),
+        ));
 
         result = result.add(Self::lookup_quotient_contribution(pvs, proof.clone()));
 
@@ -1126,7 +1093,7 @@ impl ZksyncVerifier {
         state_z_slot: Fr,
         mut pairing_pair_generator: GroupAffine<Parameters>,
         mut pairing_buffer_point: GroupAffine<Parameters>,
-        proof: Proof
+        proof: Proof,
     ) -> bool {
         pairing_pair_generator = pairing_pair_generator.add(-pairing_buffer_point);
 
@@ -1163,8 +1130,7 @@ impl ZksyncVerifier {
 
     // TODO: remove the hardcoded proof
     pub fn verify(&self, public_input: String, proof_strings: Vec<String>) -> bool {
-
-        let proof = get_mock_proof(proof_strings);
+        let proof = parse_proof(proof_strings);
         let verification_key = get_verification_key();
         let public_inputs = get_public_inputs(public_input);
 
@@ -1239,7 +1205,7 @@ impl ZksyncVerifier {
             pvs.z,
             pairing_pair_with_generator,
             pairing_pair_buffer_point,
-            proof
+            proof,
         );
 
         println!("Is Proof Verified: {:?}", is_proof_verified);
