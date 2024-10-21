@@ -12,6 +12,8 @@ use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, Executor, ExecutorEnv, ExecutorEnvBuilder, Prover};
 use risc0_zkvm::{serde::from_slice, Receipt};
 use serde::{Deserialize, Serialize};
+#[cfg(any(feature = "native-risc0"))]
+use risc0_zkvm::ProverOpts;
 
 #[cfg(any(feature = "native-risc0"))]
 pub struct RiscZeroProver<'a> {
@@ -50,9 +52,11 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
         let prover = default_prover();
         // let stats = prover.execute(env, &self.elf).map_err(|e| anyhow!(e))?;
         // println!("Execution stats: {:?}", stats);
+        let prover_opts = ProverOpts::succinct();
+
         let receipt = prover
-            .prove(env, &self.elf)
-            .map_err(|e| anyhow!("Error when proving: {:?}", e))?;
+        .prove_with_opts(env, &self.elf, &prover_opts)
+        .map_err(|e| anyhow!("Error when proving: {:?}", e))?;
 
         let duration = start_time.elapsed(); // Calculate elapsed time
         println!("Prover stats: {:?}", receipt.stats);
