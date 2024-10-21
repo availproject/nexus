@@ -1,6 +1,9 @@
 use crate::traits::RollupProof;
 pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
-use nexus_core::types::{AppId, AvailHeader, NexusHeader, StatementDigest, H256};
+use nexus_core::{
+    types::{AppId, AvailHeader, NexusHeader, StatementDigest, H256},
+    zkvm::ProverMode,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,4 +34,5 @@ pub struct AdapterConfig {
     pub adapter_elf_id: StatementDigest,
     pub vk: [u8; 32],
     pub rollup_start_height: u32,
+    pub prover_mode: ProverMode,
 }

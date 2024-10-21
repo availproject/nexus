@@ -38,10 +38,25 @@ Read more about RISC Zero installation in their guide [here](https://dev.risczer
 
 ## Running the Nexus Server
 
-- Start the Nexus server using the CLI tool:
+The Nexus server can be run with different Zero-Knowledge Virtual Machines (ZKVM). You can specify which ZKVM to use by adding the appropriate flag (`sp1` or `risc0`). If no ZKVM is specified, it will default to **sp1**.
 
-```zsh
-nexus_cli nexus --dev
-```
+### Command Options:
+- To run the Nexus server using the default ZKVM (`sp1`):
+  ```bash
+  nexus_cli nexus --dev
+  ```
+- To run the Nexus server with the `sp1` ZKVM explicitly:
+  ```bash
+  nexus_cli nexus --dev sp1
+  ```
+- To run the Nexus server with the `risc0` ZKVM:
+  ```bash
+  nexus_cli nexus --dev risc0
+  ```
+
+For mock proofs, the `--dev` flag is used; for real proofs, it must be omitted.
+
+### Important Note:
+Make sure that any example adapters you are running are also configured to use the **same ZKVM** as the one chosen for the Nexus server. The ZKVM for the adapters and the server must match in order for them to work correctly.
 
 For ZKSync integration, refer to the [ZKSync Example](2_zksync_example.md) guide.

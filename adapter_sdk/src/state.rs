@@ -16,10 +16,11 @@ use nexus_core::types::{
     SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
 #[cfg(feature = "native-risc0")]
-use nexus_core::zkvm::risczero::{RiscZeroProver, ProofConversion};
+use nexus_core::zkvm::risczero::{ProofConversion, RiscZeroProver};
 #[cfg(any(feature = "native-sp1"))]
-use nexus_core::zkvm::sp1::{Sp1Prover, ProofConversion};
+use nexus_core::zkvm::sp1::{ProofConversion, Sp1Prover};
 use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
+use nexus_core::zkvm::ProverMode;
 use relayer::Relayer;
 #[cfg(feature = "native-risc0")]
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
@@ -80,6 +81,7 @@ pub struct AdapterState<
     pub p: PhantomData<Z>,
     pub pp: PhantomData<ZP>,
     pub nexus_api: NexusAPI,
+    pub prover_mode: ProverMode,
 }
 
 impl<
@@ -93,7 +95,7 @@ impl<
             + Send
             + TryInto<Proof>
             + Debug
-            + ProofConversion
+            + ProofConversion,
     > AdapterState<P, Z, ZP>
 where
     <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
@@ -113,6 +115,7 @@ where
             p: PhantomData,
             pp: PhantomData,
             nexus_api: NexusAPI::new(&"http://127.0.0.1:7000"),
+            prover_mode: config.prover_mode,
         }
     }
 
@@ -312,9 +315,17 @@ where
             }
         }
     }
-    
-    async fn process_queue(&mut self) -> Result<ZP, Error> 
-        where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug
+
+    async fn process_queue(&mut self) -> Result<ZP, Error>
+    where
+        ZP: ZKVMProof
+            + DebugTrait
+            + Clone
+            + DeserializeOwned
+            + Serialize
+            + Send
+            + TryInto<Proof>
+            + Debug,
     {
         loop {
             let queue_item = {
@@ -358,7 +369,7 @@ where
         }
     }
 
-    pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) ->  Result<(), Error> {
+    pub async fn add_proof(&mut self, proof: RollupProofWithPublicInputs<P>) -> Result<(), Error> {
         let mut queue = self.queue.lock().await;
 
         let mut updated_proof: bool = false;
@@ -390,8 +401,17 @@ where
         &mut self,
         queue_item: &QueueItem<P>,
         // TODO change the return type to ZP
-    ) -> Result<(ZP), Error> 
-            where ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug {
+    ) -> Result<(ZP), Error>
+    where
+        ZP: ZKVMProof
+            + DebugTrait
+            + Clone
+            + DeserializeOwned
+            + Serialize
+            + Send
+            + TryInto<Proof>
+            + Debug,
+    {
         let nexus_header: NexusHeader =
             self.nexus_api.get_header(&queue_item.header.hash()).await?;
 
@@ -412,11 +432,12 @@ where
             Some(i) => Some(i.clone()),
         };
 
+        //Add prover mode config
         #[cfg(feature = "native-sp1")]
-        let mut zkvm = Sp1Prover::new(self.elf.clone());
+        let mut zkvm = Sp1Prover::new(self.elf.clone(), self.prover_mode.clone());
 
         #[cfg(feature = "native-risc0")]
-        let mut zkvm = RiscZeroProver::new(self.elf.clone());
+        let mut zkvm = RiscZeroProver::new(self.elf.clone(), self.prover_mode.clone());
 
         let prev_pi: Option<AdapterPublicInputs> = match prev_pi_and_receipt {
             None => None,

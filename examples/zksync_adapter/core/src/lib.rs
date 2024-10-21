@@ -5,16 +5,17 @@ use hex;
 #[cfg(any(feature = "native"))]
 use nexus_core::types::AccountState;
 use nexus_core::types::InitAccount;
-use nexus_core::types::H256 as NexusH256;
-use nexus_core::types::{AppAccountId, StatementDigest};
 #[cfg(any(feature = "native"))]
 use nexus_core::types::Proof as NexusProof;
+use nexus_core::types::H256 as NexusH256;
+use nexus_core::types::{AppAccountId, StatementDigest};
 #[cfg(any(feature = "native-risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover};
 use nexus_core::zkvm::traits::ZKVMEnv;
 
 #[cfg(any(feature = "native"))]
 use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
+use nexus_core::zkvm::ProverMode;
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "native"))]
 use types::L1BatchNumber;
@@ -23,11 +24,11 @@ use zksync_basic_types::{web3::keccak256, H256, U256, U64};
 // use zksync_types::commitment::serialize_commitments;
 // use zksync_types::commitment::serialize_commitments;
 pub mod constants;
+pub mod prover;
 pub mod transcript;
 pub mod types;
 pub mod utils;
 pub mod verifier;
-pub mod prover;
 
 //pub use zksync_types::commitment::L1BatchWithMetadata;
 pub use crate::constants::{
@@ -44,12 +45,17 @@ use crate::verifier::ZksyncVerifier;
 pub struct STF {
     img_id: [u32; 8],
     elf: Vec<u8>,
+    prover_mode: ProverMode,
 }
 
 //TODO: Add generics for risczero types, so SP1 could be used as well.
 impl STF {
-    pub fn new(img_id: [u32; 8], elf: Vec<u8>) -> Self {
-        Self { img_id, elf }
+    pub fn new(img_id: [u32; 8], elf: Vec<u8>, prover_mode: ProverMode) -> Self {
+        Self {
+            img_id,
+            elf,
+            prover_mode,
+        }
     }
 
     fn process_l2_logs(
@@ -162,9 +168,8 @@ impl STF {
         pubdata_commitments: Vec<u8>,
         versioned_hashes: Vec<[u8; 32]>,
         nexus_hash: NexusH256,
-        dev_flag: bool
+        prover_mode: ProverMode,
     ) -> Result<AdapterPublicInputs, anyhow::Error> {
-
         // TODO: need to change
         let expected_system_contract_upgrade_tx_hash = H256::zero(); // zero hash for now
         let mut log_output: LogProcessingOutput = Self::process_l2_logs(
@@ -202,12 +207,26 @@ impl STF {
         );
 
         // don't perform proof verification with dev flag
-        if !dev_flag {
-            let verifier = ZksyncVerifier::new();
-            let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
-    
-            if (!is_proof_verified) {
-                return Err(anyhow!("Proof verification failed"));
+        // if !dev_flag {
+        //     let verifier = ZksyncVerifier::new();
+        //     let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
+
+        //     if (!is_proof_verified) {
+        //         return Err(anyhow!("Proof verification failed"));
+        //     }
+        // }
+
+        // don't perform proof verification for mock proof modes.
+        //TODO: Separate prover config and zksync verifier config. We may want to verify zksync proofs but not generate proofs.
+        match prover_mode {
+            ProverMode::MockProof => (),
+            _ => {
+                let verifier = ZksyncVerifier::new();
+                let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
+
+                if (!is_proof_verified) {
+                    return Err(anyhow!("Proof verification failed"));
+                }
             }
         }
 
@@ -250,7 +269,6 @@ impl STF {
         pubdata_commitments: Vec<u8>,
         versioned_hashes: Vec<[u8; 32]>,
         nexus_hash: NexusH256,
-        dev_flag: bool
     ) -> Result<P, anyhow::Error>
     where
         <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
@@ -297,10 +315,10 @@ impl STF {
             pubdata_commitments.clone(),
             versioned_hashes.clone(),
             nexus_hash.clone(),
-            dev_flag
+            self.prover_mode.clone(),
         )?;
 
-        let mut prover = Z::new(self.elf.clone());
+        let mut prover = Z::new(self.elf.clone(), self.prover_mode.clone());
 
         prover.add_input(&prev_adapter_pi)?;
         prover.add_input(&new_rollup_proof)?;
@@ -310,15 +328,15 @@ impl STF {
         prover.add_input(&pubdata_commitments.clone())?;
         prover.add_input(&versioned_hashes.clone())?;
         prover.add_input(&nexus_hash)?;
-        prover.add_input(&dev_flag)?;
-        
+        prover.add_input(&self.prover_mode)?;
+
         // TODO: Need to write a program for add proof for recursion
         #[cfg(feature = "risc0")]
         match prev_adapter_proof.clone() {
             Some(i) => prover.add_proof_for_recursion(i)?,
             None => (),
         };
-        
+
         prover.prove()
     }
 }
