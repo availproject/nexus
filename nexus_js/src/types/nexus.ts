@@ -24,6 +24,7 @@ type AccountApiResponse = {
       avail_header_hash: string;
       number: number;
     };
+    value_hash_hex: string;
   };
 };
 

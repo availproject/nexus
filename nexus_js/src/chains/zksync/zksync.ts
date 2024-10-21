@@ -22,22 +22,20 @@ type ReceiveMessageArgs = {
 };
 
 export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
-  private chainDetails: ChainDetails;
-  private mailbox: MailBoxClient;
-  private provider: Provider;
+  private mailboxClient: MailBoxClient;
   constructor(
-    _mailbox: MailBoxClient,
-    _chainDetails: ChainDetails,
-    _provider: Provider
+    private chains: { [appId: string]: ChainDetails },
+    private verifierChain: ChainDetails,
   ) {
-    super(ZKSYNC_CHAIN_ID);
-    this.chainDetails = _chainDetails;
-    this.provider = _provider;
-    this.mailbox = _mailbox;
+    super()
+
+    this.mailboxClient = new MailBoxClient(
+      chains
+    );
   }
 
   async sendMessage(chainIdTo: string[], to: string[], nonce: number, data: string) {
-    await this.mailbox.sendMessage(this.chainDetails.appID, chainIdTo, to, nonce, data);
+    await this.mailboxClient.sendMessage(this.verifierChain.appID, chainIdTo, to, nonce, data);
   }
 
   async receiveMessage(
@@ -45,7 +43,7 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     receipt: MailboxMessageStruct,
     args: ReceiveMessageArgs
   ) {
-    const proof = await this.getStorageProof(args.storageKey, chainblockNumber);
+    const proof = await this.getStorageProof(args.storageKey, chainblockNumber, receipt.nexusAppIdFrom.toString());
     if (!proof) return undefined;
     const proofSC: Proof = {
       account: proof.account,
@@ -68,8 +66,8 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
       ]
     );
 
-    await this.mailbox.receiveMessage(
-      this.chainDetails.appID,
+    await this.mailboxClient.receiveMessage(
+      receipt.nexusAppIdFrom.toString(),
       chainblockNumber,
       receipt,
       encodedProof,
@@ -78,12 +76,14 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
 
   async getStorageProof(
     storageKey: string,
-    batchNumber: number
+    batchNumber: number,
+    fromAppID: string,
   ): Promise<RpcProof | undefined> {
-    const storageProofManager = new StorageProofProvider(this.provider);
+    const storageProofManager = new StorageProofProvider(new Provider(this.chains[fromAppID].rpcUrl));
+
     try {
       let proof = await storageProofManager.getProof(
-        this.chainDetails.mailboxContract,
+        this.chains[fromAppID].mailboxContract,
         storageKey,
         batchNumber
       );
