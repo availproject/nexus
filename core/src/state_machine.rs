@@ -72,6 +72,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                 Some(i) => i,
                 None => 0,
             };
+            println!("Got previous versions");
             txs.iter().try_for_each(|tx| {
                 let app_account_id: AppAccountId = match &tx.params {
                     TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
@@ -100,7 +101,6 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         };
 
         let version = prev_version + 1;
-
         //TODO: Need to simplify this part.
         let zkvm_txs: Vec<TransactionZKVM> = txs
             .iter()
@@ -114,7 +114,6 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         let stf_result =
             self.stf
                 .execute_batch(avail_header, old_nexus_headers, &zkvm_txs, &pre_state)?;
-
         let mut state_lock = self.state.lock().await;
 
         if !stf_result.is_empty() {
@@ -138,6 +137,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         } else {
             //Get root for previous version as new one has no updates.
             let root = state_lock.get_root(version - 1)?;
+
             Ok((
                 None,
                 StateUpdate {
