@@ -9,4 +9,5 @@ export type ChainDetails = {
   appID: string; // nexus app id ?,
   chainId: string;
   type: Networks;
+  privateKey: string;
 };

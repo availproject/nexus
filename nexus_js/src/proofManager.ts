@@ -58,7 +58,7 @@ class ProofManagerClient {
     const response = await this.proofManager.updateChainState(
       blockNumber,
       siblings.map((value) => "0x" + value),
-      "0x" + nexusAppID, // Convert the nexusAppID if needed
+      nexusAppID, // Convert the nexusAppID if needed
       accountStateOnChain // Pass the formatted account state
     );
 

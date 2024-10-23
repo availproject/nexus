@@ -7,6 +7,8 @@ import { RpcProof, StorageProofProvider } from "./storageManager.js";
 import MailBoxClient from "../../mailbox.js";
 import { AbiCoder, ethers } from "ethers";
 import logger from "../../logger.js";
+import { InterfaceAbi } from "ethers";
+import { TransactionReceipt } from "ethers";
 
 type Proof = {
   batchNumber: number;
@@ -26,11 +28,14 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
   constructor(
     private chains: { [appId: string]: ChainDetails },
     private verifierChain: ChainDetails,
+    mailboxAbi: InterfaceAbi
   ) {
     super()
 
+    //TODO: remove this logic from constructor.
     this.mailboxClient = new MailBoxClient(
-      chains
+      chains,
+      mailboxAbi
     );
   }
 
@@ -42,9 +47,10 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     chainblockNumber: number,
     receipt: MailboxMessageStruct,
     args: ReceiveMessageArgs
-  ) {
-    const proof = await this.getStorageProof(args.storageKey, chainblockNumber, receipt.nexusAppIdFrom.toString());
-    if (!proof) return undefined;
+  ): Promise<TransactionReceipt> {
+    const proof = await this.getStorageProof(args.storageKey, chainblockNumber, receipt.nexusAppIDFrom.toString());
+    if (!proof) throw new Error("Proof not found");
+
     const proofSC: Proof = {
       account: proof.account,
       key: proof.key,
@@ -66,8 +72,8 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
       ]
     );
 
-    await this.mailboxClient.receiveMessage(
-      receipt.nexusAppIdFrom.toString(),
+    return await this.mailboxClient.receiveMessage(
+      receipt.nexusAppIDFrom.toString(),
       chainblockNumber,
       receipt,
       encodedProof,

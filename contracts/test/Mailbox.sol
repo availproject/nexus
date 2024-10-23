@@ -60,9 +60,8 @@ contract MailBoxTest is Test {
         });
 
         bytes32 receiptHash = keccak256(abi.encode(receipt));
-        bytes32 key = keccak256(abi.encode(address(this), receiptHash));
 
-        assertEq(mailbox.messages(key), receiptHash);
+        assertEq(mailbox.messages(receiptHash), true);
     }
 
     function testReceiveReceipt() public {
@@ -100,7 +99,6 @@ contract MailBoxTest is Test {
         StorageProof memory proof = StorageProof(
             123,
             0x6bc15F6C8abD245812C7eC650D4586b9B52Ae546, // account
-            key, // key
             value, // value
             dynamicPath,
             581

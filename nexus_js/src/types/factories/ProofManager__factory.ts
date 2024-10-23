@@ -45,7 +45,7 @@ const _abi = [
   },
   {
     type: "function",
-    name: "nexusAppIdToLatestBlockNumber",
+    name: "nexusAppIDToLatestBlockNumber",
     inputs: [
       {
         name: "",
@@ -64,7 +64,7 @@ const _abi = [
   },
   {
     type: "function",
-    name: "nexusAppIdToState",
+    name: "nexusAppIDToState",
     inputs: [
       {
         name: "",

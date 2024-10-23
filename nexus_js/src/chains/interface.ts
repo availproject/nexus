@@ -1,3 +1,4 @@
+import { TransactionReceipt } from "ethers";
 import { MailboxMessageStruct } from "../types/Mailbox.js";
 
 export default abstract class ChainInterface<T> {
@@ -8,5 +9,5 @@ export default abstract class ChainInterface<T> {
     chainblockNumber: number,
     receipt: MailboxMessageStruct,
     args: T
-  ): Promise<void>;
+  ): Promise<TransactionReceipt>;
 }

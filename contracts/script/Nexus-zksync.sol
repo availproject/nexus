@@ -16,6 +16,7 @@ contract NexusDeployment is Script {
     struct NetworkConfig {
         uint256 deployerPrivateKey;
         bytes32 appId;
+        bytes32 appId2;
     }
 
     NetworkConfig config;
@@ -44,6 +45,13 @@ contract NexusDeployment is Script {
             (bytes32)
         );
         config.appId = bytes32(appIdUint);
+
+        string memory appId2Path = string.concat(basePath, ".appId");
+        bytes32 appId2Uint = abi.decode(
+            vm.parseJson(jsonConfig, appId2Path),
+            (bytes32)
+        );
+        config.appId2 = bytes32(appIdUint);
     }
 
     function run() public {
@@ -62,7 +70,7 @@ contract NexusDeployment is Script {
         // Deploy ZKSyncNexusManagerRouter
         ZKSyncNexusManagerRouter zksyncdiamond = new ZKSyncNexusManagerRouter(
             INexusProofManager(address(nexusManager)),
-            config.appId
+            config.appId2
         );
 
         // Deploy SparseMerkleTree
@@ -76,7 +84,7 @@ contract NexusDeployment is Script {
 
         // Add or update wrapper in mailbox
         mailbox.addOrUpdateWrapper(
-            config.appId,
+            config.appId2,
             INexusVerifierWrapper(address(verifierWrapper))
         );
 
