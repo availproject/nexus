@@ -1,0 +1,24 @@
+[package]
+name = "benches"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nexus-core = { path = "../../../core" , default-features = false, optional = true }
+zksync-core = { path = "../core" , default-features = false, optional = true }
+sparse-merkle-tree = { git = "https://github.com/vibhurajeev/sparse-merkle-tree.git", rev = "a2f94a7", default-features = false }
+primitive-types = "0.12"
+zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
+zksync-methods = { path = "../methods", default-features = false ,optional = true }
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "proof_bench"
+path = "src/proof_bench.rs"
+harness = false #disable default harness
+
+[features]
+risc0 = ["nexus-core/native-risc0" , "zksync-core/risc0" , "zksync-methods/risc0" ]
+sp1 = ["nexus-core/native-sp1" , "zksync-core/sp1" , "zksync-methods/sp1" ]

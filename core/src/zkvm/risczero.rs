@@ -144,3 +144,16 @@ pub trait ProofConversion: std::convert::From<RiscZeroProof> {}
 
 #[cfg(any(feature = "native-risc0"))]
 impl ProofConversion for RiscZeroProof {}
+
+/*
+
+create recursive proof harcoded
+
+zksync_adapter/lib.rs
+
+new_rollup_proof Vec<String>
+
+L1_batch_metadata 
+
+proofwithcommitmentand l1metadata
+*/
