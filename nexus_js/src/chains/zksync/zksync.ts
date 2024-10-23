@@ -61,11 +61,10 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     };
 
     let encodedProof = AbiCoder.defaultAbiCoder().encode(
-      ["uint64", "address", "uint256", "bytes32", "bytes32[]", "uint64"],
+      ["uint64", "address", "bytes32", "bytes32[]", "uint64"],
       [
         proofSC.batchNumber,
         proofSC.account,
-        proofSC.key,
         proofSC.value,
         proofSC.path,
         proofSC.index,

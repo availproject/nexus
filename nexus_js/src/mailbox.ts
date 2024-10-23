@@ -95,6 +95,7 @@ export default class MailBoxClient extends MailboxUtils {
     proof: string
   ): Promise<TransactionReceipt> {
     const mailboxContract = this.getMailboxContract(nexusAppIDFrom);
+    console.log("mailbox contract", await mailboxContract.getAddress());
     const tx = await mailboxContract?.receiveMessage(chainblockNumber, receipt, proof);
 
     const txReceipt = await tx.wait();
