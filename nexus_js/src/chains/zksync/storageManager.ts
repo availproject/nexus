@@ -56,6 +56,14 @@ export class StorageProofProvider {
     storageKeys: Array<string>,
     batchNumber?: number
   ): Promise<RpcProof[]> {
+    console.log(
+      "Proof query",
+      address,
+      storageKeys,
+      batchNumber,
+    );
+    console.log("RPC: ", this.l2Provider.provider);
+
     // If batch number is not provided, get the latest batch number
     if (batchNumber == undefined) {
       const latestBatchNumber = await this.l2Provider.getL1BatchNumber();

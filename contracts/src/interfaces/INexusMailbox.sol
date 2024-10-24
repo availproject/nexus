@@ -17,7 +17,8 @@ interface INexusMailbox {
         bytes data,
         address indexed from,
         address[] to,
-        uint256 nonce
+        uint256 nonce,
+        bytes32 receiptHash
     );
 
     function receiveMessage(
