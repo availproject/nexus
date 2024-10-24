@@ -21,11 +21,11 @@ import type {
   TypedLogDescription,
   TypedListener,
   TypedContractMethod,
-} from "./common";
+} from "./common.js";
 
 export type MailboxMessageStruct = {
-  nexusAppIdFrom: BytesLike;
-  nexusAppIdTo: BytesLike[];
+  nexusAppIDFrom: BytesLike;
+  nexusAppIDTo: BytesLike[];
   data: BytesLike;
   from: AddressLike;
   to: AddressLike[];
@@ -33,15 +33,15 @@ export type MailboxMessageStruct = {
 };
 
 export type MailboxMessageStructOutput = [
-  nexusAppIdFrom: string,
-  nexusAppIdTo: string[],
+  nexusAppIDFrom: string,
+  nexusAppIDTo: string[],
   data: string,
   from: string,
   to: string[],
   nonce: bigint
 ] & {
-  nexusAppIdFrom: string;
-  nexusAppIdTo: string[];
+  nexusAppIDFrom: string;
+  nexusAppIDTo: string[];
   data: string;
   from: string;
   to: string[];
@@ -172,24 +172,24 @@ export namespace InitializedEvent {
 
 export namespace MailboxEventEvent {
   export type InputTuple = [
-    nexusAppIdFrom: BytesLike,
-    nexusAppIdTo: BytesLike[],
+    nexusAppIDFrom: BytesLike,
+    nexusAppIDTo: BytesLike[],
     data: BytesLike,
     from: AddressLike,
     to: AddressLike[],
     nonce: BigNumberish
   ];
   export type OutputTuple = [
-    nexusAppIdFrom: string,
-    nexusAppIdTo: string[],
+    nexusAppIDFrom: string,
+    nexusAppIDTo: string[],
     data: string,
     from: string,
     to: string[],
     nonce: bigint
   ];
   export interface OutputObject {
-    nexusAppIdFrom: string;
-    nexusAppIdTo: string[];
+    nexusAppIDFrom: string;
+    nexusAppIDTo: string[];
     data: string;
     from: string;
     to: string[];
@@ -285,7 +285,7 @@ export interface Mailbox extends BaseContract {
 
   sendMessage: TypedContractMethod<
     [
-      nexusAppIdTo: BytesLike[],
+      nexusAppIDTo: BytesLike[],
       to: AddressLike[],
       nonce: BigNumberish,
       data: BytesLike
@@ -304,7 +304,7 @@ export interface Mailbox extends BaseContract {
     [arg0: BytesLike],
     [
       [string, string, string, bigint] & {
-        nexusAppIdFrom: string;
+        nexusAppIDFrom: string;
         data: string;
         from: string;
         nonce: bigint;
@@ -356,7 +356,7 @@ export interface Mailbox extends BaseContract {
     nameOrSignature: "sendMessage"
   ): TypedContractMethod<
     [
-      nexusAppIdTo: BytesLike[],
+      nexusAppIDTo: BytesLike[],
       to: AddressLike[],
       nonce: BigNumberish,
       data: BytesLike
@@ -373,7 +373,7 @@ export interface Mailbox extends BaseContract {
     [arg0: BytesLike],
     [
       [string, string, string, bigint] & {
-        nexusAppIdFrom: string;
+        nexusAppIDFrom: string;
         data: string;
         from: string;
         nonce: bigint;

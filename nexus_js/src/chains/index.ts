@@ -1,2 +1,2 @@
-export { ZKSyncVerifier } from "./zksync";
+export { ZKSyncVerifier } from "./zksync/index.js";
 //export { EthereumVerifier } from "./ethereum";

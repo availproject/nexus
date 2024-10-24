@@ -16,6 +16,7 @@ contract NexusDeployment is Script {
     struct NetworkConfig {
         uint256 deployerPrivateKey;
         bytes32 appId;
+        bytes32 appId2;
     }
 
     NetworkConfig config;
@@ -32,12 +33,25 @@ contract NexusDeployment is Script {
 
         // Parse privateKey
         string memory privateKeyPath = string.concat(basePath, ".privateKey");
-        config.deployerPrivateKey = abi.decode(vm.parseJson(jsonConfig, privateKeyPath), (uint256));
+        config.deployerPrivateKey = abi.decode(
+            vm.parseJson(jsonConfig, privateKeyPath),
+            (uint256)
+        );
 
         // Parse appId
-        string memory appIdPath = string.concat(basePath, ".appId");
-        bytes32 appIdUint = abi.decode(vm.parseJson(jsonConfig, appIdPath), (bytes32));
+        string memory appIdPath = string.concat(basePath, ".appId2");
+        bytes32 appIdUint = abi.decode(
+            vm.parseJson(jsonConfig, appIdPath),
+            (bytes32)
+        );
         config.appId = bytes32(appIdUint);
+
+        string memory appId2Path = string.concat(basePath, ".appId");
+        bytes32 appId2Uint = abi.decode(
+            vm.parseJson(jsonConfig, appId2Path),
+            (bytes32)
+        );
+        config.appId2 = bytes32(appIdUint);
     }
 
     function run() public {
@@ -46,6 +60,7 @@ contract NexusDeployment is Script {
         // Deploy NexusProofManager
         NexusProofManager nexusManager = new NexusProofManager();
         console.log("NexusProofManager deployed to: ", address(nexusManager));
+        console.logBytes32(bytes32(config.appId));
 
         // Deploy and initialize NexusMailbox
         NexusMailbox mailbox = new NexusMailbox();
@@ -53,18 +68,25 @@ contract NexusDeployment is Script {
         console.log("Mailbox deployed to: ", address(mailbox));
 
         // Deploy ZKSyncNexusManagerRouter
-        ZKSyncNexusManagerRouter zksyncdiamond =
-            new ZKSyncNexusManagerRouter(INexusProofManager(address(nexusManager)), config.appId);
+        ZKSyncNexusManagerRouter zksyncdiamond = new ZKSyncNexusManagerRouter(
+            INexusProofManager(address(nexusManager)),
+            config.appId2
+        );
 
         // Deploy SparseMerkleTree
         SparseMerkleTree sparseMerkleTree = new SparseMerkleTree();
 
         // Deploy VerifierWrapper
-        VerifierWrapper verifierWrapper =
-            new VerifierWrapper(IZKSyncNexusManagerRouter(address(zksyncdiamond)), sparseMerkleTree);
+        VerifierWrapper verifierWrapper = new VerifierWrapper(
+            IZKSyncNexusManagerRouter(address(zksyncdiamond)),
+            sparseMerkleTree
+        );
 
         // Add or update wrapper in mailbox
-        mailbox.addOrUpdateWrapper(config.appId, INexusVerifierWrapper(address(verifierWrapper)));
+        mailbox.addOrUpdateWrapper(
+            config.appId2,
+            INexusVerifierWrapper(address(verifierWrapper))
+        );
 
         vm.stopBroadcast();
     }

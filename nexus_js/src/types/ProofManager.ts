@@ -18,7 +18,7 @@ import type {
   TypedEventLog,
   TypedListener,
   TypedContractMethod,
-} from "./common";
+} from "./common.js";
 
 export declare namespace NexusProofManager {
   export type AccountStateStruct = {
@@ -78,8 +78,8 @@ export interface ProofManagerInterface extends Interface {
     nameOrSignature:
       | "getChainState"
       | "latestNexusBlockNumber"
-      | "nexusAppIdToLatestBlockNumber"
-      | "nexusAppIdToState"
+      | "nexusAppIDToLatestBlockNumber"
+      | "nexusAppIDToState"
       | "nexusBlock"
       | "updateChainState"
       | "updateNexusBlock"
@@ -95,11 +95,11 @@ export interface ProofManagerInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "nexusAppIdToLatestBlockNumber",
+    functionFragment: "nexusAppIDToLatestBlockNumber",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "nexusAppIdToState",
+    functionFragment: "nexusAppIDToState",
     values: [BytesLike, BigNumberish]
   ): string;
   encodeFunctionData(
@@ -137,11 +137,11 @@ export interface ProofManagerInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "nexusAppIdToLatestBlockNumber",
+    functionFragment: "nexusAppIDToLatestBlockNumber",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "nexusAppIdToState",
+    functionFragment: "nexusAppIDToState",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "nexusBlock", data: BytesLike): Result;
@@ -210,13 +210,13 @@ export interface ProofManager extends BaseContract {
 
   latestNexusBlockNumber: TypedContractMethod<[], [bigint], "view">;
 
-  nexusAppIdToLatestBlockNumber: TypedContractMethod<
+  nexusAppIDToLatestBlockNumber: TypedContractMethod<
     [arg0: BytesLike],
     [bigint],
     "view"
   >;
 
-  nexusAppIdToState: TypedContractMethod<
+  nexusAppIDToState: TypedContractMethod<
     [arg0: BytesLike, arg1: BigNumberish],
     [string],
     "view"
@@ -273,10 +273,10 @@ export interface ProofManager extends BaseContract {
     nameOrSignature: "latestNexusBlockNumber"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "nexusAppIdToLatestBlockNumber"
+    nameOrSignature: "nexusAppIDToLatestBlockNumber"
   ): TypedContractMethod<[arg0: BytesLike], [bigint], "view">;
   getFunction(
-    nameOrSignature: "nexusAppIdToState"
+    nameOrSignature: "nexusAppIDToState"
   ): TypedContractMethod<
     [arg0: BytesLike, arg1: BigNumberish],
     [string],

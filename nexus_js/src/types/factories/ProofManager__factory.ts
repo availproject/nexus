@@ -3,7 +3,7 @@
 /* eslint-disable */
 
 import { Contract, Interface, type ContractRunner } from "ethers";
-import type { ProofManager, ProofManagerInterface } from "../ProofManager";
+import type { ProofManager, ProofManagerInterface } from "../ProofManager.js";
 
 const _abi = [
   {
@@ -45,7 +45,7 @@ const _abi = [
   },
   {
     type: "function",
-    name: "nexusAppIdToLatestBlockNumber",
+    name: "nexusAppIDToLatestBlockNumber",
     inputs: [
       {
         name: "",
@@ -64,7 +64,7 @@ const _abi = [
   },
   {
     type: "function",
-    name: "nexusAppIdToState",
+    name: "nexusAppIDToState",
     inputs: [
       {
         name: "",

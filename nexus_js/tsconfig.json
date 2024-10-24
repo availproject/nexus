@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "ESNext",
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
+    "declaration": true, // Emit type declaration files
+    "sourceMap": true, // Emit source maps for debugging
+    "outDir": "./dist", // Single output directory for all files
+    "rootDir": "./src", // Specify the root directory for input files
+    "strict": true, // Enable strict type checking
+    "esModuleInterop": true, // Allow interop between ES modules and CommonJS
+    "skipLibCheck": true, // Skip type checking in node_modules
+    "resolveJsonModule": true,
+    "moduleResolution": "NodeNext"
+  },
+  "include": [
+    "src/**/*"
+  ], // Include all files in src folder
+  "exclude": [
+    "node_modules",
+    "dist"
+  ] // Exclude node_modules and dist
+}

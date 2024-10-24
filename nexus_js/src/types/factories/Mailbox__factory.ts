@@ -3,7 +3,7 @@
 /* eslint-disable */
 
 import { Contract, Interface, type ContractRunner } from "ethers";
-import type { Mailbox, MailboxInterface } from "../Mailbox";
+import type { Mailbox, MailboxInterface } from "../Mailbox.js";
 
 const _abi = [
   {
@@ -91,12 +91,12 @@ const _abi = [
         internalType: "struct MailboxMessage",
         components: [
           {
-            name: "nexusAppIdFrom",
+            name: "nexusAppIDFrom",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
-            name: "nexusAppIdTo",
+            name: "nexusAppIDTo",
             type: "bytes32[]",
             internalType: "bytes32[]",
           },
@@ -143,7 +143,7 @@ const _abi = [
     name: "sendMessage",
     inputs: [
       {
-        name: "nexusAppIdTo",
+        name: "nexusAppIDTo",
         type: "bytes32[]",
         internalType: "bytes32[]",
       },
@@ -191,7 +191,7 @@ const _abi = [
     ],
     outputs: [
       {
-        name: "nexusAppIdFrom",
+        name: "nexusAppIDFrom",
         type: "bytes32",
         internalType: "bytes32",
       },
@@ -269,13 +269,13 @@ const _abi = [
     name: "MailboxEvent",
     inputs: [
       {
-        name: "nexusAppIdFrom",
+        name: "nexusAppIDFrom",
         type: "bytes32",
         indexed: true,
         internalType: "bytes32",
       },
       {
-        name: "nexusAppIdTo",
+        name: "nexusAppIDTo",
         type: "bytes32[]",
         indexed: false,
         internalType: "bytes32[]",
