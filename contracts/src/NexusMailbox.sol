@@ -102,7 +102,8 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             data,
             msg.sender,
             to,
-            nonce
+            nonce,
+            receiptHash
         );
     }
 

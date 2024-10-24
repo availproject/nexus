@@ -39,19 +39,19 @@ contract NexusDeployment is Script {
         );
 
         // Parse appId
-        string memory appIdPath = string.concat(basePath, ".appId2");
+        string memory appIdPath = string.concat(basePath, ".appId");
         bytes32 appIdUint = abi.decode(
             vm.parseJson(jsonConfig, appIdPath),
             (bytes32)
         );
         config.appId = bytes32(appIdUint);
 
-        string memory appId2Path = string.concat(basePath, ".appId");
+        string memory appId2Path = string.concat(basePath, ".appId2");
         bytes32 appId2Uint = abi.decode(
             vm.parseJson(jsonConfig, appId2Path),
             (bytes32)
         );
-        config.appId2 = bytes32(appIdUint);
+        config.appId2 = bytes32(appId2Uint);
     }
 
     function run() public {
@@ -82,6 +82,7 @@ contract NexusDeployment is Script {
             sparseMerkleTree
         );
 
+        console.log("Verifer deployed to : ", address(verifierWrapper));
         // Add or update wrapper in mailbox
         mailbox.addOrUpdateWrapper(
             config.appId2,

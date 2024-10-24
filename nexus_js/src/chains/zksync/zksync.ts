@@ -43,6 +43,41 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     await this.mailboxClient.sendMessage(this.verifierChain.appID, chainIdTo, to, nonce, data);
   }
 
+  async getReceiveMessageProof(
+    chainblockNumber: number,
+    receipt: MailboxMessageStruct,
+    args: ReceiveMessageArgs
+  ): Promise<Proof> {
+    const proof = await this.getStorageProof(args.storageKey, chainblockNumber, receipt.nexusAppIDFrom.toString());
+    if (!proof) throw new Error("Proof not found");
+
+    const proofSC: Proof = {
+      account: proof.account,
+      key: proof.key,
+      path: proof.path,
+      value: proof.value,
+      index: proof.index,
+      batchNumber: chainblockNumber,
+    };
+
+    return proofSC;
+  }
+
+  encodeMessageProof(proof: Proof): string {
+    const encodedProof = AbiCoder.defaultAbiCoder().encode(
+      ["uint64", "address", "bytes32", "bytes32[]", "uint64"],
+      [
+        proof.batchNumber,
+        proof.account,
+        proof.value,
+        proof.path,
+        proof.index,
+      ]
+    );
+
+    return encodedProof;
+  }
+
   async receiveMessage(
     chainblockNumber: number,
     receipt: MailboxMessageStruct,
@@ -87,11 +122,18 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     const storageProofManager = new StorageProofProvider(new Provider(this.chains[fromAppID].rpcUrl));
 
     try {
+      console.log("getting storage proof for contract: ", this.chains[fromAppID].mailboxContract,
+        "\n calculated storage key is: ",
+        storageKey,
+        "\n batch number is: ",
+        batchNumber
+      )
       let proof = await storageProofManager.getProof(
         this.chains[fromAppID].mailboxContract,
         storageKey,
         batchNumber
       );
+
       return proof;
     } catch (e) {
       logger.error(e);
@@ -102,7 +144,7 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
   calculateStorageKey(key: string, slotNumber: number): string {
     return ethers.keccak256(
       AbiCoder.defaultAbiCoder().encode(
-        ["uint256", "uint256"],
+        ["bytes32", "uint256"],
         [key, slotNumber]
       )
     );

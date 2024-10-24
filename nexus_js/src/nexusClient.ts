@@ -10,8 +10,6 @@ class NexusClient {
       },
     });
 
-    console.log(response);
-
     return {
       chainStateNumber: response.data.account.height,
       info: {
