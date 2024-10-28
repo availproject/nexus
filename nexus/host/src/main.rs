@@ -233,6 +233,9 @@ where
             include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
 
         let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode);
+        
+        #[cfg(feature = "sp1")]
+        let proof_vec : Vec<SP1ProofWithPublicValues> = Vec::new();
 
         let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
             .iter()
@@ -250,7 +253,11 @@ where
                     //  ))
                     //     }
                     // };
-
+                    
+                    #[cfg(feature = "sp1")]{
+                        proof_vec.push(proof); // CONVERSION NEEDED to SP1ProofWithPublicValues
+                    }
+                    
                     #[cfg(feature = "risc0")]
                     zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
@@ -261,17 +268,72 @@ where
                 })
             })
             .collect();
-
+        
         let zkvm_txs = zkvm_txs?;
 
         zkvm_prover.add_input(&zkvm_txs).unwrap();
         zkvm_prover.add_input(&state_update.1).unwrap();
         zkvm_prover.add_input(&header).unwrap();
         zkvm_prover.add_input(&header_store).unwrap();
-        let mut proof = zkvm_prover.prove()?;
 
-        let result: NexusHeader = proof.public_inputs()?;
-        (proof, result)
+        #[cfg(feature = "sp1")] 
+        {
+
+         let mut final_proof : P ; 
+        
+         if let Some(sp1_prover) = prover.as_any().downcast_ref::<Sp1Prover>() { 
+         
+         match sp1_prover.prover_mode {
+           //  if(sp1_prover.prover_mode == ProverMode::Compressed){
+           ProverMode::Compressed => {
+            let stdin = SP1Stdin::new();
+
+            let (pk,vk) = sp1_prover.sp1_client.setup(&self.elf);
+
+            // vkeys
+            let vk_vec = vec![vk.hash_u32(); proof_vec.len()];
+            stdin.write::<Vec<[u32; 8]>>(&vkeys);
+
+            // public values
+            let public_values_vec: Vec<_> = proof_vec.iter().map(|proof| proof.public_values.clone().to_vec()).collect();
+            stdin.write::<Vec<Vec<u8>>>(&public_values);  
+
+            for proof in proof_vec {
+                let SP1Proof::Compressed(p) = proof.proof else { panic!() };
+                stdin.write_proof(p ,vk.vk.clone());
+            }
+
+            let sp1_proof = Sp1Proof::Real(
+                     sp1_prover.sp1_client
+                            .prove(&pk, stdin)
+                            .compressed()
+                            .run()
+                            .expect("proof generation failed"),
+            );   
+
+            let nexus_proof: NexusProof = sp1_proof.try_into()
+                    .map_err(|e| anyhow!("Failed to convert to NexusProof: {:?}", e))?;
+                
+            final_proof = P::try_from(nexus_proof)
+                    .map_err(|e| anyhow!("Failed to convert to target proof type: {:?}", e));
+
+         }
+         _ => {
+          final_proof = sp1_prover.prove()?;
+         }
+        }
+
+        }else{
+            panic!("Expected SP1Prover, but got another prover type");
+        }          
+  
+        }
+        
+        #[cfg(feature = "risc0")] 
+        let mut final_proof = zkvm_prover.prove()?;
+
+        let result: NexusHeader = final_proof.public_inputs()?;
+        (final_proof, result)
     };
 
     header_store.push_front(&result);

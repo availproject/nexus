@@ -1,5 +1,5 @@
 use crate::types::Proof;
-
+use std::any::Any;
 use super::traits::ZKVMEnv;
 #[cfg(any(feature = "native-risc0"))]
 use super::traits::{ZKVMProof, ZKVMProver};
@@ -60,6 +60,11 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
 
         Ok(RiscZeroProof(receipt.receipt))
     }
+
+    fn as_any(&self) -> &dyn Any {
+        unimplemented!("Need not be implemented")
+    }
+
 }
 
 #[cfg(any(feature = "native-risc0"))]

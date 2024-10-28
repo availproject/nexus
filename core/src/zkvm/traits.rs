@@ -1,14 +1,15 @@
 use crate::types::Proof as NexusProof;
 use serde::{de::DeserializeOwned, Serialize};
-
+use std::any::Any;
 use super::ProverMode;
 
 #[cfg(any(feature = "native"))]
-pub trait ZKVMProver<R: ZKVMProof> {
+pub trait ZKVMProver<R: ZKVMProof>:Any {
     fn new(elf: Vec<u8>, prover_mode: ProverMode) -> Self;
     fn add_input<T: Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error>;
     fn add_proof_for_recursion(&mut self, proof: R) -> Result<(), anyhow::Error>;
     fn prove(&mut self) -> Result<R, anyhow::Error>;
+    fn as_any(&self) -> &dyn Any;
 }
 
 #[cfg(any(feature = "native"))]

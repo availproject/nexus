@@ -1,4 +1,5 @@
 use super::traits::ZKVMEnv;
+use std::any::Any;
 #[cfg(any(feature = "native-sp1"))]
 use super::traits::{ZKVMProof, ZKVMProver};
 use super::ProverMode;
@@ -21,10 +22,10 @@ use std::borrow::Cow;
 
 #[cfg(any(feature = "native-sp1"))]
 pub struct Sp1Prover {
-    sp1_standard_input: SP1Stdin,
-    sp1_client: ProverClient,
-    elf: Vec<u8>,
-    prover_mode: ProverMode,
+    pub sp1_standard_input: SP1Stdin,
+    pub sp1_client: ProverClient,
+    pub elf: Vec<u8>,
+    pub prover_mode: ProverMode,
 }
 
 #[cfg(any(feature = "native-sp1"))]
@@ -58,7 +59,17 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
                 let (output, stats) = self.sp1_client.execute(&self.elf, sp1_input).run().unwrap();
 
                 Sp1Proof::Mock(output)
-            }
+            },
+            // ProverMode::Compressed => {
+            //     let (pk, vk) = self.sp1_client.setup(&self.elf);
+            //     Sp1Proof::Real(
+            //         self.sp1_client
+            //             .prove(&pk, sp1_input)
+            //             .compressed()
+            //             .run()
+            //             .expect("proof generation failed"),
+            //     )
+            // },
             _ => {
                 let (pk, vk) = self.sp1_client.setup(&self.elf);
                 Sp1Proof::Real(
@@ -72,6 +83,11 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
 
         Ok(proof)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
 }
 // #[cfg(any(feature = "native-sp1"))]
 // #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,9 +191,10 @@ impl ZKVMEnv for SP1ZKVM {
         let serialized_data = serialize_to_data(public_input)?;
         let byte_slice: &[u8] = serialized_data.as_ref();
         let public_values_digest = Sha256::digest(byte_slice);
-        // unsafe {
-        //     sp1_zkvm::lib::syscall_verify_sp1_proof(&img_id, public_values_digest)
-        // }
+        let mut digest_array = [0u8; 32];
+        digest_array.copy_from_slice(&public_values_digest);
+        sp1_zkvm::lib::verify::verify_sp1_proof(&img_id, &digest_array);
+
         Ok(())
     }
 

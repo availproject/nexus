@@ -12,7 +12,8 @@ use nexus_core::types::{AppAccountId, StatementDigest};
 #[cfg(any(feature = "native-risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover};
 use nexus_core::zkvm::traits::ZKVMEnv;
-
+#[cfg(any(feature = "sp1"))]
+use nexus_core::zkvm::sp1::{Sp1Prover,Sp1Proof};
 #[cfg(any(feature = "native"))]
 use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 use nexus_core::zkvm::ProverMode;
@@ -21,6 +22,8 @@ use serde::{Deserialize, Serialize};
 use types::L1BatchNumber;
 pub use zksync_basic_types::ethabi::{Bytes, Token};
 use zksync_basic_types::{web3::keccak256, H256, U256, U64};
+#[cfg(any(feature = "sp1"))]
+use sp1_sdk::{SP1Stdin,SP1Proof,HashableKey,SP1ProofWithPublicValues};
 // use zksync_types::commitment::serialize_commitments;
 // use zksync_types::commitment::serialize_commitments;
 pub mod constants;
@@ -257,7 +260,7 @@ impl STF {
     #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
     pub fn create_recursive_proof<
         Z: ZKVMProver<P>,
-        P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>,
+        P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof> + Into<NexusProof>,
         E: ZKVMEnv,
     >(
         &self,
@@ -317,7 +320,7 @@ impl STF {
             nexus_hash.clone(),
             self.prover_mode.clone(),
         )?;
-
+        
         let mut prover = Z::new(self.elf.clone(), self.prover_mode.clone());
 
         prover.add_input(&prev_adapter_pi)?;
@@ -337,6 +340,106 @@ impl STF {
             None => (),
         };
 
+        #[cfg(feature = "sp1")]
+        {
+        
+        // if(self.prover_mode == ProverMode::Compressed) {
+        match self.prover_mode {
+            ProverMode::Compressed => {
+                if let Some(sp1_prover) = prover.as_any().downcast_ref::<Sp1Prover>() {
+                    let (pk,vk) = sp1_prover.sp1_client.setup(&self.elf);
+
+                    let mut sp1_input = sp1_prover.sp1_standard_input.clone();
+
+                    let proof1 = sp1_prover.sp1_client
+                                .prove(&pk, sp1_input)
+                                .compressed()
+                                .run()
+                                .expect("proof generation failed");
+
+                    // Convert proof2 from Option<P> to Sp1Proof
+                    // Assumption : The prover mode of prev_adapter_proof is ProverMode::Compressed beforehand
+                    let proof2: SP1ProofWithPublicValues = match prev_adapter_proof {
+                        Some(p) => {
+                            //  convert P to NexusProof
+                            let nexus_proof: NexusProof = p.into();
+                               // .map_err(|e| anyhow!("Failed to convert to NexusProof: {:?}", e))?;
+                            
+                            // from NexusProof to Sp1Proof
+                            let sp1_proof = Sp1Proof::try_from(nexus_proof)
+                                .map_err(|e| anyhow!("Failed to convert to Sp1Proof: {:?}", e))?;
+
+                            match sp1_proof {
+                                Sp1Proof::Real(i) => {
+                                    i
+                                },
+                                Sp1Proof::Mock(i) => {
+                                 panic!("wrong proof type");
+                                }
+                            }
+                        },
+                        None => {
+                            return Err(anyhow!("Previous proof not provided, and it should be provided if not first recursive proof."));
+                        }
+                    };
+
+                    let mut stdin = SP1Stdin::new();
+
+                    // vkeys
+                    let vkeys = vec![vk.clone().hash_u32(), vk.clone().hash_u32()];
+                    stdin.write::<Vec<[u32; 8]>>(&vkeys);
+
+                    // public values
+                    // let proof2_public_inputs = proof2.public_inputs()?;
+                    let public_values = vec![
+                        proof1.public_values.clone().to_vec(),
+                        proof2.public_values.clone().to_vec(),
+                    ];
+                    stdin.write::<Vec<Vec<u8>>>(&public_values);
+
+                    let proof_vec = vec![proof1, proof2];
+
+                    for proof in proof_vec {
+                        match &proof {
+                            SP1ProofWithPublicValues => {
+                                let SP1Proof::Compressed(p) = proof.proof else { panic!() };
+                                stdin.write_proof(p, vk.vk.clone());
+                            },
+                            _ => {
+                                return Err(anyhow!("Expected real proof, got mock proof"));
+                            }
+                        }
+                    }
+                    
+                    sp1_input = stdin;
+
+                // Create Sp1Proof and convert it to type P
+                let sp1_proof = Sp1Proof::Real(
+                    sp1_prover.sp1_client
+                        .prove(&pk, sp1_input)
+                        .compressed()
+                        .run()
+                        .expect("proof generation failed")
+                );
+
+                // Convert Sp1Proof to NexusProof and then to P
+                let nexus_proof: NexusProof = sp1_proof.try_into()
+                    .map_err(|e| anyhow!("Failed to convert to NexusProof: {:?}", e))?;
+                
+                return P::try_from(nexus_proof)
+                    .map_err(|e| anyhow!("Failed to convert to target proof type: {:?}", e));
+
+                } else {
+                    panic!("Expected SP1Prover, but got another prover type");
+                }            
+            }
+            _ => {}
+        }
+            // prover.prove()
+    }
+
         prover.prove()
     }
 }
+
+
