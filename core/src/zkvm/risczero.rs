@@ -50,13 +50,21 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
         let env: ExecutorEnv = self.env_builder.build().map_err(|e| anyhow!(e))?;
 
         let prover = default_prover();
-        // let stats = prover.execute(env, &self.elf).map_err(|e| anyhow!(e))?;
-        // println!("Execution stats: {:?}", stats);
+
         let prover_opts = ProverOpts::succinct();
 
-        let receipt = prover
-        .prove_with_opts(env, &self.elf, &prover_opts)
-        .map_err(|e| anyhow!("Error when proving: {:?}", e))?;
+        let receipt = match &self.prover_mode {
+            ProverMode::MockProof => {
+                prover
+                .prove(env, &self.elf)
+                .map_err(|e| anyhow!("Error when proving: {:?}", e))?
+            }
+            _ => {
+                prover
+                .prove_with_opts(env, &self.elf, &prover_opts)
+                .map_err(|e| anyhow!("Error when proving: {:?}", e))?
+            }
+        };
 
         let duration = start_time.elapsed(); // Calculate elapsed time
         println!("Prover stats: {:?}", receipt.stats);
