@@ -54,14 +54,14 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
 
         let real_proof = match proof {
             Sp1Proof::Real(i) => i,
-            Sp1Proof::Mock(i) => panic!(),
+            Sp1Proof::Mock(i) => return Err(Error::msg("Expected a Real Proof , found a mock proof")),
         };
 
         self.sp1_standard_input
             .write::<Vec<u8>>(&real_proof.public_values.clone().to_vec());
 
         let SP1Proof::Compressed(p) = real_proof.proof else {
-            panic!()
+            return Err(Error::msg("Proof Compression failed"))
         };
         self.sp1_standard_input.write_proof(p, vk.vk.clone());
         Ok(())
