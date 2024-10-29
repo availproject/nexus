@@ -20,7 +20,7 @@ type Proof = {
 };
 
 type ReceiveMessageArgs = {
-  storageKey: string
+  storageKey: string;
 };
 
 export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
@@ -30,17 +30,25 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     private verifierChain: ChainDetails,
     mailboxAbi: InterfaceAbi
   ) {
-    super()
+    super();
 
     //TODO: remove this logic from constructor.
-    this.mailboxClient = new MailBoxClient(
-      chains,
-      mailboxAbi
-    );
+    this.mailboxClient = new MailBoxClient(chains, mailboxAbi);
   }
 
-  async sendMessage(chainIdTo: string[], to: string[], nonce: number, data: string) {
-    await this.mailboxClient.sendMessage(this.verifierChain.appID, chainIdTo, to, nonce, data);
+  async sendMessage(
+    chainIdTo: string[],
+    to: string[],
+    nonce: number,
+    data: string
+  ) {
+    await this.mailboxClient.sendMessage(
+      this.verifierChain.appID,
+      chainIdTo,
+      to,
+      nonce,
+      data
+    );
   }
 
   async getReceiveMessageProof(
@@ -48,7 +56,11 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     receipt: MailboxMessageStruct,
     args: ReceiveMessageArgs
   ): Promise<Proof> {
-    const proof = await this.getStorageProof(args.storageKey, chainblockNumber, receipt.nexusAppIDFrom.toString());
+    const proof = await this.getStorageProof(
+      args.storageKey,
+      chainblockNumber,
+      receipt.nexusAppIDFrom.toString()
+    );
     if (!proof) throw new Error("Proof not found");
 
     const proofSC: Proof = {
@@ -64,18 +76,21 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
   }
 
   encodeMessageProof(proof: Proof): string {
-    const encodedProof = AbiCoder.defaultAbiCoder().encode(
-      ["uint64", "address", "bytes32", "bytes32[]", "uint64"],
-      [
-        proof.batchNumber,
-        proof.account,
-        proof.value,
-        proof.path,
-        proof.index,
-      ]
-    );
+    const types = [
+      "tuple(uint64 batchNumber, address account, bytes32 value, bytes32[] path, uint64 index)",
+    ];
 
-    return encodedProof;
+    const values = [
+      {
+        batchNumber: proof.batchNumber,
+        account: proof.account,
+        value: proof.value,
+        path: proof.path,
+        index: proof.index,
+      },
+    ];
+
+    return ethers.AbiCoder.defaultAbiCoder().encode(types, values);
   }
 
   async receiveMessage(
@@ -83,7 +98,11 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     receipt: MailboxMessageStruct,
     args: ReceiveMessageArgs
   ): Promise<TransactionReceipt> {
-    const proof = await this.getStorageProof(args.storageKey, chainblockNumber, receipt.nexusAppIDFrom.toString());
+    const proof = await this.getStorageProof(
+      args.storageKey,
+      chainblockNumber,
+      receipt.nexusAppIDFrom.toString()
+    );
     if (!proof) throw new Error("Proof not found");
 
     const proofSC: Proof = {
@@ -110,24 +129,28 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
       receipt.nexusAppIDFrom.toString(),
       chainblockNumber,
       receipt,
-      encodedProof,
+      encodedProof
     );
   }
 
   async getStorageProof(
     storageKey: string,
     batchNumber: number,
-    fromAppID: string,
+    fromAppID: string
   ): Promise<RpcProof | undefined> {
-    const storageProofManager = new StorageProofProvider(new Provider(this.chains[fromAppID].rpcUrl));
+    const storageProofManager = new StorageProofProvider(
+      new Provider(this.chains[fromAppID].rpcUrl)
+    );
 
     try {
-      console.log("getting storage proof for contract: ", this.chains[fromAppID].mailboxContract,
+      console.log(
+        "getting storage proof for contract: ",
+        this.chains[fromAppID].mailboxContract,
         "\n calculated storage key is: ",
         storageKey,
         "\n batch number is: ",
         batchNumber
-      )
+      );
       let proof = await storageProofManager.getProof(
         this.chains[fromAppID].mailboxContract,
         storageKey,

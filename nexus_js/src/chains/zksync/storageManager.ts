@@ -9,7 +9,7 @@ export class StorageProofProvider {
   */
   readonly BLOCK_QUERY_OFFSET = 150;
 
-  constructor(public l2Provider: L2Provider) { }
+  constructor(public l2Provider: L2Provider) {}
 
   /** Updates L2 provider */
   public setL2Provider(provider: L2Provider) {
@@ -56,13 +56,7 @@ export class StorageProofProvider {
     storageKeys: Array<string>,
     batchNumber?: number
   ): Promise<RpcProof[]> {
-    console.log(
-      "Proof query",
-      address,
-      storageKeys,
-      batchNumber,
-    );
-    console.log("RPC: ", this.l2Provider.provider);
+    console.log("Proof query", address, storageKeys, batchNumber);
 
     // If batch number is not provided, get the latest batch number
     if (batchNumber == undefined) {
