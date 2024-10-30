@@ -51,9 +51,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let prover_mode = if dev_flag {
-        ProverMode::MockProof
+        ProverMode::Groth16
     } else {
-        ProverMode::Compressed
+        ProverMode::Groth16
     };
 
     let node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
@@ -143,7 +143,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut old_headers,
                     prover_mode.clone()
                 ).await {
-                    Ok((_, result)) => {
+                    
+                    Ok((mut proof, result)) => { //assumption that the proof will be given as succinct here.
+                        
+                        match prover_mode.clone() {
+                            ProverMode::Groth16 => {
+                               proof.compress(); // might want to add another variable for other proof choices 
+                            },
+                            _ => {},
+                        }
+
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
 
