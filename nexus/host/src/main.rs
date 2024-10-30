@@ -51,9 +51,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let prover_mode = if dev_flag {
-        ProverMode::Groth16
+        ProverMode::MockProof
     } else {
-        ProverMode::Groth16
+        ProverMode::Compressed
     };
 
     let node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
