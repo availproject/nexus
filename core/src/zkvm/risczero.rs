@@ -89,7 +89,6 @@ impl ZKVMProof for RiscZeroProof {
         let prover_opts = ProverOpts::groth16();
         self.0 = prover.compress(&prover_opts, &self.0.clone())?;
         Ok(())
-
     }
 }
 
