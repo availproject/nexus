@@ -144,6 +144,20 @@ impl ZKVMProof for Sp1Proof {
             }
         }
     }
+
+    fn compress(&mut self) -> Result<(), anyhow::Error> {
+        match self {
+          Sp1Proof::Real(i) => {
+            if let Some(groth16_proof) = i.proof.clone().try_as_groth_16() {
+                i.proof = SP1Proof::Groth16(groth16_proof);
+            } else {
+                return Err(anyhow::anyhow!("Proof is not of type Groth16"));
+            }
+          },
+          Sp1Proof::Mock(i) => {},
+        }
+        Ok(())
+    }
 }
 
 #[cfg(any(feature = "native-sp1"))]
