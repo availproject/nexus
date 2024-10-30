@@ -53,17 +53,20 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
 
         let prover_opts = ProverOpts::succinct();
 
+        let prover_opts: ProverOpts = match &self.prover_mode {
+            ProverMode::MockProof => ProverOpts::fast(),
+            ProverMode::Compressed => ProverOpts::succinct(),
+            ProverMode::NoAggregation => ProverOpts::composite(),
+            ProverMode::Groth16 => ProverOpts::groth16(),
+        };
+        
         let receipt = match &self.prover_mode {
-            ProverMode::MockProof => {
-                prover
+            ProverMode::MockProof => prover
                 .prove(env, &self.elf)
-                .map_err(|e| anyhow!("Error when proving: {:?}", e))?
-            }
-            _ => {
-                prover
+                .map_err(|e| anyhow!("Error when proving: {:?}", e))?,
+            _ => prover
                 .prove_with_opts(env, &self.elf, &prover_opts)
-                .map_err(|e| anyhow!("Error when proving: {:?}", e))?
-            }
+                .map_err(|e| anyhow!("Error when proving: {:?}", e))?,
         };
 
         let duration = start_time.elapsed(); // Calculate elapsed time
