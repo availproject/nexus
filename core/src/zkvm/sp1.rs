@@ -15,7 +15,7 @@ use sha2::Sha256;
 #[cfg(any(feature = "native-sp1"))]
 use sp1_sdk::{
     utils, ProverClient, SP1Proof, SP1ProofWithPublicValues, SP1Prover, SP1ProvingKey,
-    SP1PublicValues, SP1Stdin, SP1VerifyingKey,
+    SP1PublicValues, SP1Stdin, SP1VerifyingKey,HashableKey,
 };
 use std::borrow::Cow;
 
@@ -45,8 +45,25 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         self.sp1_standard_input.write(input);
         Ok(())
     }
+
     fn add_proof_for_recursion(&mut self, proof: Sp1Proof) -> Result<(), anyhow::Error> {
-        unimplemented!("Not implemented since sp1 requires compressed proof");
+        let (pk, vk) = self.sp1_client.setup(&self.elf);
+
+        self.sp1_standard_input
+            .write::<[u32; 8]>(&vk.clone().hash_u32());
+
+        let real_proof = match proof {
+            Sp1Proof::Real(i) => i,
+            Sp1Proof::Mock(i) => return Err(Error::msg("Expected a Real Proof , found a mock proof")),
+        };
+
+        self.sp1_standard_input
+            .write::<Vec<u8>>(&real_proof.public_values.clone().to_vec());
+
+        let SP1Proof::Compressed(p) = real_proof.proof else {
+            return Err(Error::msg("Proof Compression failed"))
+        };
+        self.sp1_standard_input.write_proof(p, vk.vk.clone());
         Ok(())
     }
 
@@ -58,6 +75,16 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
                 let (output, stats) = self.sp1_client.execute(&self.elf, sp1_input).run().unwrap();
 
                 Sp1Proof::Mock(output)
+            }
+            ProverMode::Compressed => {
+                let (agg_pk, agg_vk) = self.sp1_client.setup(&self.elf);
+                Sp1Proof::Real(
+                    self.sp1_client
+                        .prove(&agg_pk, sp1_input)
+                        .compressed()
+                        .run()
+                        .expect("proof generation failed"),
+                )
             }
             _ => {
                 let (pk, vk) = self.sp1_client.setup(&self.elf);
@@ -175,9 +202,10 @@ impl ZKVMEnv for SP1ZKVM {
         let serialized_data = serialize_to_data(public_input)?;
         let byte_slice: &[u8] = serialized_data.as_ref();
         let public_values_digest = Sha256::digest(byte_slice);
-        // unsafe {
-        //     sp1_zkvm::lib::syscall_verify_sp1_proof(&img_id, public_values_digest)
-        // }
+        let mut digest_array = [0u8; 32];
+        digest_array.copy_from_slice(&public_values_digest);
+        sp1_zkvm::lib::verify::verify_sp1_proof(&img_id, &digest_array);
+        
         Ok(())
     }
 

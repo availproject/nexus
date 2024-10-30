@@ -251,7 +251,6 @@ where
                     //     }
                     // };
 
-                    #[cfg(feature = "risc0")]
                     zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
 
