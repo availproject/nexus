@@ -8,6 +8,7 @@ use nexus_core::{
     zkvm::{
         risczero::{RiscZeroProof, ZKVM},
         traits::{ZKVMProof, ZKVMEnv, ZKVMProver},
+        ProverMode
     },
 };
 
@@ -21,6 +22,7 @@ fn main() {
             adapter_elf_id: StatementDigest(ADAPTER_ID),
             vk: [0u8; 32],
             rollup_start_height: 606460,
+            prover_mode: ProverMode::MockProof
         },
     );
     let rt = tokio::runtime::Runtime::new().unwrap();

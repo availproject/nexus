@@ -11902,10 +11902,13 @@ dependencies = [
  "lazy_static",
  "libm",
  "once_cell",
+ "p3-baby-bear",
+ "p3-field",
  "rand 0.8.5",
  "serde",
  "sha2 0.10.8",
  "sp1-lib",
+ "sp1-primitives",
 ]
 
 [[package]]
@@ -14422,6 +14425,7 @@ dependencies = [
  "hex",
  "nexus-core",
  "num-bigint 0.4.6",
+ "parity-scale-codec",
  "serde",
  "tiny-keccak",
  "zksync_basic_types",
