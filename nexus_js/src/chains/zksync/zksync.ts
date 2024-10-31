@@ -143,14 +143,6 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
     );
 
     try {
-      console.log(
-        "getting storage proof for contract: ",
-        this.chains[fromAppID].mailboxContract,
-        "\n calculated storage key is: ",
-        storageKey,
-        "\n batch number is: ",
-        batchNumber
-      );
       let proof = await storageProofManager.getProof(
         this.chains[fromAppID].mailboxContract,
         storageKey,

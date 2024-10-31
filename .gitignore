@@ -11,3 +11,5 @@ Cargo.lock
 .DS_Store
 **/dist
 **/node_modules
+contracts/broadcast
+contracts/out
