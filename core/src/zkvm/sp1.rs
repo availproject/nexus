@@ -145,8 +145,10 @@ impl ZKVMProof for Sp1Proof {
         }
     }
 
-    fn compress(&mut self) -> Result<(), anyhow::Error> {
-        match self {
+    fn compress(&mut self) -> Result<(Sp1Proof), anyhow::Error> {
+        let new_proof = self.clone();
+
+        match new_proof {
           Sp1Proof::Real(i) => {
             if let Some(groth16_proof) = i.proof.clone().try_as_groth_16() {
                 i.proof = SP1Proof::Groth16(groth16_proof);
@@ -156,7 +158,7 @@ impl ZKVMProof for Sp1Proof {
           },
           Sp1Proof::Mock(i) => {},
         }
-        Ok(())
+        Ok((new_proof))
     }
 }
 
