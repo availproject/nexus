@@ -101,7 +101,7 @@ impl ZKVMProof for RiscZeroProof {
         let prover = default_prover();
         let prover_opts = ProverOpts::groth16();
         let new_proof = prover.compress(&prover_opts, &self.0.clone())?;
-        Ok((RiscZero(new_proof)))
+        Ok((RiscZeroProof(new_proof)))
     }
 }
 
@@ -163,15 +163,3 @@ pub trait ProofConversion: std::convert::From<RiscZeroProof> {}
 #[cfg(any(feature = "native-risc0"))]
 impl ProofConversion for RiscZeroProof {}
 
-/*
-
-create recursive proof harcoded
-
-zksync_adapter/lib.rs
-
-new_rollup_proof Vec<String>
-
-L1_batch_metadata 
-
-proofwithcommitmentand l1metadata
-*/
