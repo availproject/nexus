@@ -97,11 +97,11 @@ impl ZKVMProof for RiscZeroProof {
         self.0.verify(img_id).map_err(|e| anyhow!(e))
     }
 
-    fn compress(&mut self) -> Result<(RiscZeroProof), anyhow::Error> { 
+    fn compress(&mut self) -> Result<RiscZeroProof, anyhow::Error> { 
         let prover = default_prover();
         let prover_opts = ProverOpts::groth16();
         let new_proof = prover.compress(&prover_opts, &self.0.clone())?;
-        Ok((RiscZeroProof(new_proof)))
+        Ok(RiscZeroProof(new_proof))
     }
 }
 

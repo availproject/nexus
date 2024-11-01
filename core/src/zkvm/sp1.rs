@@ -145,7 +145,7 @@ impl ZKVMProof for Sp1Proof {
         }
     }
 
-    fn compress(&mut self) -> Result<(Sp1Proof), anyhow::Error> {
+    fn compress(&mut self) -> Result<Sp1Proof, anyhow::Error> {
         let mut new_proof = self.clone();
 
         match new_proof.clone() {
@@ -158,7 +158,7 @@ impl ZKVMProof for Sp1Proof {
           },
           Sp1Proof::Mock(i) => {},
         }
-        Ok((new_proof))
+        Ok(new_proof)
     }
 }
 

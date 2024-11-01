@@ -17,7 +17,7 @@ pub trait ZKVMProof: Sized {
     fn public_inputs<V: Serialize + DeserializeOwned + Clone>(
         &mut self,
     ) -> Result<V, anyhow::Error>;
-    fn compress(&mut self) -> Result<(Self),anyhow::Error>;
+    fn compress(&mut self) -> Result<Self,anyhow::Error>;
 }
 
 // pub trait ZKProof {
