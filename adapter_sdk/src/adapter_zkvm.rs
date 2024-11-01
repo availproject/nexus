@@ -101,7 +101,7 @@ pub fn verify_proof<P: RollupProof>(
     //TODO: Check inclusion proof for data blob, app index check, and empty block check.
     let mut hasher = ShaHasher::new();
 
-    hasher.0.update(&private_inputs.app_id.0.to_be_bytes());
+    digest::Digest::update(&mut hasher.0, &private_inputs.app_id.0.to_be_bytes());
 
     let hash: H256 = hasher.finish();
     let app_account_id: AppAccountId = AppAccountId::from(hash);

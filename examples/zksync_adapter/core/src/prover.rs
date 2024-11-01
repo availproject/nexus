@@ -4,7 +4,7 @@ use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
 use nexus_core::zkvm::traits::ZKVMEnv;
 use nexus_core::zkvm::ProverMode;
-// use risc0_zkvm::serde::to_vec;
+use parity_scale_codec::KeyedVec;
 
 pub fn run<Z: ZKVMEnv>() {
     let previous_adapter_pi: AdapterPublicInputs = Z::read_input::<AdapterPublicInputs>().unwrap();
