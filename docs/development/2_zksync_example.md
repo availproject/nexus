@@ -75,5 +75,20 @@ This guide will help you set up and run the ZKSync adapter with Avail Nexus.
     ```
 For mock proofs, the `--dev` flag is used; for real proofs, it must be omitted.
 
+## Benchmarking 
+
+- To benchmark change the working directory to `bench` in zksync_adapter
+   ```
+   cd examples/zksync_adapter/bench
+   ```
+- To benchmark risc0 implementation of adapter prover run
+   ```
+   cargo bench
+   ```
+- To benchmark sp1 implementation of adapter prover run
+   ```
+   cargo bench --features sp1 --no-default-features 
+   ```   
+   
 ### Important Note:
 The ZKVM used by the ZKSync adapter must match the ZKVM used by the Nexus server for compatibility.
