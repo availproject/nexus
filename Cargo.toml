@@ -16,7 +16,7 @@ members = [
     "examples/zksync_adapter/core",
     "adapter_sdk",
     "smt_playground", 
-    "nexus_cli",
+    "nexus_cli", "examples/zksync_adapter/bench",
 ]
 
 [patch.crates-io]
