@@ -1253,6 +1253,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "bench-nexus"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "env_logger",
+ "host",
+ "log",
+ "nexus-core",
+ "primitive-types",
+ "prover",
+ "risc0-zkvm",
+ "sp1-sdk",
+ "sparse-merkle-tree",
+]
+
+[[package]]
 name = "bigdecimal"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
