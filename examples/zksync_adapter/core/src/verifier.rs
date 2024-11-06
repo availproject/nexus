@@ -271,7 +271,7 @@ impl ZksyncVerifier {
 
         let lhs = proof.quotient_poly_opening_at_z.mul(vanishing);
 
-        // assert_eq!(lhs, result); // @TODO might have to comment this 
+        // assert_eq!(lhs, result); // this check currently fails 
     }
 
     fn evaluate_lagrange_poly_out_of_domain(
