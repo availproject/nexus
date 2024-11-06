@@ -2,17 +2,18 @@ use std::fs;
 use std::path::PathBuf;
 use std::env;
 use std::time::Instant;
-use nexus_core::types::HeaderStore;
-use nexus_core::types::Digest;
-use nexus_core::types::H256;
-use nexus_core::types::AvailHeader;
-use nexus_core::types::TransactionV2;
-use nexus_core::state_machine::StateMachine;
-use nexus_core::types::V3Extension;
-use nexus_core::types::Extension;
-use nexus_core::types::KateCommitment;
-use nexus_core::types::DataLookup;
-use nexus_core::zkvm::ProverMode;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use nexus_core::{
+    types::{
+        AvailHeader, DataLookup, Digest, Extension, H256, HeaderStore,
+        KateCommitment, TransactionV2, V3Extension,
+    },
+    state_machine::{StateMachine, VmState},
+    zkvm::ProverMode,
+};
+
+// #[cfg(any(feature = "risc0", feature = "sp1"))]
 use host::execute_batch;
 
 #[cfg(feature = "risc0")]
@@ -60,7 +61,12 @@ fn create_mock_data() -> (
     &'static mut HeaderStore
 ){
    let txs : Vec<TransactionV2> = Vec::new();
-   let state_machine = StateMachine::<ZKVM,Proof>::new();
+   
+//    let vm_state = VmState::default();
+//    let state = Arc::new(Mutex::new(vm_state));
+   
+   let state_machine = StateMachine::<ZKVM,Proof>::new(state);
+   
    let header = AvailHeader {
      parent_hash : H256::zero(),
      number : 0 ,
