@@ -134,8 +134,8 @@ pub struct StateUpdate {
 //TODO: Store on hash list, instead of headers.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeaderStore {
-    inner: Vec<NexusHeader>,
-    max_size: usize,
+   pub inner: Vec<NexusHeader>,
+   pub max_size: usize,
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
