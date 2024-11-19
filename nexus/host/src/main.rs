@@ -17,6 +17,8 @@ use nexus_core::{
         ProverMode,
     },
 };
+use host::AvailToNexusPointer;
+use host::execute_batch;
 
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
@@ -42,6 +44,10 @@ use warp::Filter;
 use crate::rpc::routes;
 
 mod rpc;
+// mod lib; 
+
+use std::fs::OpenOptions;
+use std::io::Write;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args().collect();
@@ -135,7 +141,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     header.number,
                     txs.len()
                 );
-
+                
+                // capture txs , state_machine , availHeaeer an heaerstore in another file in json format
                 match execute_batch::<Prover, Proof, ZKVM>(
                     &txs,
                     &mut state_machine,
@@ -144,6 +151,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     prover_mode.clone()
                 ).await {                    
                     Ok((mut proof, result)) => { //assumption that the proof will be given as succinct here.
+                        
+                        let mut debug_file = match OpenOptions::new()
+    .create(true)
+    .write(true)
+    .truncate(true) // Overwrites the file content each time
+    .open("debug_output.txt")
+{
+    Ok(file) => file,
+    Err(e) => {
+        eprintln!("Failed to open debug_output.txt: {:?}", e);
+        return;
+    }
+};
+
+println!("Capturing debug data...");
+// Write the debug data into the file
+if let Err(e) = writeln!(
+    debug_file,
+    "Transactions (txs): {:?}\n Avail Header: {:?}\n Header Store: {:?}",
+    txs, 
+    AvailHeader::from(&header),
+    old_headers
+) {
+    eprintln!("Failed to write debug data to file: {:?}", e);
+} else {
+    println!("Debug data written to debug_output.txt");
+}
+
                         let compressed_proof = proof.compress();
 
                         let db_lock = db.lock().await;
@@ -210,90 +245,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
-pub async fn execute_batch<
-    Z: ZKVMProver<P>,
-    P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
-    E: ZKVMEnv,
->(
-    txs: &Vec<TransactionV2>,
-    state_machine: &mut StateMachine<E, P>,
-    header: &AvailHeader,
-    header_store: &mut HeaderStore,
-    prover_mode: ProverMode,
-) -> Result<(P, NexusHeader), Error>
-where
-    <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
-{
-    let state_update = state_machine
-        .execute_batch(&header, header_store, &txs)
-        .await?;
-
-    let (proof, result) = {
-        #[cfg(any(feature = "sp1"))]
-        let NEXUS_RUNTIME_ELF: &[u8] =
-            include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
-
-        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode);
-
-        let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
-            .iter()
-            .map(|tx| {
-                if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
-                    //TODO: Remove transactions that error out from mempool
-                    let proof = submit_proof_tx.proof.clone();
-                    let receipt: P = P::try_from(proof).unwrap();
-                    // let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
-                    //     Some(i) => i,
-                    //     None => {
-                    //         return Err(anyhow!(
-                    //      "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
-                    //      submit_proof_tx.app_id
-                    //  ))
-                    //     }
-                    // };
-
-                    zkvm_prover.add_proof_for_recursion(receipt).unwrap();
-                }
-
-                Ok(TransactionZKVM {
-                    signature: tx.signature.clone(),
-                    params: tx.params.clone(),
-                })
-            })
-            .collect();
-
-        let zkvm_txs = zkvm_txs?;
-
-        zkvm_prover.add_input(&zkvm_txs).unwrap();
-        zkvm_prover.add_input(&state_update.1).unwrap();
-        zkvm_prover.add_input(&header).unwrap();
-        zkvm_prover.add_input(&header_store).unwrap();
-        let mut proof = zkvm_prover.prove()?;
-
-        let result: NexusHeader = proof.public_inputs()?;
-        (proof, result)
-    };
-
-    header_store.push_front(&result);
-
-    match state_update.0 {
-        Some(i) => {
-            state_machine
-                .commit_state(&result.state_root, &i.node_batch)
-                .await?;
-        }
-        None => (),
-    }
-
-    Ok((proof, result))
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AvailToNexusPointer {
-    number: u32,
-    nexus_hash: H256,
-}
+ 
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+// pub struct AvailToNexusPointer {
+//     number: u32,
+//     nexus_hash: H256,
+// }
 
 // #[derive(Clone, Debug)]
 // pub struct BatchesToAggregate(Arc<Mutex<Vec<(Vec<InitTransaction>, AggregatedTransaction)>>>);

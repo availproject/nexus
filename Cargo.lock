@@ -1264,8 +1264,10 @@ dependencies = [
  "primitive-types",
  "prover",
  "risc0-zkvm",
+ "rocksdb",
  "sp1-sdk",
  "sparse-merkle-tree",
+ "tokio",
 ]
 
 [[package]]
