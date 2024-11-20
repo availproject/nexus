@@ -44,10 +44,6 @@ use warp::Filter;
 use crate::rpc::routes;
 
 mod rpc;
-// mod lib; 
-
-use std::fs::OpenOptions;
-use std::io::Write;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args().collect();
@@ -151,34 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     prover_mode.clone()
                 ).await {                    
                     Ok((mut proof, result)) => { //assumption that the proof will be given as succinct here.
-                        
-                        let mut debug_file = match OpenOptions::new()
-    .create(true)
-    .write(true)
-    .truncate(true) // Overwrites the file content each time
-    .open("debug_output.txt")
-{
-    Ok(file) => file,
-    Err(e) => {
-        eprintln!("Failed to open debug_output.txt: {:?}", e);
-        return;
-    }
-};
-
-println!("Capturing debug data...");
-// Write the debug data into the file
-if let Err(e) = writeln!(
-    debug_file,
-    "Transactions (txs): {:?}\n Avail Header: {:?}\n Header Store: {:?}",
-    txs, 
-    AvailHeader::from(&header),
-    old_headers
-) {
-    eprintln!("Failed to write debug data to file: {:?}", e);
-} else {
-    println!("Debug data written to debug_output.txt");
-}
-
+                                               
                         let compressed_proof = proof.compress();
 
                         let db_lock = db.lock().await;

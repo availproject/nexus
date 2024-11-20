@@ -38,7 +38,6 @@ use warp::Filter;
 use crate::rpc::routes;
 
 mod rpc;
-// mod lib;
 
 pub async fn execute_batch<
     Z: ZKVMProver<P>,

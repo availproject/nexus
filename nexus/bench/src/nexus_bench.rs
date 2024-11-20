@@ -28,32 +28,6 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
-/*
-
-    txs: &Vec<TransactionV2>,
-    state_machine: &mut StateMachine<E, P>,
-    header: &AvailHeader,
-    header_store: &mut HeaderStore,
-
-*/
-
-// fn dummy_extension() -> Extension {
-//     let app_lookup = DataLookup {
-//         size : 0,
-//         index: Vec::new(),
-//     };
-//     let commitment = KateCommitment{
-//        rows : 0,
-//        cols : 0,
-//        commitment: Vec::new(),
-//        data_root:H256::zero(),
-//     };
-
-//     Extension::V3(V3Extension {
-//         app_lookup,
-//         commitment,
-//     })
-// }
 
 fn create_mock_data() -> (
     Vec<TransactionV2>,
@@ -138,13 +112,6 @@ fn create_mock_data() -> (
 
     let header_store = HeaderStore {
         inner: vec![
-            // NexusHeader {
-            //     parent_hash: H256::try_from("484fab2652f9d9ada924943705a38c6170aa0bb337a44d6d9ac0d3f5a81466cc").unwrap(),
-            //     prev_state_root: H256::try_from("a53ae1f4c87243a95bb1884d9a7faad6c6274224447f5e758bfe59404b798d09").unwrap(),
-            //     state_root: H256::try_from("a53ae1f4c87243a95bb1884d9a7faad6c6274224447f5e758bfe59404b798d09").unwrap(),
-            //     avail_header_hash: H256::try_from("616020555dd2bf243029bbe8f49e8104f69fb7a49769d3d945dd75d5f558a8e5").unwrap(),
-            //     number: 347,
-            // },
             NexusHeader {
                 parent_hash: H256::try_from(
                     "f2b8b7095fd3cfb07bb7a32845db8bc84ee835e270e78f9e22c00c680e33a18f",
@@ -748,9 +715,9 @@ fn main() {
         .init();
 
     
-    let vec = vec![ProverMode::NoAggregation, ProverMode::Compressed];
+    let prover_modes = vec![ProverMode::NoAggregation, ProverMode::Compressed];
     
-    for i in 0..2 {
+    for i in 0..prover_modes.len() {
         let (txs, mut state_machine, header, mut header_store) = create_mock_data();
         let prover_mode = &vec[i.clone()];
 
@@ -759,7 +726,7 @@ fn main() {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         rt.block_on(async {
-            // Await the result of `execute_batch`
+            
             let (proof, header) = execute_batch::<Prover, Proof, ZKVM>(
                 &txs,
                 &mut state_machine,
