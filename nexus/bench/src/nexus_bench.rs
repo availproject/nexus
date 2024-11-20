@@ -747,11 +747,11 @@ fn main() {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    let (txs, mut state_machine, header, mut header_store) = create_mock_data();
-
+    
     let vec = vec![ProverMode::NoAggregation, ProverMode::Compressed];
-
+    
     for i in 0..2 {
+        let (txs, mut state_machine, header, mut header_store) = create_mock_data();
         let prover_mode = &vec[i.clone()];
 
         let start = Instant::now();
