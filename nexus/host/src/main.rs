@@ -142,8 +142,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &AvailHeader::from(&header),
                     &mut old_headers,
                     prover_mode.clone()
-                ).await {
-                    Ok((_, result)) => {
+                ).await {                    
+                    Ok((mut proof, result)) => { //assumption that the proof will be given as succinct here.
+                        let compressed_proof = proof.compress();
+
                         let db_lock = db.lock().await;
                         let nexus_hash: H256 = result.hash();
 
@@ -251,7 +253,6 @@ where
                     //     }
                     // };
 
-                    #[cfg(feature = "risc0")]
                     zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
 
