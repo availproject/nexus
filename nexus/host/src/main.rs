@@ -147,7 +147,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     prover_mode.clone()
                 ).await {                    
                     Ok((mut proof, result)) => { //assumption that the proof will be given as succinct here.
-                                               
                         let compressed_proof = proof.compress();
 
                         let db_lock = db.lock().await;
@@ -214,12 +213,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
- 
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub struct AvailToNexusPointer {
-//     number: u32,
-//     nexus_hash: H256,
-// }
 
 // #[derive(Clone, Debug)]
 // pub struct BatchesToAggregate(Arc<Mutex<Vec<(Vec<InitTransaction>, AggregatedTransaction)>>>);
