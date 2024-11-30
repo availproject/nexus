@@ -54,7 +54,7 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
 
         let real_proof = match proof {
             Sp1Proof::Real(i) => i,
-            Sp1Proof::Mock(i) => return Err(Error::msg("Expected a Real Proof , found a mock proof")),
+            Sp1Proof::Mock(i) => {if(self.prover_mode != ProverMode::Mock )return Err(Error::msg("Expected a Real Proof , found a mock proof"))},
         };
 
         self.sp1_standard_input
