@@ -16,6 +16,7 @@ log = "0.4.22"
 nexus-host = { package = "host", path = "../host" } 
 rocksdb = {version = "0.22.0"}
 tokio = "1.36.0"
+serde_json = "1.0.114"
 
 [[bench]]
 name = "nexus_bench"

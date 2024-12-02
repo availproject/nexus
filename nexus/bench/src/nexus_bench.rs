@@ -8,6 +8,9 @@ use nexus_core::{
     },
     zkvm::ProverMode,
 };
+use std::io::BufReader;
+use serde_json::from_reader;
+use std::fs::File;
 use nexus_host::execute_batch;
 use rocksdb::Options;
 use std::env;
@@ -43,11 +46,13 @@ fn create_mock_data() -> (
     let txs: Vec<TransactionV2> = Vec::new();
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
     
-    let file = File::open("avail_header.json")?;
-    let header = AvailHeader = from_reader(file)?;
+    let file = File::open("src/avail_header.json").unwrap();
+    let reader = BufReader::new(file);
+    let header: AvailHeader = from_reader(reader).unwrap();
 
-    let file2 = File::open("header_store.json")?;
-    let header_store = HeaderStore = from_reader(file2)?;
+    let file2 = File::open("src/header_store.json").unwrap();
+    let reader2 = BufReader::new(file2);
+    let header_store: HeaderStore = from_reader(reader2).unwrap();
 
     (txs, state_machine, header, header_store)
 }
@@ -63,7 +68,7 @@ fn main() {
     
     for i in 0..prover_modes.len() {
         let (txs, mut state_machine, header, mut header_store) = create_mock_data();
-        let prover_mode = &vec[i.clone()];
+        let prover_mode = &prover_modes[i.clone()];
 
         let start = Instant::now();
 
