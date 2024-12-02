@@ -55,14 +55,13 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         let real_proof = match proof {
             Sp1Proof::Real(i) => i,
             Sp1Proof::Mock(i) => {
-                if (self.prover_mode != ProverMode::Mock) {
-                    return Err(Error::msg("Expected a Real Proof , found a mock proof"));
+                if (self.prover_mode != ProverMode::MockProof) {
+                    return Err(Error::msg("Prover Mode is not Mock"));
+                }else{
+                    return Ok(())
                 }
             }
         };
-
-        self.sp1_standard_input
-            .write::<Vec<u8>>(&real_proof.public_values.clone().to_vec());
 
         let SP1Proof::Compressed(p) = real_proof.proof else {
             return Err(Error::msg("Proof Compression failed"));
@@ -153,14 +152,14 @@ impl ZKVMProof for Sp1Proof {
         let mut new_proof = self.clone();
 
         match new_proof {
-            Sp1Proof::Real(mut i) => {
+            Sp1Proof::Real(ref mut i) => {
                 if let Some(groth16_proof) = i.proof.clone().try_as_groth_16() {
                     i.proof = SP1Proof::Groth16(groth16_proof);
                 } else {
                     return Err(anyhow::anyhow!("Failed to create groth16 proof"));
                 }
             }
-            Sp1Proof::Mock(i) => {}
+            Sp1Proof::Mock(ref i) => {}
         }
         Ok(new_proof)
     }

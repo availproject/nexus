@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Error};
- 
+
 use nexus_core::{
     agg_types::{AggregatedTransaction, InitTransaction, SubmitProofTransaction},
     db::NodeDB,
@@ -21,12 +21,9 @@ pub struct AvailToNexusPointer {
     pub number: u32,
     pub nexus_hash: H256,
 }
- 
 #[cfg(any(feature = "risc0"))]
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
- 
 use serde::{Deserialize, Serialize};
- 
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::{collections::HashMap, sync::Arc};

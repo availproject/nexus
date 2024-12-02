@@ -24,6 +24,7 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
+// move the constants to a different file 
 pub fn get_mock_l1_batch_with_metadata() -> L1BatchWithMetadata {
     L1BatchWithMetadata {
         header: L1BatchHeader::new(

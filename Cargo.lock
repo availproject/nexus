@@ -1265,6 +1265,7 @@ dependencies = [
  "prover",
  "risc0-zkvm",
  "rocksdb",
+ "serde_json",
  "sp1-sdk",
  "sparse-merkle-tree",
  "tokio",
