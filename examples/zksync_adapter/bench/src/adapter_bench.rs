@@ -25,6 +25,7 @@ use env_logger;
 use log;
 
 // move the constants to a different file 
+//@TODO : use mockproofs for bench
 pub fn get_mock_l1_batch_with_metadata() -> L1BatchWithMetadata {
     L1BatchWithMetadata {
         header: L1BatchHeader::new(
