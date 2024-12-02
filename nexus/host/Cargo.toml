@@ -11,7 +11,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = "1.0"
 nexus-core = { path = "../../core", optional = true }
 serde_json = "1.0.114"
-tokio = "1.36.0"
+tokio = { version = "1.36.0", features = ["signal"]}
 sp-runtime = "33.0.0"
 parity-scale-codec = { version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
 relayer = { path = "../../relayer" }
@@ -22,6 +22,7 @@ rocksdb = {version = "0.22.0"}
 jmt = { git = "https://github.com/vibhurajeev/jmt.git", features = ["mocks"]}
 hex = "0.4.3"
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
+mockall = "0.13.1"
 
 [features]
 default = ["risc0"] # need to change this to run with sp1

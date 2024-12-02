@@ -2,139 +2,127 @@ pub mod types;
 use crate::types::Header;
 use avail_subxt::config::Header as HeaderTrait;
 use nexus_core::types::H256;
-use std::io::prelude::*;
-use std::thread;
-use std::{fs::File, sync::Arc};
+use std::future::Future;
+use std::sync::Arc;
 use tokio::sync::{
     mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-    Mutex,
+    watch,
 };
 use tokio::time::Duration;
 
-pub struct Relayer {
+pub struct SimpleRelayer {
     sender: UnboundedSender<Header>,
-    receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
+    receiver: Arc<tokio::sync::Mutex<UnboundedReceiver<Header>>>,
+    stop: watch::Sender<bool>,
 }
 
-impl Relayer {
-    pub fn new() -> Self {
-        //TODO: Check if this has to be shifted to a bounder channel.
-        let (sender, receiver) = unbounded_channel::<Header>();
+pub trait Relayer {
+    fn receiver(&mut self) -> Arc<tokio::sync::Mutex<UnboundedReceiver<Header>>>;
+    fn get_header_hash(&self, height: u32) -> impl Future<Output = H256> + Send;
+    fn start(&self, start_height: u32) -> impl Future<Output = ()> + Send;
+    fn stop(&self);
+}
 
-        Self {
-            sender,
-            receiver: Arc::new(Mutex::new(receiver)),
-        }
-    }
-
-    pub fn receiver(&mut self) -> Arc<Mutex<UnboundedReceiver<Header>>> {
+impl Relayer for SimpleRelayer {
+    fn receiver(&mut self) -> Arc<tokio::sync::Mutex<UnboundedReceiver<Header>>> {
         self.receiver.clone()
     }
 
-    pub async fn get_header_hash(&self, height: u32) -> H256 {
-        let (subxt_client, _) =
-            avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
-                .await
-                .unwrap();
+    fn get_header_hash(&self, height: u32) -> impl Future<Output = H256> + Send {
+        async move {
+            let (subxt_client, _) =
+                avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
+                    .await
+                    .unwrap();
 
-        let hash = match subxt_client.rpc().block_hash(Some(height.into())).await {
-            Ok(i) => i,
-            Err(e) => {
-                panic!("Cannot initiate rollup")
-            }
-        };
+            let hash = match subxt_client.rpc().block_hash(Some(height.into())).await {
+                Ok(i) => i,
+                Err(_) => panic!("Cannot initiate rollup"),
+            };
 
-        H256::from(hash.unwrap().as_fixed_bytes().clone())
+            H256::from(hash.unwrap().as_fixed_bytes().clone())
+        }
     }
 
-    pub async fn start(&self, start_height: u32) -> () {
-        println!("Started client.");
-        let (subxt_client, _) =
-            avail_subxt::build_client("wss://turing-rpc.avail.so:443/ws", false)
-                .await
-                .unwrap();
-        println!("Built client");
+    fn start(&self, start_height: u32) -> impl Future<Output = ()> + Send {
+        async move {
+            println!("Started client.");
+            let (subxt_client, _) =
+                avail_subxt::build_client("wss://turing-rpc.avail.so:443/ws", false)
+                    .await
+                    .unwrap();
+            println!("Built client");
 
-        let mut next_height = start_height;
+            let mut next_height = start_height;
+            let mut stop_rx = self.stop.subscribe();
 
-        loop {
-            let hash = match subxt_client
-                .rpc()
-                .block_hash(Some(next_height.into()))
-                .await
-            {
-                Ok(i) => i,
-                Err(e) => {
-                    println!("Faced error {:?}, when getting block: {}", e, next_height);
+            loop {
+                if *stop_rx.borrow() {
+                    println!("Stopping the relayer.");
+                    break;
+                }
 
-                    thread::sleep(Duration::from_secs(2));
+                let hash = match subxt_client
+                    .rpc()
+                    .block_hash(Some(next_height.into()))
+                    .await
+                {
+                    Ok(i) => i,
+                    Err(_) => {
+                        println!("Error getting block: {}", next_height);
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                };
+
+                if hash.is_none() {
+                    println!("No block yet, trying again in 2 seconds.");
+                    tokio::time::sleep(Duration::from_secs(2)).await;
                     continue;
                 }
-            };
 
-            if hash.is_none() {
-                println!("No block yet. trying again in 2 seconds");
+                let hash = hash.unwrap();
+                let header = match subxt_client.rpc().header(Some(hash)).await {
+                    Ok(i) => i,
+                    Err(_) => {
+                        println!("Error getting header: {}", next_height);
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                };
 
-                thread::sleep(Duration::from_secs(2));
-                continue;
-            }
-
-            let hash = hash.unwrap();
-
-            let header = match subxt_client.rpc().header(Some(hash)).await {
-                Ok(i) => i,
-                Err(e) => {
-                    println!("Faced error {:?}, when getting header: {}", e, next_height);
-
-                    thread::sleep(Duration::from_secs(2));
+                if header.is_none() {
+                    println!("No header yet, trying again in 2 seconds.");
+                    tokio::time::sleep(Duration::from_secs(2)).await;
                     continue;
                 }
-            };
 
-            if header.is_none() {
-                println!("No block yet. trying again in 2 seconds");
+                let header = header.unwrap();
 
-                thread::sleep(Duration::from_secs(2));
-                continue;
+                if let Err(e) = self.sender.send(header) {
+                    println!("Failed to send header: {}", e);
+                    break;
+                }
+
+                next_height += 1;
             }
-
-            let header = header.unwrap();
-
-            if let Err(e) = self.sender.send(header) {
-                println!("Failed to send header: {}", e);
-
-                break;
-            }
-
-            next_height = next_height + 1;
         }
+    }
 
-        // //TODO: Need to change this to imported headers, and handle re orgs.
-        // let mut header_subscription = subxt_client
-        //     .rpc()
-        //     .subscribe_finalized_block_headers()
-        //     .await
-        //     .expect("Subscription initialisation failed.");
+    fn stop(&self) {
+        let _ = self.stop.send(true); // Signal stop
+    }
+}
 
-        // println!("subscribed");
-        // while let Some(header_result) = header_subscription.next().await {
-        //     println!("Got next");
-        //     match header_result {
-        //         Ok(header) => {
-        //             println!("Sending header: {:?}", header.parent_hash);
-        //             if let Err(e) = self.sender.send(header) {
-        //                 println!("Failed to send header: {}", e);
-        //             }
-        //         }
-        //         Err(e) => {
-        //             println!("Error getting next header: {}", e);
+impl SimpleRelayer {
+    pub fn new() -> Self {
+        let (sender, receiver) = unbounded_channel::<Header>();
+        let (stop_tx, _) = watch::channel(false);
 
-        //             break;
-        //         }
-        //     }
-        // }
-
-        // println!("exited...")
-        //Need to handle exit here.
+        Self {
+            sender,
+            receiver: Arc::new(tokio::sync::Mutex::new(receiver)),
+            stop: stop_tx,
+        }
     }
 }

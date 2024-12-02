@@ -24,6 +24,9 @@ reqwest = { version = "0.12.5", features = ["json"] }
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true }
 num-bigint = "0.4"
 primitive-types = "0.12"
+env_logger = "0.11.5"
+log = "0.4.22"
+zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 
 [features]
 default = ["risc0"]
