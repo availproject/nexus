@@ -521,9 +521,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.89"
+version = "1.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c042108f3ed77fd83760a5fd79b53be043192bb3b9dba91d8c574c0ada7850c8"
+checksum = "4c95c10ba0b00a02636238b814946408b1322d5ac4760326e6fb8ec956d85775"
 
 [[package]]
 name = "ark-bls12-377"
@@ -1097,11 +1097,11 @@ version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d82cb332cdfaed17ae235a638438ac4d4839913cc2af585c3c6746e8f8bee1a"
 dependencies = [
- "addr2line 0.24.1",
+ "addr2line 0.24.2",
  "cfg-if",
  "libc",
  "miniz_oxide",
- "object 0.36.4",
+ "object 0.36.5",
  "rustc-demangle",
  "serde",
  "windows-targets 0.52.6",
@@ -1450,7 +1450,7 @@ checksum = "94032d3eece78099780ba07605d8ba6943e47ee152f76d73f1682e2f40cf889c"
 dependencies = [
  "duplicate",
  "maybe-async",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
  "serde",
  "thiserror",
 ]
@@ -2250,7 +2250,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.83",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2522,7 +2522,7 @@ checksum = "d65d7ce8132b7c0e54497a4d9a55a1c2a0912a0d786cf894472ba818fba45762"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.83",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2929,7 +2929,7 @@ checksum = "f282cfdfe92516eb26c2af8589c274c7c17681f5ecc03c18255fe741c6aa64eb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.83",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4363,6 +4363,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "home"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3d1354bf6b7235cb4a0576c2619fd4ed18183f689b12b006a0ee7329eeff9a5"
+dependencies = [
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "host"
 version = "0.1.0"
 dependencies = [
@@ -4376,6 +4385,7 @@ dependencies = [
  "parity-scale-codec",
  "prover",
  "relayer",
+ "reqwest 0.12.9",
  "risc0-zkvm",
  "rocksdb",
  "serde",
@@ -5737,7 +5747,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 2.0.83",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5814,7 +5824,7 @@ dependencies = [
 name = "nexus_cli"
 version = "0.1.0"
 dependencies = [
- "clap 4.5.20",
+ "clap 4.5.19",
 ]
 
 [[package]]
@@ -6148,6 +6158,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.36.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aedf0a2d09c573ed1d8d85b30c119153926a2b36dce0ab28322c09a117a4683e"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6279,7 +6298,7 @@ dependencies = [
  "bytes",
  "http 1.1.0",
  "opentelemetry",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
 ]
 
 [[package]]
@@ -6296,7 +6315,7 @@ dependencies = [
  "opentelemetry-proto",
  "opentelemetry_sdk",
  "prost 0.13.3",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
  "thiserror",
  "tokio",
  "tonic",
@@ -7032,6 +7051,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc9c68a3f6da06753e9335d63e27f6b9754dd1920d941135b7ea8224f141adb2"
 
 [[package]]
+name = "postcard"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "170a2601f67cc9dba8edd8c4870b15f71a6a2dc196daec8c83f72b59dff628a8"
+dependencies = [
+ "cobs",
+ "embedded-io 0.4.0",
+ "embedded-io 0.6.1",
+ "serde",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7685,9 +7716,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.8"
+version = "0.12.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f713147fbe92361e52392c73b8c9e48c04c6625bce969ef54dc901e58e042a7b"
+checksum = "a77c62af46e79de0a562e1a9849205ffcb7fc1238876e9bd743357570e04046f"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -7743,7 +7774,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "http 1.1.0",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
  "serde",
  "thiserror",
  "tower-service",
@@ -11754,7 +11785,7 @@ dependencies = [
  "p3-fri",
  "p3-matrix",
  "prost 0.12.6",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
  "reqwest-middleware",
  "serde",
  "serde_json",
@@ -12935,7 +12966,7 @@ dependencies = [
  "http-body-util",
  "hyper 1.4.1",
  "prost 0.12.6",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
  "serde",
  "serde_json",
  "thiserror",
@@ -13758,6 +13789,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "which"
+version = "4.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87ba24419a2078cd2b0f2ede2691b6c66d8e47836da3b6db8265ebad47afbfc7"
+dependencies = [
+ "either",
+ "home",
+ "once_cell",
+ "rustix 0.38.37",
+]
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14209,7 +14252,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.83",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -14297,7 +14340,7 @@ dependencies = [
  "parity-scale-codec",
  "primitive-types",
  "relayer",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
  "risc0-zkvm",
  "serde",
  "serde_json",
@@ -14544,7 +14587,7 @@ dependencies = [
  "hex",
  "num",
  "once_cell",
- "reqwest 0.12.8",
+ "reqwest 0.12.9",
  "serde",
  "serde_json",
  "thiserror",
