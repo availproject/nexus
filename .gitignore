@@ -9,3 +9,4 @@ target/
 **/elf
 Cargo.lock
 .DS_Store
+*.bin

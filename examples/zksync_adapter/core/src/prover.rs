@@ -18,8 +18,7 @@ pub fn run<Z: ZKVMEnv>() {
     let prover_mode: ProverMode = Z::read_input::<ProverMode>().unwrap();
 
     if new_rollup_pi.header.number.0 > 1 {
-        let vec = (&previous_adapter_pi).rollup_hash.unwrap().to_keyed_vec(&[]);
-        Z::verify(img_id, &vec).unwrap();
+        Z::verify(img_id, &previous_adapter_pi).unwrap();
     }
 
     let result = STF::verify_continuity_and_proof(
