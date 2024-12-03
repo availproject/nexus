@@ -1,5 +1,4 @@
 use anyhow::Error;
-use avail_subxt::config::Header as HeaderTrait;
 use avail_subxt::Header;
 use host::{run_nexus, setup_components};
 use mockall::predicate::*;
@@ -17,6 +16,7 @@ use nexus_core::{
     zkvm::ProverMode,
 };
 use relayer::Relayer;
+use reqwest::Client;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -384,6 +384,7 @@ async fn test_init_account_tx() {
     mock_relayer
         .expect_receiver()
         .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_stop().returning(move || ());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
@@ -408,6 +409,7 @@ async fn test_init_account_tx() {
         let headers_in_box = headers_clone.clone();
         let sender_in_box = sender_clone.clone();
         let node_db_in_box = node_db_clone_2.clone();
+        let shutdown_tx_clone = shutdown_tx.clone();
 
         Box::pin(async move {
             let tx_file_path = "tests/data/init_transaction.json";
@@ -435,7 +437,7 @@ async fn test_init_account_tx() {
             let tx: TransactionV2 =
                 serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
-            let response = reqwest::Client::new()
+            let response = Client::new()
                 .post("http://127.0.0.1:7003/tx")
                 .json(&tx)
                 .send()
@@ -451,45 +453,193 @@ async fn test_init_account_tx() {
                     response.status()
                 );
             }
-
+            println!("Sent second header");
             // Simulate sending headers
             sender_in_box
                 .send(headers_in_box[1].clone())
                 .expect("Failed to send header in mock");
+            //TODO: Keep the tests less complicated than below.
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            shutdown_tx_clone.send(true).unwrap();
         })
     });
 
-    let timeout = tokio::spawn(async move {
-        println!("Nexus has shut down gracefully.");
+    // Spawn the main Nexus logic
+    match run_nexus(
+        Arc::new(Mutex::new(mock_relayer)),
+        node_db_clone.clone(),
+        state_machine,
+        (prover_mode, 7003),
+        state_clone,
+        shutdown_rx,
+    )
+    .await
+    {
+        Ok(_) => (),
+        Err(e) => {
+            panic!("Nexus exited with error unexpected error: {:?}", e);
+        }
+    };
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
-        println!("Shutting down nexus");
-        shutdown_tx.send(true);
+    let old_headers: HeaderStore = {
+        let db_lock = node_db.lock().await;
+        match db_lock.get(b"previous_headers") {
+            Ok(Some(i)) => i,
+            Ok(None) => panic!("No header store found"),
+            Err(_) => {
+                panic!("DB Call failed to get previous headers. Restart required.");
+            }
+        }
+    };
+
+    let state_lock = state.lock().await;
+    let current_version = match state_lock.get_version() {
+        Ok(Some(i)) => i,
+        Ok(None) => panic!("No version found"),
+        Err(e) => panic!("Internal db error: {:?}", e),
+    };
+
+    let (account_option, _) =
+        match state_lock.get_with_proof(&H256::from(app_account_id.0), current_version) {
+            Ok(i) => i,
+            Err(e) => panic!("State call failed with error: {:?}", e),
+        };
+
+    assert_eq!(current_version, 1);
+    assert_eq!(
+        account_option,
+        Some(AccountState {
+            height: 0,
+            last_proof_height: 0,
+            start_nexus_hash: old_headers.inner().last().unwrap().hash().into(),
+            state_root: [0u8; 32],
+            statement: StatementDigest([1u32; 8]),
+        })
+    )
+}
+
+#[tokio::test]
+async fn test_update_tx() {
+    use serde_json;
+    use tokio::fs;
+    let db_path = "./tests/db/test_init_account_tx";
+    let app_account_id = AppAccountId::from(AppId(100));
+
+    if let Err(e) = fs::remove_dir_all(db_path.clone()).await {
+        eprintln!("Failed to clean up database folder: {:?}", e);
+    } else {
+        println!("Database folder cleaned up successfully.");
+    }
+
+    // Mock the Relayer instance
+    let mut mock_relayer = MockRelayer::new();
+
+    // Set up an unbounded channel to simulate sending and receiving headers
+    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Header>();
+
+    // Mock `receiver` to return the receiver end of the channel
+    let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
+    let receiver_arc_clone = receiver_arc.clone();
+
+    mock_relayer
+        .expect_receiver()
+        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_stop().returning(move || ());
+
+    // Read headers from the JSON file
+    let json_path = "tests/data/avail_headers.json";
+    let file_content = fs::read_to_string(json_path)
+        .await
+        .expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> =
+        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+
+    let headers_clone = headers.clone();
+    let sender_clone = sender.clone();
+
+    let prover_mode = ProverMode::MockProof;
+    let (node_db, state) = setup_components(db_path);
+    let node_db_clone = node_db.clone();
+    let node_db_clone_2 = node_db.clone();
+    let state_clone = state.clone();
+    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state_clone.clone());
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+    mock_relayer.expect_start().returning(move |_| {
+        let headers_in_box = headers_clone.clone();
+        let sender_in_box = sender_clone.clone();
+        let node_db_in_box = node_db_clone_2.clone();
+        let shutdown_tx_clone = shutdown_tx.clone();
+
+        Box::pin(async move {
+            let tx_file_path = "tests/data/init_transaction.json";
+            sender_in_box
+                .send(headers_in_box[0].clone())
+                .expect("Failed to send header in mock");
+            //TODO: Keep the tests less complicated than below.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+
+            let mut old_headers: HeaderStore = {
+                let db_lock = node_db_in_box.lock().await;
+                match db_lock.get(b"previous_headers") {
+                    Ok(Some(i)) => i,
+                    Ok(None) => panic!("No header store found"),
+                    Err(_) => {
+                        panic!("DB Call failed to get previous headers. Restart required.");
+                    }
+                }
+            };
+
+            // Read and deserialize the transaction from the JSON file
+            let tx_json = fs::read_to_string(tx_file_path)
+                .await
+                .expect("Failed to read transaction JSON file");
+            let tx: TransactionV2 =
+                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+
+            let response = Client::new()
+                .post("http://127.0.0.1:7003/tx")
+                .json(&tx)
+                .send()
+                .await
+                .unwrap();
+
+            // Check if the request was successful
+            if response.status().is_success() {
+                ()
+            } else {
+                panic!(
+                    "Post transaction call failed with status code: {}",
+                    response.status()
+                );
+            }
+            println!("Sent second header");
+            // Simulate sending headers
+            sender_in_box
+                .send(headers_in_box[1].clone())
+                .expect("Failed to send header in mock");
+            //TODO: Keep the tests less complicated than below.
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            shutdown_tx_clone.send(true).unwrap();
+        })
     });
 
     // Spawn the main Nexus logic
-    let nexus_task: tokio::task::JoinHandle<Result<(), Error>> = tokio::spawn(async move {
-        // The logic should exit or error upon detecting out-of-order headers
-        match run_nexus(
-            Arc::new(Mutex::new(mock_relayer)),
-            node_db_clone.clone(),
-            state_machine,
-            (prover_mode, 7003),
-            state_clone,
-            shutdown_rx,
-        )
-        .await
-        {
-            Ok(_) => (),
-            Err(e) => {
-                panic!("Nexus exited with error unexpected error: {:?}", e);
-            }
+    match run_nexus(
+        Arc::new(Mutex::new(mock_relayer)),
+        node_db_clone.clone(),
+        state_machine,
+        (prover_mode, 7003),
+        state_clone,
+        shutdown_rx,
+    )
+    .await
+    {
+        Ok(_) => (),
+        Err(e) => {
+            panic!("Nexus exited with error unexpected error: {:?}", e);
         }
-
-        Ok(())
-    });
-
-    tokio::try_join!(nexus_task, timeout).unwrap();
+    };
 
     let old_headers: HeaderStore = {
         let db_lock = node_db.lock().await;

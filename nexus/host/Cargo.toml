@@ -23,7 +23,7 @@ jmt = { git = "https://github.com/vibhurajeev/jmt.git", features = ["mocks"]}
 hex = "0.4.3"
 sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true}
 mockall = "0.13.1"
-reqwest = "0.12.9"
+reqwest = { version = "0.12.9", features = ["json"]}
 
 [features]
 default = ["risc0"] # need to change this to run with sp1
