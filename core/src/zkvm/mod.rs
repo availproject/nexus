@@ -8,7 +8,7 @@ pub mod risczero;
 #[cfg(any(feature = "native-sp1", feature = "zkvm-sp1"))]
 pub mod sp1;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ProverMode {
     Compressed,
     Groth16,
