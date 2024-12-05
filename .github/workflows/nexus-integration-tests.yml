@@ -24,11 +24,8 @@ jobs:
         run: |
           curl -L https://risczero.com/install | bash
           echo "${HOME}/.risc0/bin" >> $GITHUB_PATH
+          # Need to install for specific version next.
           ${HOME}/.risc0/bin/rzup install
-        
-      - name: Verify RISC0 toolchain installation
-        run: |
-          ~/.cargo/bin/risc0 --version
 
       - name: Run integration tests
         run: |
