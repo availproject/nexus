@@ -72,7 +72,7 @@ async fn main() -> Result<(), Error> {
     let prover_mode = if dev_flag {
         ProverMode::MockProof
     } else {
-        ProverMode::Compressed
+        ProverMode::MockProof
     };
 
     // Default app_id
@@ -199,7 +199,7 @@ async fn main() -> Result<(), Error> {
         println!("Waiting for 10 seconds for account to be initiated");
         tokio::time::sleep(Duration::from_secs(10)).await;
     }
-
+    
     loop {
         println!("Processing L1 batch number: {}", last_height + 1);
 
@@ -364,20 +364,27 @@ async fn main() -> Result<(), Error> {
                         }),
                     };
 
-                    // fs::write("./submitproof_tx.json", serde_json::to_string(&tx).unwrap()).await;
-                    match nexus_api.send_tx(tx).await {
-                        Ok(i) => {
-                            println!(
-                                "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
-                                &app_account_id, i, &public_inputs.state_root
-                            )
-                        }
-                        Err(e) => {
-                            println!("Error when iniating account: {:?}", e);
-
-                            continue;
+                    // let mut txns_vector : Vec<TransactionV2> ;
+                    let mut total_txns = 100;
+                    for txns in 0..total_txns {
+                        match nexus_api.send_tx(tx.clone()).await {
+                            Ok(i) => {
+                                println!(
+                                    "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
+                                    &app_account_id, i, &public_inputs.state_root
+                                )
+                            }
+                            Err(e) => {
+                                println!("Error when iniating account: {:?}", e);
+                                total_txns = total_txns -1;
+                                continue;
+                            }
                         }
                     }
+                    println!("{}",total_txns);
+                    
+                    // fs::write("./submitproof_tx.json", serde_json::to_string(&tx).unwrap()).await;
+                    
                 } else {
                     println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, height_on_nexus);
                 }
