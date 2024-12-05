@@ -23,8 +23,15 @@ jobs:
       - name: Install RISC0 toolchain
         run: |
           curl -L https://risczero.com/install | bash
-          /home/runner/.risc0/bin/rzup install cargo-risczero v1.1.1
-        
+          ~/.cargo/bin/rzup install cargo-risczero v1.1.1
+          echo "${HOME}/.risc0/bin" >> $GITHUB_PATH
+          echo "${HOME}/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Verify RISC0 toolchain installation
+        run: |
+          ~/.risc0/bin/risc0 --version
+          ~/.cargo/bin/rzup list
+
       - name: Run integration tests
         run: |
           cd nexus/host/
