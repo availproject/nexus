@@ -107,7 +107,7 @@ async fn test_empty_batches() {
             Arc::new(Mutex::new(mock_relayer)),
             node_db,
             state_machine,
-            (prover_mode, 7000),
+            (prover_mode, 6999),
             state,
             shutdown_rx,
         )

@@ -1,0 +1,25 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    env:
+      RISC0_DEV_MODE: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable 
+          override: true
+      - name: Run integration tests
+        run: |
+          cd nexus/host/
+          RISC0_DEV_MODE=true cargo test
