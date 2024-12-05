@@ -17,7 +17,6 @@ use nexus_core::{
 };
 use relayer::Relayer;
 use reqwest::Client;
-use risc0_zkvm::Receipt;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -519,6 +518,7 @@ async fn test_init_account_tx() {
     )
 }
 
+#[cfg(feature = "risc0")]
 #[tokio::test]
 async fn test_update_tx() {
     use serde_json;
