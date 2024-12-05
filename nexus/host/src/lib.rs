@@ -104,7 +104,7 @@ pub async fn relayer_handle(
     println!("Exited relayer handle");
 }
 
-async fn execute_batch<
+pub async fn execute_batch<
     Z: ZKVMProver<P>,
     P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
     E: ZKVMEnv,
@@ -245,7 +245,7 @@ pub async fn execution_engine_handle(
             //     }
             // }
 
-            let (txs, index) = mempool.get_current_txs().await;
+            let (txs, index) = mempool.get_current_txs(2).await;
 
             println!(
                 "Number of txs for height {} -- {}",

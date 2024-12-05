@@ -14,12 +14,14 @@ impl Mempool {
         }
     }
 
-    pub async fn get_current_txs(&self) -> (Vec<TransactionV2>, Option<usize>) {
+    pub async fn get_current_txs(&self, max_transactions: usize) -> (Vec<TransactionV2>, Option<usize>) {
         let tx_list = self.tx_list.lock().await;
-
+    
+        let limited_txs = tx_list.iter().take(max_transactions).cloned().collect::<Vec<_>>();
+    
         (
-            tx_list.clone(),
-            match tx_list.len() {
+            limited_txs,
+            match tx_list.len() { // this here will tell the actual number of txns there were in mempool
                 0 => None,
                 i => Some(i),
             },

@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prover_mode = if dev_flag {
         ProverMode::MockProof
     } else {
-        ProverMode::MockProof
+        ProverMode::Compressed
     };
 
     let (node_db, state) = setup_components("./db");
