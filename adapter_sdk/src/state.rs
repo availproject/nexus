@@ -21,7 +21,7 @@ use nexus_core::zkvm::risczero::{ProofConversion, RiscZeroProver};
 use nexus_core::zkvm::sp1::{ProofConversion, Sp1Prover};
 use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use nexus_core::zkvm::ProverMode;
-use relayer::Relayer;
+use relayer::{Relayer, SimpleRelayer};
 #[cfg(feature = "native-risc0")]
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 #[cfg(feature = "native-risc0")]
@@ -138,7 +138,7 @@ where
 
         //On every new header,
         //Check if the block is empty for the stored app ID.
-        let mut relayer = Relayer::new();
+        let mut relayer = SimpleRelayer::new();
         let receiver = relayer.receiver();
         let start_height = match &self.previous_adapter_proof {
             Some(i) => i.2,

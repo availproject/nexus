@@ -191,7 +191,6 @@ pub async fn execution_engine_handle(
 ) -> Result<(), anyhow::Error> {
     const MAX_HEADERS: usize = 5;
     let mut header_array: Vec<Header> = Vec::new();
-
     loop {
         // Check for shutdown signal
         if *shutdown_rx.borrow() {
@@ -206,18 +205,19 @@ pub async fn execution_engine_handle(
         };
 
         if let Some(header) = header_opt {
+            println!("Processing header {}", header.number);
             header_array.push(header.clone());
 
             // Ensure the array does not exceed the maximum size
-            if header_array.len() >= MAX_HEADERS {
-                // Write the headers to the file
-                let json_path = "./tests/data/avail_headers.json";
-                if let Err(e) =
-                    fs::write(json_path, serde_json::to_string(&header_array).unwrap()).await
-                {
-                    eprintln!("Failed to write headers to file: {:?}", e);
-                }
-            }
+            // if header_array.len() >= MAX_HEADERS {
+            //     // Write the headers to the file
+            //     let json_path = "./tests/data/avail_headers.json";
+            //     if let Err(e) =
+            //         fs::write(json_path, serde_json::to_string(&header_array).unwrap()).await
+            //     {
+            //         eprintln!("Failed to write headers to file: {:?}", e);
+            //     }
+            // }
 
             let mut old_headers: HeaderStore = {
                 let db_lock = node_db.lock().await;
@@ -231,6 +231,20 @@ pub async fn execution_engine_handle(
                     }
                 }
             };
+            // let mut txs = Vec::new();
+            // let mut index = None;
+
+            // // Continuously fetch transactions until the length is non-zero
+            // while txs.is_empty() {
+            //     let (current_txs, current_index) = mempool.get_current_txs().await;
+            //     txs = current_txs;
+            //     index = current_index;
+
+            //     if header.number == 10000 {
+            //         break;
+            //     }
+            // }
+
             let (txs, index) = mempool.get_current_txs().await;
 
             println!(

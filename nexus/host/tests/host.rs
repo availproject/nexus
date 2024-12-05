@@ -10,13 +10,14 @@ use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as Z
 use nexus_core::{
     state_machine::StateMachine,
     types::{
-        AccountState, AppAccountId, AppId, HeaderStore, InitAccount, StatementDigest,
+        AccountState, AppAccountId, AppId, HeaderStore, InitAccount, StatementDigest, SubmitProof,
         TransactionV2, TxParamsV2, TxSignature, H256,
     },
     zkvm::ProverMode,
 };
 use relayer::Relayer;
 use reqwest::Client;
+use risc0_zkvm::Receipt;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -53,6 +54,11 @@ async fn test_empty_batches() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
     let db_path = "./tests/db/test_empty_batches";
+    if let Err(e) = fs::remove_dir_all(db_path.clone()).await {
+        eprintln!("Failed to clean up database folder: {:?}", e);
+    } else {
+        println!("Database folder cleaned up successfully.");
+    }
 
     mock_relayer
         .expect_receiver()
@@ -79,8 +85,7 @@ async fn test_empty_batches() {
 
         Box::pin(async move {
             for header in headers_in_box {
-                println!("Mocked start sending header: {:?}", header.clone());
-
+                println!("Sending header number {}", header.number);
                 // Simulate sending headers
                 sender_in_box
                     .send(header)
@@ -186,11 +191,6 @@ async fn test_out_of_order_headers() {
 
         Box::pin(async move {
             for header in headers_in_box {
-                println!(
-                    "Mocked start sending header (out of order): {:?}",
-                    header.clone()
-                );
-
                 // Simulate sending headers
                 sender_in_box
                     .send(header)
@@ -298,8 +298,6 @@ async fn test_state_root_for_empty_batches() {
         Box::pin(async move {
             // Send only the first two headers
             for header in headers_in_box.into_iter().take(2) {
-                println!("Mocked start sending header: {:?}", header.clone());
-
                 // Simulate sending headers
                 sender_in_box
                     .send(header)
@@ -513,7 +511,10 @@ async fn test_init_account_tx() {
             last_proof_height: 0,
             start_nexus_hash: old_headers.inner().last().unwrap().hash().into(),
             state_root: [0u8; 32],
-            statement: StatementDigest([1u32; 8]),
+            statement: StatementDigest([
+                2407593638, 358966930, 1630452945, 4089658726, 612474188, 2588163809, 3958616079,
+                3599766367
+            ]),
         })
     )
 }
@@ -522,7 +523,7 @@ async fn test_init_account_tx() {
 async fn test_update_tx() {
     use serde_json;
     use tokio::fs;
-    let db_path = "./tests/db/test_init_account_tx";
+    let db_path = "./tests/db/test_update_tx";
     let app_account_id = AppAccountId::from(AppId(100));
 
     if let Err(e) = fs::remove_dir_all(db_path.clone()).await {
@@ -572,7 +573,9 @@ async fn test_update_tx() {
         let shutdown_tx_clone = shutdown_tx.clone();
 
         Box::pin(async move {
-            let tx_file_path = "tests/data/init_transaction.json";
+            let init_tx_path = "tests/data/init_transaction.json";
+            let submit_proof_tx_path = "tests/data/submitproof_tx_risc0.json";
+
             sender_in_box
                 .send(headers_in_box[0].clone())
                 .expect("Failed to send header in mock");
@@ -591,14 +594,14 @@ async fn test_update_tx() {
             };
 
             // Read and deserialize the transaction from the JSON file
-            let tx_json = fs::read_to_string(tx_file_path)
+            let tx_json = fs::read_to_string(init_tx_path)
                 .await
                 .expect("Failed to read transaction JSON file");
             let tx: TransactionV2 =
                 serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
             let response = Client::new()
-                .post("http://127.0.0.1:7003/tx")
+                .post("http://127.0.0.1:7004/tx")
                 .json(&tx)
                 .send()
                 .await
@@ -618,8 +621,40 @@ async fn test_update_tx() {
             sender_in_box
                 .send(headers_in_box[1].clone())
                 .expect("Failed to send header in mock");
+
             //TODO: Keep the tests less complicated than below.
             tokio::time::sleep(Duration::from_secs(5)).await;
+            // Read and deserialize the transaction from the JSON file
+            let tx_json = fs::read_to_string(submit_proof_tx_path)
+                .await
+                .expect("Failed to read transaction JSON file");
+            let mut tx: TransactionV2 =
+                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+
+            let response = Client::new()
+                .post("http://127.0.0.1:7004/tx")
+                .json(&tx)
+                .send()
+                .await
+                .unwrap();
+
+            // Check if the request was successful
+            if response.status().is_success() {
+                ()
+            } else {
+                panic!(
+                    "Post transaction call failed with status code: {}",
+                    response.status()
+                );
+            }
+
+            sender_in_box
+                .send(headers_in_box[2].clone())
+                .expect("Failed to send header in mock");
+
+            //TODO: Keep the tests less complicated than below.
+            tokio::time::sleep(Duration::from_secs(5)).await;
+
             shutdown_tx_clone.send(true).unwrap();
         })
     });
@@ -629,7 +664,7 @@ async fn test_update_tx() {
         Arc::new(Mutex::new(mock_relayer)),
         node_db_clone.clone(),
         state_machine,
-        (prover_mode, 7003),
+        (prover_mode, 7004),
         state_clone,
         shutdown_rx,
     )
@@ -665,15 +700,21 @@ async fn test_update_tx() {
             Err(e) => panic!("State call failed with error: {:?}", e),
         };
 
-    assert_eq!(current_version, 1);
+    assert_eq!(current_version, 2);
     assert_eq!(
         account_option,
         Some(AccountState {
-            height: 0,
-            last_proof_height: 0,
+            height: 1,
+            last_proof_height: 1,
             start_nexus_hash: old_headers.inner().last().unwrap().hash().into(),
-            state_root: [0u8; 32],
-            statement: StatementDigest([1u32; 8]),
+            state_root: [
+                124, 222, 174, 171, 159, 175, 72, 201, 169, 29, 38, 36, 191, 20, 212, 77, 99, 205,
+                123, 204, 54, 4, 234, 104, 114, 245, 84, 231, 12, 158, 48, 154
+            ],
+            statement: StatementDigest([
+                2407593638, 358966930, 1630452945, 4089658726, 612474188, 2588163809, 3958616079,
+                3599766367
+            ]),
         })
     )
 }
