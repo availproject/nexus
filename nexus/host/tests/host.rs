@@ -409,7 +409,12 @@ async fn test_init_account_tx() {
         let shutdown_tx_clone = shutdown_tx.clone();
 
         Box::pin(async move {
-            let tx_file_path = "tests/data/init_transaction.json";
+            #[cfg(any(feature = "risc0"))]
+            let tx_file_path = "tests/data/init_tx_risc0_1.json";
+
+            #[cfg(any(feature = "sp1"))]
+            let tx_file_path = "tests/data/init_tx_sp1.json";
+
             sender_in_box
                 .send(headers_in_box[0].clone())
                 .expect("Failed to send header in mock");
@@ -573,83 +578,60 @@ async fn test_update_tx() {
         let shutdown_tx_clone = shutdown_tx.clone();
 
         Box::pin(async move {
-            let init_tx_path = "tests/data/init_transaction.json";
-            let submit_proof_tx_path = "tests/data/submitproof_tx_risc0.json";
-
-            sender_in_box
-                .send(headers_in_box[0].clone())
-                .expect("Failed to send header in mock");
-            //TODO: Keep the tests less complicated than below.
-            tokio::time::sleep(Duration::from_secs(1)).await;
-
-            let mut old_headers: HeaderStore = {
-                let db_lock = node_db_in_box.lock().await;
-                match db_lock.get(b"previous_headers") {
-                    Ok(Some(i)) => i,
-                    Ok(None) => panic!("No header store found"),
-                    Err(_) => {
-                        panic!("DB Call failed to get previous headers. Restart required.");
-                    }
-                }
-            };
-
-            // Read and deserialize the transaction from the JSON file
-            let tx_json = fs::read_to_string(init_tx_path)
-                .await
-                .expect("Failed to read transaction JSON file");
-            let tx: TransactionV2 =
-                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
-
-            let response = Client::new()
-                .post("http://127.0.0.1:7004/tx")
-                .json(&tx)
-                .send()
-                .await
-                .unwrap();
-
-            // Check if the request was successful
-            if response.status().is_success() {
-                ()
-            } else {
-                panic!(
-                    "Post transaction call failed with status code: {}",
-                    response.status()
-                );
+            let init_tx_path = "tests/data/init_tx_risc0_1.json";
+            fn submit_proof_tx_path(n: usize) -> String {
+                format!("tests/data/submitproof_tx_risc0_{}.json", n)
             }
+            for n in 0..10 {
+                sender_in_box
+                    .send(headers_in_box[n].clone())
+                    .expect("Failed to send header in mock");
+                //TODO: Keep the tests less complicated than below.
+                tokio::time::sleep(Duration::from_secs(1)).await;
+
+                let tx = if n == 0 {
+                    // Read and deserialize the transaction from the JSON file
+                    let tx_json = fs::read_to_string(init_tx_path)
+                        .await
+                        .expect("Failed to read transaction JSON file");
+                    let tx: TransactionV2 =
+                        serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+
+                    tx
+                } else {
+                    // Read and deserialize the transaction from the JSON file
+                    let tx_json = fs::read_to_string(submit_proof_tx_path(n))
+                        .await
+                        .expect("Failed to read transaction JSON file");
+                    let mut tx: TransactionV2 =
+                        serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+
+                    tx
+                };
+
+                let response = Client::new()
+                    .post("http://127.0.0.1:7004/tx")
+                    .json(&tx)
+                    .send()
+                    .await
+                    .unwrap();
+
+                // Check if the request was successful
+                if response.status().is_success() {
+                    ()
+                } else {
+                    panic!(
+                        "Post transaction call failed with status code: {}",
+                        response.status()
+                    );
+                }
+            }
+
             println!("Sent second header");
             // Simulate sending headers
-            sender_in_box
-                .send(headers_in_box[1].clone())
-                .expect("Failed to send header in mock");
-
-            //TODO: Keep the tests less complicated than below.
-            tokio::time::sleep(Duration::from_secs(5)).await;
-            // Read and deserialize the transaction from the JSON file
-            let tx_json = fs::read_to_string(submit_proof_tx_path)
-                .await
-                .expect("Failed to read transaction JSON file");
-            let mut tx: TransactionV2 =
-                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
-
-            let response = Client::new()
-                .post("http://127.0.0.1:7004/tx")
-                .json(&tx)
-                .send()
-                .await
-                .unwrap();
-
-            // Check if the request was successful
-            if response.status().is_success() {
-                ()
-            } else {
-                panic!(
-                    "Post transaction call failed with status code: {}",
-                    response.status()
-                );
-            }
 
             sender_in_box
-                .send(headers_in_box[2].clone())
+                .send(headers_in_box[10].clone())
                 .expect("Failed to send header in mock");
 
             //TODO: Keep the tests less complicated than below.
@@ -700,16 +682,16 @@ async fn test_update_tx() {
             Err(e) => panic!("State call failed with error: {:?}", e),
         };
 
-    assert_eq!(current_version, 2);
+    assert_eq!(current_version, 10);
     assert_eq!(
         account_option,
         Some(AccountState {
-            height: 1,
-            last_proof_height: 1,
+            height: 9,
+            last_proof_height: 9,
             start_nexus_hash: old_headers.inner().last().unwrap().hash().into(),
             state_root: [
-                124, 222, 174, 171, 159, 175, 72, 201, 169, 29, 38, 36, 191, 20, 212, 77, 99, 205,
-                123, 204, 54, 4, 234, 104, 114, 245, 84, 231, 12, 158, 48, 154
+                6, 216, 214, 89, 28, 81, 211, 26, 3, 85, 59, 232, 9, 185, 9, 104, 182, 224, 25,
+                245, 45, 166, 90, 253, 133, 157, 64, 140, 201, 186, 98, 21
             ],
             statement: StatementDigest([
                 2407593638, 358966930, 1630452945, 4089658726, 612474188, 2588163809, 3958616079,

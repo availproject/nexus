@@ -364,7 +364,11 @@ async fn main() -> Result<(), Error> {
                         }),
                     };
 
-                    // fs::write("./submitproof_tx.json", serde_json::to_string(&tx).unwrap()).await;
+                    // fs::write(
+                    //     format!("./submitproof_tx_{}.json", public_inputs.height),
+                    //     serde_json::to_string(&tx).unwrap(),
+                    // )
+                    // .await;
                     match nexus_api.send_tx(tx).await {
                         Ok(i) => {
                             println!(
