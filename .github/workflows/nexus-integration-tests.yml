@@ -28,8 +28,7 @@ jobs:
         
       - name: Verify RISC0 toolchain installation
         run: |
-          ~/.risc0/bin/risc0 --version
-          ~/.risc0/bin/rzup list
+          ~/.cargo/bin/risc0 --version
 
       - name: Run integration tests
         run: |
