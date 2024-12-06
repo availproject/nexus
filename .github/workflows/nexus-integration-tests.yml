@@ -25,6 +25,7 @@ jobs:
           curl -L https://risczero.com/install | bash
           echo "${HOME}/.risc0/bin" >> $GITHUB_PATH
           # Need to install for specific version next.
+          ${HOME}/.risc0/bin/rzup install
           ${HOME}/.risc0/bin/rzup install cargo-risczero v1.1.1
 
       - name: Run integration tests
