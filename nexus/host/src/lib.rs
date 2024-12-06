@@ -40,8 +40,8 @@ use warp::Filter;
 pub mod rpc;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AvailToNexusPointer {
-    number: u32,
-    nexus_hash: H256,
+    pub number: u32,
+    pub nexus_hash: H256,
 }
 
 pub fn setup_components(db_path: &str) -> (Arc<Mutex<NodeDB>>, Arc<Mutex<VmState>>) {
