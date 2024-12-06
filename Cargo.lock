@@ -1244,7 +1244,6 @@ dependencies = [
  "log",
  "nexus-core",
  "primitive-types",
- "risc0-zkvm",
  "sp1-sdk",
  "sparse-merkle-tree",
  "zksync-core",
