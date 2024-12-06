@@ -28,7 +28,7 @@ reqwest = { version = "0.12.9", features = ["json"]}
 [features]
 default = ["risc0"] # need to change this to run with sp1
 sp1 = ["sp1-sdk", "nexus-core/native-sp1", "prover/sp1"]
-risc0 = ["risc0-zkvm/cuda", "nexus-core/native-risc0", "prover/risc0"]
+risc0 = ["risc0-zkvm/cuda", "nexus-core/cuda-risc0", "prover/risc0"]
 
 [patch.crates-io]
 serde = { version = "1.0.204" }
