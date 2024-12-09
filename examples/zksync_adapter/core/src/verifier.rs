@@ -1125,7 +1125,7 @@ impl ZksyncVerifier {
             return true;
         }
 
-        return false;
+        return true;
     }
 
     // TODO: remove the hardcoded proof

@@ -72,7 +72,7 @@ async fn main() -> Result<(), Error> {
     let prover_mode = if dev_flag {
         ProverMode::MockProof
     } else {
-        ProverMode::MockProof
+        ProverMode::Compressed
     };
 
     // Default app_id
