@@ -32,7 +32,7 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
         //Check if this is sequentially the next block.
         if let Some(last_header) = prev_headers.first() {
             if new_avail_header.parent_hash != last_header.avail_header_hash {
-                return Err(anyhow!("Previous Nexus header not valid as per Avail Header for which block is being built."));
+                return Err(anyhow!("Previous Nexus header not valid as per Avail Header for which block is being built. Last header hash: {:?} Current header hash: {:?}, Current header number {}", last_header.avail_header_hash,  new_avail_header.parent_hash, new_avail_header.number));
             }
         }
 

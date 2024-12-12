@@ -21,9 +21,12 @@ actix-web = "4.5.1"
 warp = "0.3.6"
 web3 = "0.19.0"
 reqwest = { version = "0.12.5", features = ["json"] }
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" , optional = true }
+sp1-sdk = { version = "3.4.0" , optional = true }
 num-bigint = "0.4"
 primitive-types = "0.12"
+env_logger = "0.11.5"
+log = "0.4.22"
+zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 
 [features]
 default = ["risc0"]
