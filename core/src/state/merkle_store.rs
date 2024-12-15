@@ -1,3 +1,4 @@
+use crate::types::H256;
 use anyhow::{anyhow, Error};
 use jmt::storage::{LeafNode, Node, NodeBatch, NodeKey, TreeReader, TreeWriter};
 use jmt::{KeyHash, OwnedValue, Version};
@@ -5,9 +6,6 @@ use rocksdb::DB;
 use rocksdb::{WriteBatch, WriteOptions};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
-use sparse_merkle_tree::BranchKey;
-use sparse_merkle_tree::BranchNode;
-use sparse_merkle_tree::H256;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -178,6 +176,7 @@ impl TreeReader for MerkleStore {
         };
         let mut found_value: Option<(Version, OwnedValue)> = None;
 
+        //TODO: Change this logic to avoid the iteration.
         values.into_iter().for_each(|(version, value)| {
             if version <= max_version {
                 match found_value {

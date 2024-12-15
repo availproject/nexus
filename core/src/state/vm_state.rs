@@ -2,7 +2,8 @@ use crate::utils::hasher::Sha256;
 use crate::{
     state::{types::AccountState, MerkleStore},
     traits::Leaf,
-    types::{AppAccountId, ShaHasher, StateUpdate},
+    types::{AppAccountId, StateUpdate},
+    utils::hasher::ShaHasher,
 };
 use anyhow::{anyhow, Error};
 use jmt::{
@@ -37,8 +38,8 @@ impl VmState {
         Self { merkle_store }
     }
 
-    pub fn get_version(&self) -> Result<Option<u64>, anyhow::Error> {
-        self.merkle_store.get(b"version", true)
+    pub fn get_version(&self, committed: bool) -> Result<Option<u64>, anyhow::Error> {
+        self.merkle_store.get(b"version", committed)
     }
 
     pub fn update_version(&self, version: u64) -> Result<(), anyhow::Error> {

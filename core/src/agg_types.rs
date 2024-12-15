@@ -1,4 +1,4 @@
-use crate::types::{InitAccount, RollupPublicInputsV2, SubmitProof, TxSignature};
+use crate::types::{InitAccount, NexusRollupPI, SubmitProof, TxSignature};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -21,7 +21,7 @@ pub struct AggregatedTransaction {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
-pub struct AggregatedPublicInput(Vec<RollupPublicInputsV2>);
+pub struct AggregatedPublicInput(Vec<NexusRollupPI>);
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct InitTransaction {

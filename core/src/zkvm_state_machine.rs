@@ -2,9 +2,13 @@ use std::collections::HashMap;
 
 use crate::state::types::AccountState;
 use crate::stf::StateTransitionFunction;
-use crate::types::{AvailHeader, HeaderStore, NexusHeader, StateUpdate, TransactionZKVM, H256};
+use crate::types::{
+    AvailHeader, HeaderStore, NexusHeader, Sha256, StateUpdate, TransactionZKVM, H256,
+};
+use crate::utils::hasher::{Digest, ShaHasher};
 use crate::zkvm::traits::ZKVMEnv;
 use jmt::{KeyHash, RootHash};
+use serde::Serialize;
 
 pub struct ZKVMStateMachine<Z: ZKVMEnv> {
     stf: StateTransitionFunction<Z>,
@@ -64,7 +68,13 @@ impl<Z: ZKVMEnv> ZKVMStateMachine<Z> {
             .stf
             .execute_batch(new_avail_header, old_headers, txs, &pre_state)?;
 
-        //TODO: verify post state root.
+        //TODO verify post state root.
+
+        let txs_encoded: Vec<u8> = parity_scale_codec::Encode::encode(&txs);
+
+        let mut hasher = ShaHasher::new();
+        hasher.0.update(&txs_encoded);
+        let tx_root = hasher.finish();
 
         Ok(NexusHeader {
             parent_hash: match old_headers.first() {
@@ -72,6 +82,7 @@ impl<Z: ZKVMEnv> ZKVMStateMachine<Z> {
                 None => H256::zero(),
             },
             number,
+            tx_root,
             state_root: state_update.post_state_root,
             prev_state_root: state_update.pre_state_root,
             avail_header_hash: H256::from(new_avail_header.hash().as_fixed_slice().clone()),

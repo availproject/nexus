@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 
-use crate::utils::hasher::{Digest as RiscZeroDigestTrait, Sha256};
+use crate::traits::NexusTransaction;
+pub use crate::utils::hasher::Sha256;
+use crate::utils::hasher::{Digest as RiscZeroDigestTrait, ShaHasher};
 #[cfg(any(feature = "native"))]
 pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
@@ -20,10 +22,8 @@ use solabi::{
     decode::{Decode as SolabiDecode, DecodeError, Decoder},
     encode::{Encode as SolabiEncode, Encoder, Size},
 };
-use sparse_merkle_tree::traits::{Hasher, Value};
-use sparse_merkle_tree::MerkleProof;
 //TODO: Implement formatter for H256, to display as hex.
-pub use crate::state::types::{AccountState, ShaHasher, StatementDigest};
+pub use crate::state::types::{AccountState, StatementDigest};
 #[cfg(any(feature = "native"))]
 use crate::zkvm::traits::ZKVMProof;
 use core::fmt::Debug as DebugTrait;
@@ -57,26 +57,26 @@ pub struct UpdatedBlob {
     //TODO: messages will be added a bit later.
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
-pub enum TxParamsV2 {
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+pub enum TxParams {
     SubmitProof(SubmitProof),
     InitAccount(InitAccount),
 }
 
 #[cfg(any(feature = "native"))]
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct TransactionV2 {
+#[derive(Clone, Serialize, Eq, PartialEq, Deserialize, Debug, Encode, Decode)]
+pub struct Transaction {
     pub signature: TxSignature,
-    pub params: TxParamsV2,
+    pub params: TxParams,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode)]
 pub struct TransactionZKVM {
     pub signature: TxSignature,
-    pub params: TxParamsV2,
+    pub params: TxParams,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct SubmitProof {
     pub proof: Proof,
     pub nexus_hash: H256,
@@ -89,7 +89,7 @@ pub struct SubmitProof {
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
 pub struct Proof(pub Vec<u8>);
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct InitAccount {
     pub app_id: AppAccountId,
     pub statement: StatementDigest,
@@ -97,7 +97,7 @@ pub struct InitAccount {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct RollupPublicInputsV2 {
+pub struct NexusRollupPI {
     pub nexus_hash: H256,
     pub state_root: H256,
     pub height: u32,
@@ -112,16 +112,52 @@ pub struct NexusHeader {
     pub parent_hash: H256,
     pub prev_state_root: H256,
     pub state_root: H256,
+    pub tx_root: H256,
     pub avail_header_hash: H256,
     pub number: u32,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct SimpleNexusHeader {
-    pub prev_state_root: H256,
-    pub state_root: H256,
-    pub tx_root: H256,
-    pub avail_blob_root: H256,
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct TransactionResult {
+    pub hash: H256,
+    pub result: bool,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum TransactionStatus {
+    InPool,
+    Failed,
+    Successful,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct TransactionWithStatus {
+    pub transaction: Transaction,
+    pub status: TransactionStatus,
+    pub block_hash: Option<H256>,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct NexusBlock {
+    pub header: NexusHeader,
+    pub transactions: Vec<TransactionResult>,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct NexusBlockWithPointers {
+    pub block: NexusBlock,
+    pub jmt_version: u64,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct NexusBlockWithTransactions {
+    pub transactions: Vec<(Transaction, TransactionResult)>,
+    pub header: NexusHeader,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -134,8 +170,8 @@ pub struct StateUpdate {
 //TODO: Store on hash list, instead of headers.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeaderStore {
-   pub inner: Vec<NexusHeader>,
-   pub max_size: usize,
+    pub inner: Vec<NexusHeader>,
+    pub max_size: usize,
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -380,27 +416,6 @@ impl HeaderStore {
     }
 }
 
-impl ShaHasher {
-    pub fn new() -> Self {
-        Self(Sha256::new())
-    }
-}
-impl Hasher for ShaHasher {
-    fn write_h256(&mut self, h: &H256) {
-        self.0.update(h.as_slice())
-    }
-
-    fn write_byte(&mut self, b: u8) {
-        self.0.update([b])
-    }
-
-    fn finish(self) -> H256 {
-        let bytes = self.0.finalize();
-        let sha2_array: [u8; 32] = bytes.as_slice().try_into().unwrap();
-        H256::from(sha2_array)
-    }
-}
-
 #[cfg(any(feature = "native"))]
 impl From<AppId> for AppAccountId {
     fn from(value: AppId) -> Self {
@@ -426,7 +441,7 @@ impl AppAccountId {
     }
 }
 
-impl RollupPublicInputsV2 {
+impl NexusRollupPI {
     pub fn check_consistency(&self, img_id: &StatementDigest) -> Result<(), anyhow::Error> {
         if img_id != &self.img_id {
             Err(anyhow::anyhow!("The same img_id not used for recursion"))
@@ -454,15 +469,40 @@ impl TryInto<risc0_zkvm::Receipt> for Proof {
     }
 }
 
+impl NexusTransaction for TransactionZKVM {
+    fn hash(&self) -> H256 {
+        let serialized = self.params.encode();
+        let mut hasher = ShaHasher::new();
+
+        hasher.0.update(&serialized);
+        hasher.finish()
+    }
+}
+
+#[cfg(any(feature = "native"))]
+impl NexusTransaction for Transaction {
+    fn hash(&self) -> H256 {
+        let serialized = self.params.encode();
+        let mut hasher = ShaHasher::new();
+
+        hasher.0.update(&serialized);
+        hasher.finish()
+    }
+}
+
 impl NexusHeader {
     pub fn hash(&self) -> H256 {
         let serialized = self.encode();
 
-        let mut hasher = ShaHasher::new();
+        let mut hasher = Sha256::new();
 
-        hasher.0.update(&serialized);
+        hasher.update(&serialized);
+        let mut fixed_bytes = [0u8; 32];
 
-        hasher.finish()
+        fixed_bytes.copy_from_slice(hasher.finalize().as_slice());
+        let hash = H256::from(fixed_bytes);
+
+        hash
     }
 }
 

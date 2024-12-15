@@ -1,13 +1,16 @@
 use anyhow::{anyhow, Context, Error};
 pub use avail_subxt::Header;
+use jmt::storage::TreeUpdateBatch;
 use nexus_core::{
-    db::NodeDB,
+    db::{BatchTransaction, NodeDB},
     mempool::Mempool,
     state::VmState,
     state_machine::StateMachine,
+    traits::NexusTransaction,
     types::{
-        AvailHeader, HeaderStore, NexusHeader, Proof as NexusProof, TransactionV2, TransactionZKVM,
-        TxParamsV2, H256,
+        AvailHeader, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader,
+        Proof as NexusProof, Transaction, TransactionResult, TransactionStatus,
+        TransactionWithStatus, TransactionZKVM, TxParams, H256,
     },
     zkvm::{
         traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
@@ -15,7 +18,7 @@ use nexus_core::{
     },
 };
 use serde_json;
-use std::thread;
+use std::{collections::HashMap, mem, thread};
 use tokio::fs;
 
 use crate::rpc::routes;
@@ -109,16 +112,20 @@ async fn execute_batch<
     P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
     E: ZKVMEnv,
 >(
-    txs: &Vec<TransactionV2>,
+    txs: &Vec<Transaction>,
     state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     prover_mode: ProverMode,
-) -> Result<(P, NexusHeader), Error>
+) -> Result<(P, NexusHeader, HashMap<H256, bool>, Option<TreeUpdateBatch>), Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
-    let state_update = state_machine
+    let (tree_update_batch, state_update, tx_result): (
+        Option<jmt::storage::TreeUpdateBatch>,
+        nexus_core::types::StateUpdate,
+        HashMap<H256, bool>,
+    ) = state_machine
         .execute_batch(&header, header_store, &txs)
         .await?;
 
@@ -132,19 +139,10 @@ where
         let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
             .iter()
             .map(|tx| {
-                if let TxParamsV2::SubmitProof(submit_proof_tx) = &tx.params {
+                if let TxParams::SubmitProof(submit_proof_tx) = &tx.params {
                     //TODO: Remove transactions that error out from mempool
                     let proof = submit_proof_tx.proof.clone();
                     let receipt: P = P::try_from(proof).unwrap();
-                    // let pre_state = match state_update.1.pre_state.get(&submit_proof_tx.app_id.0) {
-                    //     Some(i) => i,
-                    //     None => {
-                    //         return Err(anyhow!(
-                    //      "Incorrect StateUpdate computed. Cannot find state for AppAccountId: {:?}",
-                    //      submit_proof_tx.app_id
-                    //  ))
-                    //     }
-                    // };
                     zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
 
@@ -158,7 +156,7 @@ where
         let zkvm_txs = zkvm_txs?;
 
         zkvm_prover.add_input(&zkvm_txs).unwrap();
-        zkvm_prover.add_input(&state_update.1).unwrap();
+        zkvm_prover.add_input(&state_update).unwrap();
         zkvm_prover.add_input(&header).unwrap();
         zkvm_prover.add_input(&header_store).unwrap();
         let mut proof = zkvm_prover.prove()?;
@@ -169,16 +167,7 @@ where
 
     header_store.push_front(&result);
 
-    match state_update.0 {
-        Some(i) => {
-            state_machine
-                .commit_state(&result.state_root, &i.node_batch)
-                .await?;
-        }
-        None => (),
-    }
-
-    Ok((proof, result))
+    Ok((proof, result, tx_result, tree_update_batch))
 }
 
 pub async fn execution_engine_handle(
@@ -188,17 +177,16 @@ pub async fn execution_engine_handle(
     mut state_machine: StateMachine<ZKVM, Proof>,
     prover_mode: ProverMode,
     mut shutdown_rx: watch::Receiver<bool>,
+    state: Arc<Mutex<VmState>>,
 ) -> Result<(), anyhow::Error> {
     const MAX_HEADERS: usize = 5;
     let mut header_array: Vec<Header> = Vec::new();
     loop {
-        // Check for shutdown signal
         if *shutdown_rx.borrow() {
             println!("Shutdown signal received. Stopping execution engine...");
             break;
         }
 
-        // Attempt to receive a header, if available
         let header_opt = {
             let mut lock = receiver.lock().await;
             lock.try_recv().ok()
@@ -262,26 +250,62 @@ pub async fn execution_engine_handle(
             )
             .await
             {
-                Ok((_, result)) => {
-                    let db_lock = node_db.lock().await;
-                    let nexus_hash: H256 = result.hash();
+                Ok((_, result, tx_result, tree_update_batch)) => {
+                    //The execute_batch method on state machine would have updated the version in the storage.
+                    let updated_version = state.lock().await.get_version(false)?;
 
-                    db_lock.put(b"previous_headers", &old_headers).unwrap();
-                    db_lock
-                        .put(
-                            result.avail_header_hash.as_slice(),
-                            &AvailToNexusPointer {
-                                number: header.number,
-                                nexus_hash: nexus_hash.clone(),
-                            },
-                        )
-                        .unwrap();
-                    db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+                    save_batch_information(
+                        &node_db,
+                        &mempool,
+                        &mut state_machine,
+                        &result,
+                        &tx_result,
+                        tree_update_batch,
+                        &txs,
+                        &index,
+                        &header,
+                        &old_headers,
+                        match updated_version {
+                            Some(i) => i,
+                            None => 0,
+                        },
+                    )
+                    .await?;
+                    // let nexus_hash: H256 = result.hash();
+                    // let mut batch_transaction = BatchTransaction::new();
 
-                    db_lock.set_current_root(&result.state_root).unwrap();
-                    if let Some(i) = index {
-                        mempool.clear_upto_tx(i).await;
-                    }
+                    // batch_transaction.put(b"previous_headers", &old_headers);
+                    // batch_transaction.put(
+                    //     result.avail_header_hash.as_slice(),
+                    //     &AvailToNexusPointer {
+                    //         number: header.number,
+                    //         nexus_hash: nexus_hash.clone(),
+                    //     },
+                    // );
+                    // for (tx_hash, success) in tx_result.iter() {
+                    //     if let Some(tx) = txs.iter().find(|t| t.hash() == *tx_hash) {
+                    //         batch_transaction.put(tx_hash.as_slice(), tx)?;
+                    //     }
+                    // }
+                    // batch_transaction.put(nexus_hash.as_slice(), &result);
+                    // let db_lock = node_db.lock().await;
+                    // db_lock.put_batch(batch_transaction)?;
+                    // // db_lock.put(b"previous_headers", &old_headers).unwrap();
+                    // // db_lock
+                    // //     .put(
+                    // //         result.avail_header_hash.as_slice(),
+                    // //         &AvailToNexusPointer {
+                    // //             number: header.number,
+                    // //             nexus_hash: nexus_hash.clone(),
+                    // //         },
+                    // //     )
+                    // //     .unwrap();
+                    // // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+
+                    // db_lock.set_current_root(&result.state_root).unwrap();
+                    // if let Some(i) = index {
+                    //     mempool.clear_upto_tx(i).await;
+                    // }
 
                     println!(
                         "✅ Processed batch: {:?}, avail height: {:?}",
@@ -300,6 +324,95 @@ pub async fn execution_engine_handle(
     }
 
     println!("Exited execution handle");
+
+    Ok(())
+}
+
+pub async fn save_batch_information(
+    node_db: &Arc<Mutex<NodeDB>>,
+    mempool: &Mempool,
+    state_machine: &mut StateMachine<ZKVM, Proof>,
+    new_header: &NexusHeader,
+    tx_result: &HashMap<H256, bool>,
+    tree_update_batch: Option<TreeUpdateBatch>,
+    txs_processed: &Vec<Transaction>,
+    mempool_index: &Option<usize>,
+    avail_header: &Header,
+    updated_header_store: &HeaderStore,
+    version: u64,
+) -> Result<(), Error> {
+    match tree_update_batch {
+        Some(i) => {
+            state_machine
+                .commit_state(&new_header.state_root, &i.node_batch)
+                .await?;
+        }
+        None => (),
+    }
+    let nexus_hash: H256 = new_header.hash();
+    let mut batch_transaction = BatchTransaction::new();
+
+    batch_transaction.put(b"previous_headers", &updated_header_store);
+    batch_transaction.put(
+        new_header.avail_header_hash.as_slice(),
+        &AvailToNexusPointer {
+            number: avail_header.number,
+            nexus_hash: nexus_hash.clone(),
+        },
+    );
+
+    let mut txs_result_vec: Vec<TransactionResult> = vec![];
+
+    for (tx_hash, success) in tx_result.iter() {
+        let db_lock = node_db.lock().await;
+        let mut tx: TransactionWithStatus =
+            match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice())? {
+                Some(i) => i,
+                None => return Err(anyhow!("Tx not in db to modify.")),
+            };
+
+        tx.block_hash = Some(nexus_hash.clone());
+        tx.status = if success.clone() {
+            TransactionStatus::Successful
+        } else {
+            TransactionStatus::Failed
+        };
+
+        batch_transaction.put(tx_hash.as_slice(), &tx);
+        txs_result_vec.push(TransactionResult {
+            hash: tx_hash.clone(),
+            result: success.clone(),
+        });
+    }
+    batch_transaction.put(nexus_hash.as_slice(), &new_header);
+    batch_transaction.put(
+        &[nexus_hash.as_slice(), b"-block"].concat(),
+        &NexusBlockWithPointers {
+            block: NexusBlock {
+                header: new_header.clone(),
+                transactions: txs_result_vec,
+            },
+            jmt_version: version,
+        },
+    );
+    let db_lock = node_db.lock().await;
+    db_lock.put_batch(batch_transaction)?;
+    // db_lock.put(b"previous_headers", &old_headers).unwrap();
+    // db_lock
+    //     .put(
+    //         result.avail_header_hash.as_slice(),
+    //         &AvailToNexusPointer {
+    //             number: header.number,
+    //             nexus_hash: nexus_hash.clone(),
+    //         },
+    //     )
+    //     .unwrap();
+    // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
+
+    db_lock.set_current_root(&new_header.state_root).unwrap();
+    if let Some(i) = mempool_index {
+        mempool.clear_upto_tx(i.clone()).await;
+    };
 
     Ok(())
 }
@@ -348,13 +461,14 @@ pub async fn run_nexus(
     let mut shutdown_rx_2 = shutdown_rx.clone();
     let db_clone = node_db.clone();
     let db_clone_2 = node_db.clone();
+    let state_2 = state.clone();
 
     let receiver = {
         let mut relayer = relayer_mutex.lock().await;
 
         relayer.receiver()
     };
-    let mempool = Mempool::new();
+    let mempool = Mempool::new(node_db.clone());
     let mempool_clone = mempool.clone();
     let relayer_handle = tokio::spawn(async move {
         relayer_handle(relayer_mutex, db_clone_2, shutdown_rx_1.clone()).await
@@ -368,6 +482,7 @@ pub async fn run_nexus(
             state_machine,
             prover_mode,
             shutdown_rx_2.clone(),
+            state_2.clone(),
         )
         .await
     });

@@ -4,17 +4,17 @@ use nexus_core::{
     state_machine::StateMachine,
     types::{
         AvailHeader, DataLookup, Digest, DigestItem, Extension, HeaderStore, KateCommitment,
-        NexusHeader, TransactionV2, V3Extension, H256,
+        NexusHeader, Transaction, V3Extension, H256,
     },
     zkvm::ProverMode,
 };
-use std::io::BufReader;
-use serde_json::from_reader;
-use std::fs::File;
 use nexus_host::execute_batch;
 use rocksdb::Options;
+use serde_json::from_reader;
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -33,7 +33,7 @@ use log;
 
 //@TODO : use mockproofs for bench
 fn create_mock_data() -> (
-    Vec<TransactionV2>,
+    Vec<Transaction>,
     StateMachine<ZKVM, Proof>,
     AvailHeader,
     HeaderStore,
@@ -43,9 +43,9 @@ fn create_mock_data() -> (
     db_options.create_if_missing(true);
 
     let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
-    let txs: Vec<TransactionV2> = Vec::new();
+    let txs: Vec<Transaction> = Vec::new();
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
-    
+
     let file = File::open("src/avail_header.json").unwrap();
     let reader = BufReader::new(file);
     let header: AvailHeader = from_reader(reader).unwrap();
@@ -63,9 +63,8 @@ fn main() {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    
     let prover_modes = vec![ProverMode::NoAggregation, ProverMode::Compressed];
-    
+
     for i in 0..prover_modes.len() {
         let (txs, mut state_machine, header, mut header_store) = create_mock_data();
         let prover_mode = &prover_modes[i.clone()];
@@ -75,7 +74,6 @@ fn main() {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         rt.block_on(async {
-            
             let (proof, header) = execute_batch::<Prover, Proof, ZKVM>(
                 &txs,
                 &mut state_machine,

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-use nexus_core::types::{AccountState, AccountWithProof, NexusHeader, TransactionV2, H256};
+use nexus_core::types::{AccountState, AccountWithProof, NexusHeader, Transaction, H256};
 
 #[derive(Debug, Clone)]
 pub struct NexusAPI {
@@ -17,7 +17,7 @@ impl NexusAPI {
         }
     }
 
-    pub async fn send_tx(&self, tx: TransactionV2) -> Result<String, anyhow::Error> {
+    pub async fn send_tx(&self, tx: Transaction) -> Result<String, anyhow::Error> {
         let url_with_tx = format!("{}/tx", self.url);
 
         let response = self.client.post(url_with_tx).json(&tx).send().await?;
@@ -97,8 +97,9 @@ impl NexusAPI {
             Ok(account)
         } else {
             Err(anyhow!(
-                "Request failed with status code: {}",
-                response.status()
+                "Request failed with status code: {}, url: {}",
+                response.status(),
+                &format!("{}/account", self.url)
             ))
         }
     }

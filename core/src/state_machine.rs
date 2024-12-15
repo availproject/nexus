@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
 use crate::types::{
-    AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, TransactionV2,
-    TransactionZKVM, TxParamsV2, H256,
+    AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, Transaction,
+    TransactionZKVM, TxParams, H256,
 };
 use crate::zkvm::traits::{ZKVMEnv, ZKVMProof};
 use anyhow::{anyhow, Error};
@@ -43,7 +43,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         let mut state_lock = self.state.lock().await;
         state_lock.commit(node_batch)?;
 
-        let version = match state_lock.get_version()? {
+        let version = match state_lock.get_version(true)? {
             Some(i) => i,
             None => 0,
         };
@@ -61,22 +61,22 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         &mut self,
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
-        txs: &Vec<TransactionV2>,
-    ) -> Result<(Option<TreeUpdateBatch>, StateUpdate), Error> {
+        txs: &Vec<Transaction>,
+    ) -> Result<(Option<TreeUpdateBatch>, StateUpdate, HashMap<H256, bool>), Error> {
         //TODO: Increment version for each update.
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
 
         let result: Result<u64, anyhow::Error> = {
             let state_lock = self.state.lock().await;
-            let prev_version = match state_lock.get_version()? {
+            let prev_version = match state_lock.get_version(true)? {
                 Some(i) => i,
                 None => 0,
             };
             println!("Got previous versions");
             txs.iter().try_for_each(|tx| {
                 let app_account_id: AppAccountId = match &tx.params {
-                    TxParamsV2::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
-                    TxParamsV2::InitAccount(init_account) => {
+                    TxParams::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
+                    TxParams::InitAccount(init_account) => {
                         AppAccountId::from(init_account.app_id.clone())
                     }
                 };
@@ -111,14 +111,17 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                 };
             })
             .collect();
-        let stf_result =
-            self.stf
-                .execute_batch(avail_header, old_nexus_headers, &zkvm_txs, &pre_state)?;
+        let (stf_state_result, tx_result) = self.stf.execute_batch_with_results(
+            avail_header,
+            old_nexus_headers,
+            &zkvm_txs,
+            &pre_state,
+        )?;
         let mut state_lock = self.state.lock().await;
 
-        if !stf_result.is_empty() {
+        if !stf_state_result.is_empty() {
             let result = state_lock.update_set(
-                stf_result
+                stf_state_result
                     .into_iter()
                     .map(|(key, account_state)| {
                         if account_state == AccountState::zero() {
@@ -133,7 +136,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
 
             state_lock.update_version(version)?;
 
-            Ok((Some(result.0), result.1))
+            Ok((Some(result.0), result.1, tx_result))
         } else {
             let root = state_lock.get_root(version - 1)?;
 
@@ -144,6 +147,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                     post_state_root: root,
                     pre_state: HashMap::new(),
                 },
+                tx_result,
             ))
         }
     }

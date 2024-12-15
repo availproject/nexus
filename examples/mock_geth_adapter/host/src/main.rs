@@ -2,10 +2,9 @@ use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
 use anyhow::{Context, Error};
 use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
-use nexus_core::state::sparse_merkle_tree::traits::Value;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, Proof, RollupPublicInputsV2,
-    StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, Proof,
+    StatementDigest, SubmitProof, Transaction, TxParams, TxSignature, H256,
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
 use nexus_core::zkvm::ProverMode;
@@ -118,9 +117,9 @@ async fn main() -> Result<(), Error> {
                 }
 
                 if account_with_proof.account == AccountState::zero() {
-                    let tx = TransactionV2 {
+                    let tx = Transaction {
                         signature: TxSignature([0u8; 64]),
-                        params: TxParamsV2::InitAccount(InitAccount {
+                        params: TxParams::InitAccount(InitAccount {
                             app_id: app_account_id.clone(),
                             statement: StatementDigest(ADAPTER_ID),
                             start_nexus_hash: range[0],
@@ -148,9 +147,9 @@ async fn main() -> Result<(), Error> {
                 //         .as_secs() as u32;
                 //     let app_id = AppAccountId::from(AppId(timestamp));
 
-                //     let tx = TransactionV2 {
+                //     let tx = Transaction {
                 //         signature: TxSignature([0u8; 64]),
-                //         params: TxParamsV2::InitAccount(InitAccount {
+                //         params: TxParams::InitAccount(InitAccount {
                 //             app_id: app_id.clone(),
                 //             statement: StatementDigest(ADAPTER_ID),
                 //             start_nexus_hash: range[0],
@@ -175,7 +174,7 @@ async fn main() -> Result<(), Error> {
                 let height: u32 = header.number.unwrap().as_u32();
 
                 if current_height > last_height {
-                    let public_inputs = RollupPublicInputsV2 {
+                    let public_inputs = NexusRollupPI {
                         nexus_hash: range[0],
                         state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
                         //TODO: remove unwrap
@@ -211,9 +210,9 @@ async fn main() -> Result<(), Error> {
 
                     let recursive_proof = RiscZeroProof(prove_info.receipt);
 
-                    let tx = TransactionV2 {
+                    let tx = Transaction {
                         signature: TxSignature([0u8; 64]),
-                        params: TxParamsV2::SubmitProof(SubmitProof {
+                        params: TxParams::SubmitProof(SubmitProof {
                             app_id: app_account_id.clone(),
                             nexus_hash: range[0],
                             state_root: public_inputs.state_root.clone(),
