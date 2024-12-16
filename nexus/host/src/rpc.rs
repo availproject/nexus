@@ -91,6 +91,10 @@ pub fn routes(
     let db_clone_3 = db.clone();
     let db_clone_4 = db.clone();
 
+    let health_check = warp::path("health")
+        .and(warp::get())
+        .map(|| warp::reply::json(&serde_json::json!({"status": "Alive ser."})));
+
     let tx = warp::path("tx")
         .and(warp::post())
         .and(warp::any().map(move || mempool_clone.clone()))
@@ -190,7 +194,8 @@ pub fn routes(
             },
         );
 
-    tx.or(tx_status)
+    tx.or(health_check)
+        .or(tx_status)
         .or(submit_batch)
         .or(header)
         .or(account)
