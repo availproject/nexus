@@ -258,16 +258,18 @@ pub async fn execution_engine_handle(
                         &node_db,
                         &mempool,
                         &mut state_machine,
-                        &result,
-                        &tx_result,
-                        tree_update_batch,
-                        &txs,
-                        &index,
-                        &header,
-                        &old_headers,
-                        match updated_version {
-                            Some(i) => i,
-                            None => 0,
+                        ProcessedBatchInfo {
+                            avail_header: &header,
+                            header: &result,
+                            txs_result: &tx_result,
+                            tree_update_batch,
+                            txs: &txs,
+                            mempool_index: &index,
+                            updated_header_store: &old_headers,
+                            jmt_version: match updated_version {
+                                Some(i) => i,
+                                None => 0,
+                            },
                         },
                     )
                     .await?;
@@ -328,42 +330,49 @@ pub async fn execution_engine_handle(
     Ok(())
 }
 
-pub async fn save_batch_information(
+pub struct ProcessedBatchInfo<'a> {
+    avail_header: &'a Header,
+    header: &'a NexusHeader,
+    txs_result: &'a HashMap<H256, bool>,
+    tree_update_batch: Option<TreeUpdateBatch>,
+    txs: &'a Vec<Transaction>,
+    mempool_index: &'a Option<usize>,
+    updated_header_store: &'a HeaderStore,
+    jmt_version: u64,
+}
+
+pub async fn save_batch_information<'a>(
     node_db: &Arc<Mutex<NodeDB>>,
     mempool: &Mempool,
     state_machine: &mut StateMachine<ZKVM, Proof>,
-    new_header: &NexusHeader,
-    tx_result: &HashMap<H256, bool>,
-    tree_update_batch: Option<TreeUpdateBatch>,
-    txs_processed: &Vec<Transaction>,
-    mempool_index: &Option<usize>,
-    avail_header: &Header,
-    updated_header_store: &HeaderStore,
-    version: u64,
+    processed_batch_info: ProcessedBatchInfo<'a>,
 ) -> Result<(), Error> {
-    match tree_update_batch {
+    match processed_batch_info.tree_update_batch {
         Some(i) => {
             state_machine
-                .commit_state(&new_header.state_root, &i.node_batch)
+                .commit_state(&processed_batch_info.header.state_root, &i.node_batch)
                 .await?;
         }
         None => (),
     }
-    let nexus_hash: H256 = new_header.hash();
+    let nexus_hash: H256 = processed_batch_info.header.hash();
     let mut batch_transaction = BatchTransaction::new();
 
-    batch_transaction.put(b"previous_headers", &updated_header_store);
     batch_transaction.put(
-        new_header.avail_header_hash.as_slice(),
+        b"previous_headers",
+        &processed_batch_info.updated_header_store,
+    );
+    batch_transaction.put(
+        processed_batch_info.header.avail_header_hash.as_slice(),
         &AvailToNexusPointer {
-            number: avail_header.number,
+            number: processed_batch_info.avail_header.number,
             nexus_hash: nexus_hash.clone(),
         },
     );
 
     let mut txs_result_vec: Vec<TransactionResult> = vec![];
 
-    for (tx_hash, success) in tx_result.iter() {
+    for (tx_hash, success) in processed_batch_info.txs_result.iter() {
         let db_lock = node_db.lock().await;
         let mut tx: TransactionWithStatus =
             match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice())? {
@@ -384,33 +393,24 @@ pub async fn save_batch_information(
             result: success.clone(),
         });
     }
-    batch_transaction.put(nexus_hash.as_slice(), &new_header);
+    batch_transaction.put(nexus_hash.as_slice(), &processed_batch_info.header);
     batch_transaction.put(
         &[nexus_hash.as_slice(), b"-block"].concat(),
         &NexusBlockWithPointers {
             block: NexusBlock {
-                header: new_header.clone(),
+                header: processed_batch_info.header.clone(),
                 transactions: txs_result_vec,
             },
-            jmt_version: version,
+            jmt_version: processed_batch_info.jmt_version,
         },
     );
     let db_lock = node_db.lock().await;
     db_lock.put_batch(batch_transaction)?;
-    // db_lock.put(b"previous_headers", &old_headers).unwrap();
-    // db_lock
-    //     .put(
-    //         result.avail_header_hash.as_slice(),
-    //         &AvailToNexusPointer {
-    //             number: header.number,
-    //             nexus_hash: nexus_hash.clone(),
-    //         },
-    //     )
-    //     .unwrap();
-    // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
 
-    db_lock.set_current_root(&new_header.state_root).unwrap();
-    if let Some(i) = mempool_index {
+    db_lock
+        .set_current_root(&processed_batch_info.header.state_root)
+        .unwrap();
+    if let Some(i) = processed_batch_info.mempool_index {
         mempool.clear_upto_tx(i.clone()).await;
     };
 
