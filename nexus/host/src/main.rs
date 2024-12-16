@@ -28,7 +28,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (node_db, state) = setup_components("./db");
     let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
-    let relayer_mutex = Arc::new(Mutex::new(SimpleRelayer::new()));
+    let avail_rpc = args
+        .iter()
+        .find(|arg| arg.starts_with("--avail-rpc="))
+        .map(|arg| arg.trim_start_matches("--avail-rpc="))
+        .unwrap_or("wss://turing-rpc.avail.so:443/ws");
+
+    let relayer_mutex = Arc::new(Mutex::new(SimpleRelayer::new(avail_rpc)));
     // Shared shutdown signal using a watch channel
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
