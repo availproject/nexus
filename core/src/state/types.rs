@@ -1,11 +1,9 @@
 use crate::utils::hasher::Sha256;
 use ethabi::{decode, encode, ParamType, Token};
+use parity_scale_codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Default)]
-pub struct ShaHasher(pub Sha256);
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct StatementDigest(pub [u32; 8]);
 
 //TODO: Need to check PartialEq to Eq difference, to ensure there is not security vulnerability.

@@ -11,6 +11,7 @@ use tokio::sync::{
 use tokio::time::Duration;
 
 pub struct SimpleRelayer {
+    rpc_url: String,
     sender: UnboundedSender<Header>,
     receiver: Arc<tokio::sync::Mutex<UnboundedReceiver<Header>>>,
     stop: watch::Sender<bool>,
@@ -30,10 +31,9 @@ impl Relayer for SimpleRelayer {
 
     fn get_header_hash(&self, height: u32) -> impl Future<Output = H256> + Send {
         async move {
-            let (subxt_client, _) =
-                avail_subxt::build_client("wss://goldberg.avail.tools:443/ws", false)
-                    .await
-                    .unwrap();
+            let (subxt_client, _) = avail_subxt::build_client(self.rpc_url.clone(), false)
+                .await
+                .unwrap();
 
             let hash = match subxt_client.rpc().block_hash(Some(height.into())).await {
                 Ok(i) => i,
@@ -47,10 +47,9 @@ impl Relayer for SimpleRelayer {
     fn start(&self, start_height: u32) -> impl Future<Output = ()> + Send {
         async move {
             println!("Started client.");
-            let (subxt_client, _) =
-                avail_subxt::build_client("wss://turing-rpc.avail.so:443/ws", false)
-                    .await
-                    .unwrap();
+            let (subxt_client, _) = avail_subxt::build_client(self.rpc_url.clone(), false)
+                .await
+                .unwrap();
             println!("Built client");
 
             let mut next_height = start_height;
@@ -115,11 +114,12 @@ impl Relayer for SimpleRelayer {
 }
 
 impl SimpleRelayer {
-    pub fn new() -> Self {
+    pub fn new(rpc_url: &str) -> Self {
         let (sender, receiver) = unbounded_channel::<Header>();
         let (stop_tx, _) = watch::channel(false);
 
         Self {
+            rpc_url: rpc_url.to_string(),
             sender,
             receiver: Arc::new(tokio::sync::Mutex::new(receiver)),
             stop: stop_tx,

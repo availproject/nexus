@@ -1,20 +1,27 @@
-use crate::types::TransactionV2;
+use crate::{
+    db::NodeDB,
+    traits::NexusTransaction,
+    types::{Transaction, TransactionStatus, TransactionWithStatus},
+};
+use anyhow::anyhow;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Mempool {
-    tx_list: Arc<Mutex<Vec<TransactionV2>>>,
+    tx_list: Arc<Mutex<Vec<Transaction>>>,
+    node_db: Arc<Mutex<NodeDB>>,
 }
 
 impl Mempool {
-    pub fn new() -> Self {
+    pub fn new(node_db: Arc<Mutex<NodeDB>>) -> Self {
         Self {
             tx_list: Arc::new(Mutex::new(vec![])),
+            node_db,
         }
     }
 
-    pub async fn get_current_txs(&self) -> (Vec<TransactionV2>, Option<usize>) {
+    pub async fn get_current_txs(&self) -> (Vec<Transaction>, Option<usize>) {
         let tx_list = self.tx_list.lock().await;
 
         (
@@ -38,11 +45,29 @@ impl Mempool {
         }
     }
 
-    pub async fn add_tx(&self, tx: TransactionV2) {
-        let mut tx_list = self.tx_list.lock().await;
+    pub async fn add_tx(&self, tx: Transaction) -> Result<(), anyhow::Error> {
+        let mut node_db = self.node_db.lock().await;
+        let tx_hash = tx.hash();
+        match node_db.get::<TransactionWithStatus>(tx_hash.as_slice()) {
+            Ok(Some(i)) => Err(anyhow!("Transaction already exists")),
+            Ok(None) => {
+                node_db.put(
+                    tx_hash.as_slice(),
+                    &TransactionWithStatus {
+                        transaction: tx.clone(),
+                        status: TransactionStatus::InPool,
+                        block_hash: None,
+                    },
+                );
+                let mut tx_list = self.tx_list.lock().await;
 
-        tx_list.push(tx);
+                tx_list.push(tx);
 
-        println!("Added tx. Total txs for next batch : {}", tx_list.len());
+                println!("Added tx. Total txs for next batch : {}", tx_list.len());
+
+                Ok(())
+            }
+            Err(e) => Err(anyhow!("Internal mempool error")),
+        }
     }
 }

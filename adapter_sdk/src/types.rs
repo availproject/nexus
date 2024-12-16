@@ -1,5 +1,5 @@
 use crate::traits::RollupProof;
-pub use nexus_core::types::RollupPublicInputsV2 as AdapterPublicInputs;
+pub use nexus_core::types::NexusRollupPI as AdapterPublicInputs;
 use nexus_core::{
     types::{AppId, AvailHeader, NexusHeader, StatementDigest, H256},
     zkvm::ProverMode,

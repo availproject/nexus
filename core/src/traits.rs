@@ -23,3 +23,7 @@ pub trait Aggregator {
         submit_proof_txs: Vec<SubmitProofTransaction>,
     ) -> Result<AggregatedTransaction, Error>;
 }
+
+pub trait NexusTransaction {
+    fn hash(&self) -> H256;
+}

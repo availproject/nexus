@@ -1,10 +1,9 @@
 use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
 use anyhow::{anyhow, Context, Error};
 use nexus_core::db::NodeDB;
-use nexus_core::state::sparse_merkle_tree::traits::Value;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, RollupPublicInputsV2,
-    StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI,
+    StatementDigest, SubmitProof, Transaction, TxParams, TxSignature, H256,
 };
 
 #[cfg(feature = "risc0")]
@@ -183,9 +182,9 @@ async fn main() -> Result<(), Error> {
     //last_height = account_with_proof.account.height;
 
     if account_with_proof.account == AccountState::zero() {
-        let tx = TransactionV2 {
+        let tx = Transaction {
             signature: TxSignature([0u8; 64]),
-            params: TxParamsV2::InitAccount(InitAccount {
+            params: TxParams::InitAccount(InitAccount {
                 app_id: app_account_id.clone(),
                 statement: StatementDigest(ZKSYNC_ADAPTER_ID),
                 start_nexus_hash: account_with_proof.nexus_header.hash(),
@@ -294,7 +293,7 @@ async fn main() -> Result<(), Error> {
                     "Current proof data: {:?}",
                     recursive_proof
                         .clone()
-                        .public_inputs::<RollupPublicInputsV2>()
+                        .public_inputs::<NexusRollupPI>()
                         .unwrap()
                         .rollup_hash
                         .unwrap()
@@ -302,7 +301,7 @@ async fn main() -> Result<(), Error> {
 
                 let rollup_hash = recursive_proof
                     .clone()
-                    .public_inputs::<RollupPublicInputsV2>()
+                    .public_inputs::<NexusRollupPI>()
                     .unwrap()
                     .rollup_hash
                     .unwrap();
@@ -330,7 +329,7 @@ async fn main() -> Result<(), Error> {
                 }
 
                 if current_height > height_on_nexus {
-                    let public_inputs = RollupPublicInputsV2 {
+                    let public_inputs = NexusRollupPI {
                         nexus_hash: range[0],
                         state_root: H256::from(
                             batch_metadata.metadata.root_hash.as_fixed_bytes().clone(),
@@ -345,9 +344,9 @@ async fn main() -> Result<(), Error> {
                         rollup_hash: Some(rollup_hash),
                     };
 
-                    let tx = TransactionV2 {
+                    let tx = Transaction {
                         signature: TxSignature([0u8; 64]),
-                        params: TxParamsV2::SubmitProof(SubmitProof {
+                        params: TxParams::SubmitProof(SubmitProof {
                             app_id: app_account_id.clone(),
                             nexus_hash: range[0],
                             state_root: public_inputs.state_root.clone(),
