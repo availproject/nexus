@@ -14,6 +14,7 @@ use serde_json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use warp::reply::WithStatus;
 use warp::{reply::Reply, Filter, Rejection};
 
 use crate::AvailToNexusPointer;
@@ -111,10 +112,16 @@ pub fn routes(
                         let tx_hash = H256::try_from(hash_str.as_str());
                         match tx_hash {
                             Ok(hash) => tx_status(db, hash).await,
-                            Err(_) => Ok(String::from("Invalid hash")),
+                            Err(_) => Ok(warp::reply::with_status(
+                                "Invalid hash".to_string(),
+                                warp::http::StatusCode::BAD_REQUEST,
+                            )),
                         }
                     }
-                    None => Ok(String::from("Hash parameter not provided")),
+                    None => Ok(warp::reply::with_status(
+                        "Hash parameter not provided".to_string(),
+                        warp::http::StatusCode::BAD_REQUEST,
+                    )),
                 }
             },
         );
@@ -135,10 +142,16 @@ pub fn routes(
                         let avail_hash = H256::try_from(hash_str.as_str());
                         match avail_hash {
                             Ok(hash) => header(db, hash).await,
-                            Err(_) => Ok(String::from("Invalid hash")),
+                            Err(_) => Ok(warp::reply::with_status(
+                                "Invalid hash".to_string(),
+                                warp::http::StatusCode::BAD_REQUEST,
+                            )),
                         }
                     }
-                    None => Ok(String::from("Hash parameter not provided")),
+                    None => Ok(warp::reply::with_status(
+                        "Hash parameter not provided".to_string(),
+                        warp::http::StatusCode::BAD_REQUEST,
+                    )),
                 }
             },
         );
@@ -157,17 +170,28 @@ pub fn routes(
                         let block_hash = match params.get("block_hash") {
                             Some(i) => match H256::try_from(i.as_str()) {
                                 Ok(i) => Some(i),
-                                Err(_) => return Ok(String::from("Invalid hash")),
+                                Err(_) => {
+                                    return Ok(warp::reply::with_status(
+                                        "Invalid hash".to_string(),
+                                        warp::http::StatusCode::BAD_REQUEST,
+                                    ))
+                                }
                             },
                             None => None,
                         };
                         let app_account_id = H256::try_from(hash_str.as_str());
                         match app_account_id {
                             Ok(i) => get_state(db, vm_state, &i, block_hash).await,
-                            Err(_) => Ok(String::from("Invalid hash")),
+                            Err(_) => Ok(warp::reply::with_status(
+                                "Invalid hash".to_string(),
+                                warp::http::StatusCode::BAD_REQUEST,
+                            )),
                         }
                     }
-                    None => Ok(String::from("Hash parameter not provided")),
+                    None => Ok(warp::reply::with_status(
+                        "Hash parameter not provided".to_string(),
+                        warp::http::StatusCode::BAD_REQUEST,
+                    )),
                 }
             },
         );
@@ -186,10 +210,16 @@ pub fn routes(
                         let app_account_id = H256::try_from(hash_str.as_str());
                         match app_account_id {
                             Ok(i) => get_state_hex(db, vm_state, &i).await,
-                            Err(_) => Ok(String::from("Invalid hash")),
+                            Err(_) => Ok(warp::reply::with_status(
+                                "Invalid hash".to_string(),
+                                warp::http::StatusCode::BAD_REQUEST,
+                            )),
                         }
                     }
-                    None => Ok(String::from("Hash parameter not provided")),
+                    None => Ok(warp::reply::with_status(
+                        "Hash parameter not provided".to_string(),
+                        warp::http::StatusCode::BAD_REQUEST,
+                    )),
                 }
             },
         );
@@ -202,21 +232,38 @@ pub fn routes(
         .or(account_hex)
 }
 
-//TODO: Better status codes and error handling.
-pub async fn submit_tx(mempool: Mempool, tx: Transaction) -> Result<String, Infallible> {
+pub async fn submit_tx(mempool: Mempool, tx: Transaction) -> Result<WithStatus<String>, Rejection> {
     match mempool.add_tx(tx).await {
-        Ok(()) => Ok(String::from("Added tx")),
-        Err(i) => Ok(String::from("Internal Mempool error")),
+        Ok(()) => Ok(warp::reply::with_status(
+            "Added tx".to_string(),
+            warp::http::StatusCode::OK,
+        )),
+        Err(_) => Ok(warp::reply::with_status(
+            "Internal Mempool error".to_string(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        )),
     }
 }
 
-pub async fn tx_status(db: Arc<Mutex<NodeDB>>, tx_hash: H256) -> Result<String, Infallible> {
+pub async fn tx_status(
+    db: Arc<Mutex<NodeDB>>,
+    tx_hash: H256,
+) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
     println!("Getting tx status");
     match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice()) {
-        Ok(Some(i)) => Ok(serde_json::to_string(&i).expect("Failed to serialize Account to JSON")),
-        Ok(None) => return Ok(String::from("Transaction not found")),
-        Err(e) => return Ok(String::from("Internal error")),
+        Ok(Some(i)) => Ok(warp::reply::with_status(
+            serde_json::to_string(&i).expect("Failed to serialize Account to JSON"),
+            warp::http::StatusCode::OK,
+        )),
+        Ok(None) => Ok(warp::reply::with_status(
+            "Transaction not found".to_string(),
+            warp::http::StatusCode::NOT_FOUND,
+        )),
+        Err(_) => Ok(warp::reply::with_status(
+            "Internal error".to_string(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        )),
     }
 }
 
@@ -225,49 +272,71 @@ pub async fn get_state(
     state: Arc<Mutex<VmState>>,
     app_account_id: &H256,
     block_hash: Option<H256>,
-) -> Result<String, Infallible> {
+) -> Result<WithStatus<String>, Rejection> {
     let state_lock = state.lock().await;
     let db_lock = db.lock().await;
 
     let header_store: HeaderStore = match db_lock.get(b"previous_headers") {
         Ok(Some(i)) => i,
         Ok(None) => HeaderStore::new(32),
-        Err(_) => panic!("Header store error"),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Header store error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
-    // let current_version = match state_lock.get_version(true) {
-    //     Ok(Some(i)) => i,
-    //     Ok(None) => 0,
-    //     Err(e) => return Ok(String::from("Internal db error")),
-    // };
+
     let version: u64 = match block_hash {
         Some(i) => {
             match db_lock.get::<NexusBlockWithPointers>(&[i.as_slice(), b"-block"].concat()) {
                 Ok(Some(i)) => i.jmt_version,
-                Ok(None) => return Ok(String::from("Block hash not found")),
-                Err(e) => return Ok(String::from("Internal db error")),
+                Ok(None) => {
+                    return Ok(warp::reply::with_status(
+                        "Block hash not found".to_string(),
+                        warp::http::StatusCode::NOT_FOUND,
+                    ))
+                }
+                Err(_) => {
+                    return Ok(warp::reply::with_status(
+                        "Internal db error".to_string(),
+                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    ))
+                }
             }
         }
         None => match state_lock.get_version(true) {
             Ok(Some(i)) => i,
             Ok(None) => 0,
-            Err(e) => return Ok(String::from("Internal db error")),
+            Err(_) => {
+                return Ok(warp::reply::with_status(
+                    "Internal db error".to_string(),
+                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
         },
     };
 
     let (account_option, proof) = match state_lock.get_with_proof(app_account_id, version) {
         Ok(i) => i,
-        Err(e) => return Ok(String::from("Internal error")),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Internal error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
     let root = match state_lock.get_root(version) {
         Ok(i) => i,
-        Err(e) => return Ok(String::from("Internal error")),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Internal error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
 
-    let account = if let Some(a) = account_option {
-        a
-    } else {
-        AccountState::zero()
-    };
+    let account = account_option.unwrap_or_else(AccountState::zero);
     let siblings: Vec<[u8; 32]> = proof
         .siblings()
         .iter()
@@ -282,50 +351,83 @@ pub async fn get_state(
         account_encoded: hex::encode(account.encode()),
         nexus_header: match header_store.first() {
             Some(i) => i.clone(),
-            None => return Ok(String::from("No headers available.")),
+            None => {
+                return Ok(warp::reply::with_status(
+                    "No headers available.".to_string(),
+                    warp::http::StatusCode::NOT_FOUND,
+                ))
+            }
         },
-        //TODO: Remove below unwrap
         proof_hex: siblings.iter().map(|s| hex::encode(s)).collect(),
         value_hash_hex: hex::encode(value_hash),
         nexus_state_root_hex: hex::encode(root.as_fixed_slice()),
     };
 
-    Ok(serde_json::to_string(&response).expect("Failed to serialize Account to JSON"))
+    let serialized_response = match serde_json::to_string(&response) {
+        Ok(i) => i,
+        Err(e) => {
+            return Ok(warp::reply::with_status(
+                "Internal encoding error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ));
+        }
+    };
+
+    Ok(warp::reply::with_status::<String>(
+        serialized_response,
+        warp::http::StatusCode::OK,
+    ))
 }
 
 pub async fn get_state_hex(
     db: Arc<Mutex<NodeDB>>,
     state: Arc<Mutex<VmState>>,
     app_account_id: &H256,
-) -> Result<String, Infallible> {
+) -> Result<WithStatus<String>, Rejection> {
     let state_lock = state.lock().await;
     let db_lock = db.lock().await;
 
     let header_store: HeaderStore = match db_lock.get(b"previous_headers") {
         Ok(Some(i)) => i,
         Ok(None) => HeaderStore::new(32),
-        Err(_) => panic!("Header store error"),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Header store error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
     let current_version = match state_lock.get_version(true) {
         Ok(Some(i)) => i,
         Ok(None) => 0,
-        Err(e) => return Ok(String::from("Internal db error")),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Internal db error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
 
     let (account_option, proof) = match state_lock.get_with_proof(app_account_id, current_version) {
         Ok(i) => i,
-        Err(e) => return Ok(String::from("Internal error")),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Internal error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
     let root = match state_lock.get_root(current_version) {
         Ok(i) => i,
-        Err(e) => return Ok(String::from("Internal error")),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Internal error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
 
-    let account = if let Some(a) = account_option {
-        a
-    } else {
-        AccountState::zero()
-    };
+    let account = account_option.unwrap_or_else(AccountState::zero);
     let siblings: Vec<[u8; 32]> = proof
         .siblings()
         .iter()
@@ -340,9 +442,13 @@ pub async fn get_state_hex(
         account_encoded: hex::encode(account.encode()),
         nexus_header: match header_store.first() {
             Some(i) => i.clone(),
-            None => return Ok(String::from("No headers available.")),
+            None => {
+                return Ok(warp::reply::with_status(
+                    "No headers available.".to_string(),
+                    warp::http::StatusCode::NOT_FOUND,
+                ))
+            }
         },
-        //TODO: Remove below unwrap
         proof_hex: siblings.iter().map(|s| hex::encode(s)).collect(),
         value_hash_hex: hex::encode(value_hash),
         nexus_state_root_hex: hex::encode(root.as_fixed_slice()),
@@ -350,40 +456,103 @@ pub async fn get_state_hex(
 
     let response = AccountWithProofHex::from(account_with_proof);
 
-    Ok(serde_json::to_string(&response).expect("Failed to serialize Account to JSON"))
+    let serialized_response = match serde_json::to_string(&response) {
+        Ok(i) => i,
+        Err(e) => {
+            return Ok(warp::reply::with_status(
+                "Internal encoding error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ));
+        }
+    };
+
+    Ok(warp::reply::with_status::<String>(
+        serialized_response,
+        warp::http::StatusCode::OK,
+    ))
 }
 
-pub async fn header(db: Arc<Mutex<NodeDB>>, avail_hash: H256) -> Result<String, Infallible> {
+pub async fn header(
+    db: Arc<Mutex<NodeDB>>,
+    avail_hash: H256,
+) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
 
     let nexus_hash: H256 = match db_lock.get::<AvailToNexusPointer>(avail_hash.as_slice()) {
         Ok(Some(i)) => i.nexus_hash,
-        Ok(None) => return Ok(String::from("Avail header not yet processed.")),
-        Err(_) => panic!("Node DB error. Cannot find mapping"),
+        Ok(None) => {
+            return Ok(warp::reply::with_status(
+                "Avail header not yet processed.".to_string(),
+                warp::http::StatusCode::NOT_FOUND,
+            ))
+        }
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Node DB error. Cannot find mapping".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
 
     let nexus_header: NexusHeader = match db_lock.get(nexus_hash.as_slice()) {
         Ok(Some(i)) => i,
-        Ok(None) => return Ok(String::from("Internal error")),
-        Err(_) => panic!("Node DB error. Cannot find nexus header"),
+        Ok(None) => {
+            return Ok(warp::reply::with_status(
+                "Internal error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Node DB error. Cannot find nexus header".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
 
-    Ok(serde_json::to_string(&nexus_header).expect("Failed to serialize AvailHeader to JSON"))
+    let serialized_response = match serde_json::to_string(&nexus_header) {
+        Ok(i) => i,
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Internal encoding error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ));
+        }
+    };
+
+    Ok(warp::reply::with_status::<String>(
+        serialized_response,
+        warp::http::StatusCode::OK,
+    ))
 }
 
-pub async fn range(db: Arc<Mutex<NodeDB>>) -> Result<String, Infallible> {
+pub async fn range(db: Arc<Mutex<NodeDB>>) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
 
     let header_store: HeaderStore = match db_lock.get(b"previous_headers") {
         Ok(Some(i)) => i,
         Ok(None) => HeaderStore::new(32),
-        Err(_) => panic!("Header store error"),
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Header store error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     };
 
     let range: Vec<H256> = header_store.inner().iter().map(|h| h.hash()).collect();
+    let serialized_range = match serde_json::to_string(&range) {
+        Ok(i) => i,
+        Err(e) => {
+            return Ok(warp::reply::with_status(
+                "Internal encoding error".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ));
+        }
+    };
 
-    let string =
-        serde_json::to_string(&range).expect("Failed to serialize AvailHeader vector to JSON");
-
-    Ok(string)
+    Ok(warp::reply::with_status::<String>(
+        serialized_range,
+        warp::http::StatusCode::OK,
+    ))
 }
