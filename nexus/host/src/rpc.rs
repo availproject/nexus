@@ -5,8 +5,9 @@ use nexus_core::mempool::Mempool;
 use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers, NexusHeader,
-    StatementDigest, Transaction, TransactionWithStatus, H256,
+    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers,
+    NexusBlockWithTransactions, NexusHeader, StatementDigest, Transaction, TransactionWithStatus,
+    H256,
 };
 use nexus_core::utils::hasher::Sha256;
 use serde::{Deserialize, Serialize};
@@ -91,6 +92,7 @@ pub fn routes(
     let db_clone_2 = db.clone();
     let db_clone_3 = db.clone();
     let db_clone_4 = db.clone();
+    let db_clone_5 = db.clone();
 
     let health_check = warp::path("health")
         .and(warp::get())
@@ -123,6 +125,30 @@ pub fn routes(
                         warp::http::StatusCode::BAD_REQUEST,
                     )),
                 }
+            },
+        );
+
+    let block = warp::path("block")
+        .and(warp::get())
+        .and(warp::any().map(move || db_clone_5.clone()))
+        .and(warp::query::<HashMap<String, String>>())
+        .and_then(
+            |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
+                let block_hash = match params
+                    .get("block_hash")
+                    .map(|hash_str| H256::try_from(hash_str.as_str()))
+                    .transpose()
+                    .map_err(|_| {
+                        warp::reply::with_status(
+                            "Invalid hash".to_string(),
+                            warp::http::StatusCode::BAD_REQUEST,
+                        )
+                    }) {
+                    Ok(i) => i,
+                    Err(e) => return Ok(e),
+                };
+
+                get_block(db, block_hash).await
             },
         );
 
@@ -226,6 +252,7 @@ pub fn routes(
 
     tx.or(health_check)
         .or(tx_status)
+        .or(block)
         .or(submit_batch)
         .or(header)
         .or(account)
@@ -250,7 +277,6 @@ pub async fn tx_status(
     tx_hash: H256,
 ) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
-    println!("Getting tx status");
     match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice()) {
         Ok(Some(i)) => Ok(warp::reply::with_status(
             serde_json::to_string(&i).expect("Failed to serialize Account to JSON"),
@@ -262,6 +288,86 @@ pub async fn tx_status(
         )),
         Err(_) => Ok(warp::reply::with_status(
             "Internal error".to_string(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        )),
+    }
+}
+
+pub async fn get_block(
+    db: Arc<Mutex<NodeDB>>,
+    block_hash_opt: Option<H256>,
+) -> Result<WithStatus<String>, Rejection> {
+    let db_lock = db.lock().await;
+
+    let nexus_hash = match block_hash_opt {
+        Some(hash) => hash,
+        None => match db_lock.get::<HeaderStore>(b"previous_headers") {
+            Ok(Some(headers)) => match headers.first().map(|h| h.hash()) {
+                Some(hash) => hash,
+                None => {
+                    return Ok(warp::reply::with_status(
+                        "Latest headers not retrievable".to_string(),
+                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    ))
+                }
+            },
+            _ => {
+                return Ok(warp::reply::with_status(
+                    "Latest headers not retrievable".to_string(),
+                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
+        },
+    };
+
+    let block =
+        match db_lock.get::<NexusBlockWithPointers>(&[nexus_hash.as_slice(), b"-block"].concat()) {
+            Ok(Some(b)) => b,
+            Ok(None) => {
+                return Ok(warp::reply::with_status(
+                    "Block not found".to_string(),
+                    warp::http::StatusCode::BAD_REQUEST,
+                ))
+            }
+            Err(_) => {
+                return Ok(warp::reply::with_status(
+                    "Error retrieving block".to_string(),
+                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
+        };
+
+    let txs = block
+        .block
+        .transactions
+        .iter()
+        .filter_map(|tx_hash| {
+            db_lock
+                .get::<TransactionWithStatus>(tx_hash.hash.as_slice())
+                .ok()
+                .and_then(|opt_tx| opt_tx)
+        })
+        .collect::<Vec<_>>();
+
+    if txs.len() != block.block.transactions.len() {
+        return Ok(warp::reply::with_status(
+            "Some transactions not found".to_string(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        ));
+    }
+
+    let block_with_txs: NexusBlockWithTransactions = NexusBlockWithTransactions {
+        transactions: txs,
+        header: block.block.header,
+    };
+
+    match serde_json::to_string(&block_with_txs) {
+        Ok(serialized_response) => Ok(warp::reply::with_status(
+            serialized_response,
+            warp::http::StatusCode::OK,
+        )),
+        Err(_) => Ok(warp::reply::with_status(
+            "Internal encoding error".to_string(),
             warp::http::StatusCode::INTERNAL_SERVER_ERROR,
         )),
     }
@@ -294,7 +400,7 @@ pub async fn get_state(
                 Ok(None) => {
                     return Ok(warp::reply::with_status(
                         "Block hash not found".to_string(),
-                        warp::http::StatusCode::NOT_FOUND,
+                        warp::http::StatusCode::BAD_REQUEST,
                     ))
                 }
                 Err(_) => {

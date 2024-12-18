@@ -154,9 +154,9 @@ pub struct NexusBlockWithPointers {
 }
 
 #[cfg(any(feature = "native"))]
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct NexusBlockWithTransactions {
-    pub transactions: Vec<(Transaction, TransactionResult)>,
+    pub transactions: Vec<TransactionWithStatus>,
     pub header: NexusHeader,
 }
 

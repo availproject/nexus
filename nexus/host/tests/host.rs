@@ -11,8 +11,8 @@ use nexus_core::{
     state_machine::StateMachine,
     types::{
         AccountState, AccountWithProof, AppAccountId, AppId, HeaderStore, InitAccount,
-        StatementDigest, SubmitProof, Transaction, TransactionStatus, TransactionWithStatus,
-        TxParams, TxSignature, H256,
+        NexusBlockWithTransactions, StatementDigest, SubmitProof, Transaction, TransactionStatus,
+        TransactionWithStatus, TxParams, TxSignature, H256,
     },
     zkvm::ProverMode,
 };
@@ -1047,6 +1047,143 @@ async fn test_get_state_api() {
         node_db_clone.clone(),
         state_machine,
         (prover_mode, 7006),
+        state_clone,
+        shutdown_rx,
+    )
+    .await
+    {
+        Ok(_) => (),
+        Err(e) => {
+            panic!("Nexus exited with unexpected error: {:?}", e);
+        }
+    };
+}
+
+#[tokio::test]
+async fn test_get_block_api() {
+    use serde_json;
+    use tokio::fs;
+    let db_path = "./tests/db/test_get_block_api";
+    let app_account_id = AppAccountId::from(AppId(100));
+
+    if let Err(e) = fs::remove_dir_all(db_path.clone()).await {
+        eprintln!("Failed to clean up database folder: {:?}", e);
+    } else {
+        println!("Database folder cleaned up successfully.");
+    }
+
+    // Mock the Relayer instance
+    let mut mock_relayer = MockRelayer::new();
+
+    // Set up an unbounded channel to simulate sending and receiving headers
+    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Header>();
+
+    // Mock `receiver` to return the receiver end of the channel
+    let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
+    let receiver_arc_clone = receiver_arc.clone();
+
+    mock_relayer
+        .expect_receiver()
+        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_stop().returning(move || ());
+
+    // Read headers from the JSON file
+    let json_path = "tests/data/avail_headers.json";
+    let file_content = fs::read_to_string(json_path)
+        .await
+        .expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> =
+        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+
+    let headers_clone = headers.clone();
+    let sender_clone = sender.clone();
+
+    let prover_mode = ProverMode::MockProof;
+    let (node_db, state) = setup_components(db_path);
+    let node_db_clone = node_db.clone();
+    let state_clone = state.clone();
+    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state_clone.clone());
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+    mock_relayer.expect_start().returning(move |_| {
+        let headers_in_box = headers_clone.clone();
+        let sender_in_box = sender_clone.clone();
+        let shutdown_tx_clone = shutdown_tx.clone();
+
+        Box::pin(async move {
+            #[cfg(any(feature = "risc0"))]
+            let tx_file_path = "tests/data/init_tx_risc0_1.json";
+
+            #[cfg(any(feature = "sp1"))]
+            let tx_file_path = "tests/data/init_tx_sp1.json";
+
+            sender_in_box
+                .send(headers_in_box[0].clone())
+                .expect("Failed to send header in mock");
+            //TODO: Keep the tests less complicated than below.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+
+            // Read and deserialize the transaction from the JSON file
+            let tx_json = fs::read_to_string(tx_file_path)
+                .await
+                .expect("Failed to read transaction JSON file");
+            let tx: Transaction =
+                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+
+            let response = Client::new()
+                .post("http://127.0.0.1:7007/tx")
+                .json(&tx)
+                .send()
+                .await
+                .unwrap();
+
+            // Check if the request was successful
+            if response.status().is_success() {
+                ()
+            } else {
+                panic!(
+                    "Post transaction call failed with status code: {}",
+                    response.status()
+                );
+            }
+            println!("Sent second header");
+            // Simulate sending headers
+            sender_in_box
+                .send(headers_in_box[1].clone())
+                .expect("Failed to send header in mock");
+            tokio::time::sleep(Duration::from_secs(2)).await;
+
+            let response = Client::new()
+                .get("http://127.0.0.1:7007/block")
+                .send()
+                .await
+                .unwrap();
+            let status = response.status();
+
+            let block_with_txs: NexusBlockWithTransactions = response
+                .json()
+                .await
+                .expect("Response with Nexus block not encoded as expected.");
+
+            let json_path = "tests/data/nexus_header_risc0_1.json";
+            let file_content = fs::read_to_string(json_path)
+                .await
+                .expect("Failed to read nexus header json file.");
+            let expected_header: NexusBlockWithTransactions =
+                serde_json::from_str(&file_content).expect("Failed to parse Nexus header file.");
+
+            assert_eq!(expected_header, block_with_txs);
+
+            shutdown_tx_clone.send(true).unwrap();
+        })
+    });
+
+    // Spawn the main Nexus logic
+    match run_nexus(
+        Arc::new(Mutex::new(mock_relayer)),
+        node_db_clone.clone(),
+        state_machine,
+        (prover_mode, 7007),
         state_clone,
         shutdown_rx,
     )
