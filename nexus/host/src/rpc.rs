@@ -167,7 +167,7 @@ pub fn routes(
                     Some(hash_str) => {
                         let avail_hash = H256::try_from(hash_str.as_str());
                         match avail_hash {
-                            Ok(hash) => header(db, hash).await,
+                            Ok(hash) => get_header(db, hash).await,
                             Err(_) => Ok(warp::reply::with_status(
                                 "Invalid hash".to_string(),
                                 warp::http::StatusCode::BAD_REQUEST,
@@ -578,7 +578,7 @@ pub async fn get_state_hex(
     ))
 }
 
-pub async fn header(
+pub async fn get_header(
     db: Arc<Mutex<NodeDB>>,
     avail_hash: H256,
 ) -> Result<WithStatus<String>, Rejection> {

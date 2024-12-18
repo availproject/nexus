@@ -47,18 +47,29 @@ impl Relayer for SimpleRelayer {
     fn start(&self, start_height: u32) -> impl Future<Output = ()> + Send {
         async move {
             println!("Started client.");
-            let (subxt_client, _) = avail_subxt::build_client(self.rpc_url.clone(), false)
-                .await
-                .unwrap();
+            let (mut subxt_client, mut ws_client) =
+                avail_subxt::build_client(self.rpc_url.clone(), false)
+                    .await
+                    .unwrap();
             println!("Built client");
-
             let mut next_height = start_height;
             let mut stop_rx = self.stop.subscribe();
-
             loop {
                 if *stop_rx.borrow() {
                     println!("Stopping the relayer.");
                     break;
+                }
+
+                if !ws_client.is_connected() {
+                    (subxt_client, ws_client) =
+                        match avail_subxt::build_client(self.rpc_url.clone(), false).await {
+                            Ok(i) => (i.0, i.1),
+                            Err(e) => {
+                                println!("Error reconnecting to rpc {}", e);
+                                tokio::time::sleep(Duration::from_secs(2)).await;
+                                continue;
+                            }
+                        };
                 }
 
                 let finalized_head = match subxt_client.rpc().finalized_head().await {
