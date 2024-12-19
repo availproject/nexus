@@ -4661,6 +4661,7 @@ dependencies = [
  "sp-runtime 33.0.0",
  "sp1-sdk",
  "tokio",
+ "tracing",
  "tracing-subscriber 0.3.19",
  "warp",
 ]
@@ -6280,6 +6281,7 @@ dependencies = [
  "sp1-zkvm",
  "sparse-merkle-tree",
  "tokio",
+ "tracing",
  "winnow 0.6.20",
 ]
 

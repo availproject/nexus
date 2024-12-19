@@ -20,8 +20,10 @@ use nexus_core::{
 use serde_json;
 use std::{collections::HashMap, mem, thread};
 use tokio::fs;
+use tracing::{debug, error, info, instrument};
 
 use crate::rpc::routes;
+use avail_subxt::config::Header as HeaderTrait;
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
@@ -80,8 +82,7 @@ pub async fn relayer_handle(
               Ok(Some(i)) => i.number,
               Ok(None) => panic!("Node DB error. Cannot find mapping to avail -> nexus block for already processed block"),
               Err(e) => {
-                  println!("{:?}", e);
-
+                  error!(error = ?e, "Node DB error");
                   panic!("Node DB error. Cannot find mapping to avail -> nexus block")
               },
           } + 1;
@@ -94,17 +95,17 @@ pub async fn relayer_handle(
 
     tokio::select! {
         _ = relayer.start(start_height) => {
-            println!("Relayer start function exited");
+            info!("Relayer start function exited");
         }
         _ = shutdown_rx.changed() => {
             if *shutdown_rx.borrow() {
-                println!("Shutdown signal received. Stopping relayer handle...");
+                info!("Shutdown signal received. Stopping relayer handle...");
                 relayer.stop();
             }
         }
     }
 
-    println!("Exited relayer handle");
+    info!("Exited relayer handle");
 }
 
 async fn execute_batch<
@@ -170,6 +171,18 @@ where
     Ok((proof, result, tx_result, tree_update_batch))
 }
 
+#[instrument(
+    level = "info",
+    skip(
+        node_db,
+        mempool,
+        state_machine,
+        prover_mode,
+        shutdown_rx,
+        state,
+        receiver
+    )
+)]
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,
@@ -179,11 +192,13 @@ pub async fn execution_engine_handle(
     mut shutdown_rx: watch::Receiver<bool>,
     state: Arc<Mutex<VmState>>,
 ) -> Result<(), anyhow::Error> {
+    info!("Starting execution engine in {:?} mode", prover_mode);
     const MAX_HEADERS: usize = 5;
     let mut header_array: Vec<Header> = Vec::new();
+
     loop {
         if *shutdown_rx.borrow() {
-            println!("Shutdown signal received. Stopping execution engine...");
+            info!("Shutdown signal received, stopping execution engine");
             break;
         }
 
@@ -193,54 +208,45 @@ pub async fn execution_engine_handle(
         };
 
         if let Some(header) = header_opt {
-            println!("Processing header {}", header.number);
-            header_array.push(header.clone());
+            info!("━━━━━━━━━━━━━━━━━ NEW BLOCK ━━━━━━━━━━━━━━━━━");
+            debug!(
+                avail_block = header.number,
+                avail_hash = %hex::encode(header.hash()),
+                parent_hash = %hex::encode(header.parent_hash),
+                "Received new AvailDA header"
+            );
 
-            // Ensure the array does not exceed the maximum size
-            // if header_array.len() >= MAX_HEADERS {
-            //     // Write the headers to the file
-            //     let json_path = "./tests/data/avail_headers.json";
-            //     if let Err(e) =
-            //         fs::write(json_path, serde_json::to_string(&header_array).unwrap()).await
-            //     {
-            //         eprintln!("Failed to write headers to file: {:?}", e);
-            //     }
-            // }
+            header_array.push(header.clone());
 
             let mut old_headers: HeaderStore = {
                 let db_lock = node_db.lock().await;
-                match db_lock.get(b"previous_headers") {
-                    Ok(Some(i)) => i,
-                    Ok(None) => HeaderStore::new(32),
+                match db_lock.get::<HeaderStore>(b"previous_headers") {
+                    Ok(Some(i)) => {
+                        debug!("Loaded {} previous headers", i.inner().len());
+                        i
+                    }
+                    Ok(None) => {
+                        debug!("Creating new header store");
+                        HeaderStore::new(32)
+                    }
                     Err(_) => {
+                        error!("Failed to get previous headers from DB");
                         return Err(anyhow!(
                             "DB Call failed to get previous headers. Restart required."
                         ));
                     }
                 }
             };
-            // let mut txs = Vec::new();
-            // let mut index = None;
-
-            // // Continuously fetch transactions until the length is non-zero
-            // while txs.is_empty() {
-            //     let (current_txs, current_index) = mempool.get_current_txs().await;
-            //     txs = current_txs;
-            //     index = current_index;
-
-            //     if header.number == 10000 {
-            //         break;
-            //     }
-            // }
 
             let (txs, index) = mempool.get_current_txs().await;
-
-            println!(
-                "Number of txs for height {} -- {}",
-                header.number,
-                txs.len()
+            info!(
+                avail_block = header.number,
+                tx_count = txs.len(),
+                mempool_index = index.unwrap_or(0),
+                "Starting batch processing"
             );
 
+            debug!("Beginning batch execution");
             match execute_batch::<Prover, Proof, ZKVM>(
                 &txs,
                 &mut state_machine,
@@ -251,10 +257,15 @@ pub async fn execution_engine_handle(
             .await
             {
                 Ok((_, result, tx_result, tree_update_batch)) => {
-                    //The execute_batch method on state machine would have updated the version in the storage.
                     let updated_version = state.lock().await.get_version(false)?;
+                    debug!(
+                        nexus_block = result.number,
+                        state_version = ?updated_version,
+                        "Batch execution completed"
+                    );
 
-                    save_batch_information(
+                    debug!("Starting batch commit");
+                    match save_batch_information(
                         &node_db,
                         &mempool,
                         &mut state_machine,
@@ -272,90 +283,71 @@ pub async fn execution_engine_handle(
                             },
                         },
                     )
-                    .await?;
-                    // let nexus_hash: H256 = result.hash();
-                    // let mut batch_transaction = BatchTransaction::new();
-
-                    // batch_transaction.put(b"previous_headers", &old_headers);
-                    // batch_transaction.put(
-                    //     result.avail_header_hash.as_slice(),
-                    //     &AvailToNexusPointer {
-                    //         number: header.number,
-                    //         nexus_hash: nexus_hash.clone(),
-                    //     },
-                    // );
-                    // for (tx_hash, success) in tx_result.iter() {
-                    //     if let Some(tx) = txs.iter().find(|t| t.hash() == *tx_hash) {
-                    //         batch_transaction.put(tx_hash.as_slice(), tx)?;
-                    //     }
-                    // }
-                    // batch_transaction.put(nexus_hash.as_slice(), &result);
-                    // let db_lock = node_db.lock().await;
-                    // db_lock.put_batch(batch_transaction)?;
-                    // // db_lock.put(b"previous_headers", &old_headers).unwrap();
-                    // // db_lock
-                    // //     .put(
-                    // //         result.avail_header_hash.as_slice(),
-                    // //         &AvailToNexusPointer {
-                    // //             number: header.number,
-                    // //             nexus_hash: nexus_hash.clone(),
-                    // //         },
-                    // //     )
-                    // //     .unwrap();
-                    // // db_lock.put(nexus_hash.as_slice(), &result).unwrap();
-
-                    // db_lock.set_current_root(&result.state_root).unwrap();
-                    // if let Some(i) = index {
-                    //     mempool.clear_upto_tx(i).await;
-                    // }
-
-                    println!(
-                        "✅ Processed batch: {:?}, avail height: {:?}",
-                        result, header.number
-                    );
+                    .await
+                    {
+                        Ok(_) => {
+                            let successful_txs =
+                                tx_result.values().filter(|&&success| success).count();
+                            info!(
+                                nexus_block = result.number,
+                                total_txs = txs.len(),
+                                successful_txs = successful_txs,
+                                failed_txs = txs.len() - successful_txs,
+                                "Batch processing completed"
+                            );
+                        }
+                        Err(e) => error!(error = ?e, "Failed to commit batch"),
+                    }
                 }
                 Err(e) => {
-                    println!("Breaking because of error {:?}", e);
+                    error!(error = ?e, "Batch execution failed");
                     return Err(e);
                 }
             }
+            info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ \n");
         } else {
-            // No header available; allow loop to continue
+            debug!("Waiting for new blocks");
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
     }
 
-    println!("Exited execution handle");
-
+    info!("Execution engine stopped");
     Ok(())
 }
 
-pub struct ProcessedBatchInfo<'a> {
-    avail_header: &'a Header,
-    header: &'a NexusHeader,
-    txs_result: &'a HashMap<H256, bool>,
-    tree_update_batch: Option<TreeUpdateBatch>,
-    txs: &'a Vec<Transaction>,
-    mempool_index: &'a Option<usize>,
-    updated_header_store: &'a HeaderStore,
-    jmt_version: u64,
-}
-
+#[instrument(
+    level = "debug",
+    skip(node_db, mempool, state_machine, processed_batch_info)
+)]
 pub async fn save_batch_information<'a>(
     node_db: &Arc<Mutex<NodeDB>>,
     mempool: &Mempool,
     state_machine: &mut StateMachine<ZKVM, Proof>,
     processed_batch_info: ProcessedBatchInfo<'a>,
 ) -> Result<(), Error> {
-    match processed_batch_info.tree_update_batch {
-        Some(i) => {
-            state_machine
-                .commit_state(&processed_batch_info.header.state_root, &i.node_batch)
-                .await?;
-        }
-        None => (),
+    debug!(
+        nexus_block = processed_batch_info.header.number,
+        "Starting batch commit"
+    );
+
+    if let Some(tree_update) = &processed_batch_info.tree_update_batch {
+        debug!(
+            nexus_block = processed_batch_info.header.number,
+            node_count = tree_update.node_batch.nodes().len(),
+            "Committing state updates"
+        );
+
+        state_machine
+            .commit_state(
+                &processed_batch_info.header.state_root,
+                &tree_update.node_batch,
+                processed_batch_info.header.number,
+            )
+            .await?;
     }
-    let nexus_hash: H256 = processed_batch_info.header.hash();
+
+    debug!("Writing batch data to database");
+    let nexus_hash = processed_batch_info.header.hash();
     let mut batch_transaction = BatchTransaction::new();
 
     batch_transaction.put(
@@ -417,6 +409,17 @@ pub async fn save_batch_information<'a>(
     Ok(())
 }
 
+pub struct ProcessedBatchInfo<'a> {
+    avail_header: &'a Header,
+    header: &'a NexusHeader,
+    txs_result: &'a HashMap<H256, bool>,
+    tree_update_batch: Option<TreeUpdateBatch>,
+    txs: &'a Vec<Transaction>,
+    mempool_index: &'a Option<usize>,
+    updated_header_store: &'a HeaderStore,
+    jmt_version: u64,
+}
+
 pub fn run_server(
     mempool: Mempool,
     node_db: Arc<Mutex<NodeDB>>,
@@ -430,22 +433,23 @@ pub fn run_server(
         .allow_methods(vec!["POST"])
         .allow_headers(vec!["content-type"]);
     let routes = routes.with(cors);
+
     tokio::spawn(async move {
         let address =
             SocketAddr::from_str(format!("{}:{}", String::from("0.0.0.0"), port).as_str())
                 .context("Unable to parse host address from config")
                 .unwrap();
 
-        println!("RPC Server running on: {:?}", &address);
+        info!("🌐 RPC Server running on: {:?}", &address);
 
         let (_, server) = warp::serve(routes).bind_with_graceful_shutdown(address, async move {
             shutdown_rx.changed().await.ok();
-            println!("Shutdown signal received. Stopping server...");
+            info!("💤 Shutdown signal received. Stopping server...");
         });
 
         server.await;
 
-        println!("Exited server handle");
+        info!("✅ Exited server handle");
     })
 }
 
@@ -493,23 +497,21 @@ pub async fn run_nexus(
 
     match result {
         Ok((_, execution_engine_result, _)) => {
-            println!("Exited node gracefully");
+            info!("✅ Exited node gracefully");
 
             match execution_engine_result {
                 Ok(()) => Ok(()),
-
                 Err(e) => {
-                    println!("Execution engine handle has error");
+                    error!(error = ?e, "❌ Execution engine handle has error");
                     Err(e)
                 }
             }
         }
         Err(e) => {
-            println!(
-                "Exiting node with an error, should not have happened. {:?}",
-                e
+            error!(
+                error = ?e,
+                "❌ Exiting node with an error, should not have happened"
             );
-
             Err(anyhow!(e))
         }
     }

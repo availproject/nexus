@@ -6,6 +6,7 @@ use crate::{
 use anyhow::anyhow;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{debug, error, event, info, instrument, Level, span, warn};
 
 #[derive(Clone)]
 pub struct Mempool {
@@ -14,14 +15,18 @@ pub struct Mempool {
 }
 
 impl Mempool {
+    #[instrument(level = "debug", skip(node_db))]
     pub fn new(node_db: Arc<Mutex<NodeDB>>) -> Self {
+        debug!("Creating new Mempool");
         Self {
             tx_list: Arc::new(Mutex::new(vec![])),
             node_db,
         }
     }
 
+    #[instrument(level = "debug", skip(self))]
     pub async fn get_current_txs(&self) -> (Vec<Transaction>, Option<usize>) {
+        debug!("Getting current transactions from mempool");
         let tx_list = self.tx_list.lock().await;
 
         (
@@ -33,9 +38,10 @@ impl Mempool {
         )
     }
 
+    #[instrument(level = "debug", skip(self))]
     pub async fn clear_upto_tx(&self, index: usize) -> () {
+        debug!("Clearing transactions up to index {} from mempool", index);
         let mut tx_list = self.tx_list.lock().await;
-        println!("Clearing tx list {index} {}", tx_list.len());
         // Clear transactions up to the specified index
         if index < tx_list.len() {
             tx_list.drain(0..=index);
@@ -45,11 +51,16 @@ impl Mempool {
         }
     }
 
+    #[instrument(level = "debug", skip(self))]
     pub async fn add_tx(&self, tx: Transaction) -> Result<(), anyhow::Error> {
+        debug!("Adding transaction to mempool");
         let mut node_db = self.node_db.lock().await;
         let tx_hash = tx.hash();
         match node_db.get::<TransactionWithStatus>(tx_hash.as_slice()) {
-            Ok(Some(i)) => Err(anyhow!("Transaction already exists")),
+            Ok(Some(i)) => {
+                error!("Transaction already exists in mempool");
+                Err(anyhow!("Transaction already exists"))
+            }
             Ok(None) => {
                 node_db.put(
                     tx_hash.as_slice(),
@@ -63,11 +74,13 @@ impl Mempool {
 
                 tx_list.push(tx);
 
-                println!("Added tx. Total txs for next batch : {}", tx_list.len());
-
+                info!("Transaction successfully added to mempool");
                 Ok(())
             }
-            Err(e) => Err(anyhow!("Internal mempool error")),
+            Err(e) => {
+                error!("Internal mempool error: {}", e);
+                Err(anyhow!("Internal mempool error"))
+            }
         }
     }
 }
