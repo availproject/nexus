@@ -19,6 +19,10 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
+use std::io::{self};
+
 pub mod constants;
 
 use crate::constants::{get_mock_l1_batch_with_metadata, get_mock_proof};
@@ -92,6 +96,17 @@ fn main() {
         let stf = STF::new(img_id, elf.clone(), prover_mode.clone());
 
         let start = Instant::now();
+
+        let mut file = File::create("arguments_output.txt").unwrap();
+
+    // Write each argument to the file
+    writeln!(file, "prev_proof_with_pi: {:?}", prev_adapter_proof.clone());
+    writeln!(file, "account_state: {:?}", init_account.clone());
+    writeln!(file, "proof: {:?}", new_rollup_proof.clone());
+    writeln!(file, "batch_metadata: {:?}", new_rollup_pi.clone());
+    writeln!(file, "pubdata_commitments: {:?}", pubdata_commitments.clone());
+    writeln!(file, "versioned_hashes: {:?}", versioned_hashes.clone());
+    writeln!(file, "range[0]: {:?}", nexus_hash.clone());
 
         let recursive_proof = stf
             .create_recursive_proof::<Prover, Proof, ZKVM>(

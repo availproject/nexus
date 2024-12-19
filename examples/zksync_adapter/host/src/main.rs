@@ -39,6 +39,8 @@ use sp1_sdk::utils;
 #[cfg(feature = "risc0")] // for now
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
+use std::io::{self};
+
 mod proof_api;
 // Your NodeDB struct and methods implementation here
 
@@ -159,7 +161,7 @@ async fn main() -> Result<(), Error> {
         AppAccountId::from(adapter_state_data.adapter_config.app_id.clone()),
     );
 
-    let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);
+    let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url); // from here we request the server
 
     let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
     let account_with_proof: AccountWithProof = nexus_api
@@ -200,17 +202,24 @@ async fn main() -> Result<(), Error> {
         tokio::time::sleep(Duration::from_secs(10)).await;
     }
     
+    println!("reached here !");
+
     loop {
         println!("Processing L1 batch number: {}", last_height + 1);
 
-        match proof_api.get_proof_for_l1_batch(last_height + 1).await {
+        match proof_api.get_proof_for_l1_batch(last_height + 1).await { //request from the server
             Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof))) => {
+                println!("got the proof from the zksync server");
+
                 let ProofWithCommitmentAndL1BatchMetaData {
                     proof_with_l1_batch_metadata,
                     blob_commitments,
                     pubdata_commitments,
                     versioned_hashes,
                 } = proof_with_commitment_and_l1_batch_meta_data;
+
+                println!("got proof with commitment");
+
                 let batch_metadata = proof_with_l1_batch_metadata.metadata;
                 let current_height = batch_metadata.header.number.0;
                 // println!("metadata: {:?}", batch_metadata);
@@ -226,6 +235,7 @@ async fn main() -> Result<(), Error> {
                             continue;
                         }
                     };
+                println!("got account data with proof");    
                 let height_on_nexus = account_with_proof.account.height;
 
                 // if adapter_state_data.adapter_config.adapter_elf_id.clone()
@@ -274,11 +284,26 @@ async fn main() -> Result<(), Error> {
                         continue;
                     }
                 };
+                println!("got range from nexus_api");
 
                 if range.is_empty() {
                     println!("Nexus does not have a valid range, retrying.");
                     continue;
                 }
+
+                println!("proof creation starts"); 
+                
+                // Open a file to write the arguments
+    let mut file = File::create("arguments_output.txt")?;
+
+    // Write each argument to the file
+    writeln!(file, "prev_proof_with_pi: {:?}", prev_proof_with_pi)?;
+    writeln!(file, "account_state: {:?}", account_state)?;
+    writeln!(file, "proof: {:?}", proof)?;
+    writeln!(file, "batch_metadata: {:?}", batch_metadata.clone())?;
+    writeln!(file, "pubdata_commitments: {:?}", pubdata_commitments)?;
+    writeln!(file, "versioned_hashes: {:?}", versioned_hashes)?;
+    writeln!(file, "range[0]: {:?}", range[0])?;
 
                 let mut recursive_proof = stf.create_recursive_proof::<Prover, Proof, ZKVM>(
                     prev_proof_with_pi,
@@ -289,6 +314,8 @@ async fn main() -> Result<(), Error> {
                     versioned_hashes,
                     range[0],
                 )?;
+
+                println!("proof creation ends");
 
                 println!(
                     "Current proof data: {:?}",
@@ -364,27 +391,27 @@ async fn main() -> Result<(), Error> {
                         }),
                     };
 
-                    // let mut txns_vector : Vec<TransactionV2> ;
-                    let mut total_txns = 100;
-                    for txns in 0..total_txns {
-                        match nexus_api.send_tx(tx.clone()).await {
-                            Ok(i) => {
-                                println!(
-                                    "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
-                                    &app_account_id, i, &public_inputs.state_root
-                                )
-                            }
-                            Err(e) => {
-                                println!("Error when iniating account: {:?}", e);
-                                total_txns = total_txns -1;
-                                continue;
-                            }
+                    // fs::write(
+                    //     format!("./submitproof_tx_{}.json", public_inputs.height),
+                    //     serde_json::to_string(&tx).unwrap(),
+                    // )
+                    // .await;
+                let total_txns = 10;
+                for txns in 0..total_txns {    
+                    match nexus_api.send_tx(tx.clone()).await {
+                        Ok(i) => {
+                            println!(
+                                "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
+                                &app_account_id, i, &public_inputs.state_root
+                            )
+                        }
+                        Err(e) => {
+                            println!("Error when iniating account: {:?}", e);
+
+                            continue;
                         }
                     }
-                    println!("{}",total_txns);
-                    
-                    // fs::write("./submitproof_tx.json", serde_json::to_string(&tx).unwrap()).await;
-                    
+                }
                 } else {
                     println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, height_on_nexus);
                 }

@@ -43,7 +43,18 @@ fn create_mock_data() -> (
     db_options.create_if_missing(true);
 
     let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
-    let txs: Vec<TransactionV2> = Vec::new();
+
+    let mut txs: Vec<TransactionV2> = Vec::new();
+
+    // creating a mock tx from json data
+    let tx_file = File::open("src/mock_tx.json").unwrap();
+    let tx_reader = BufReader::new(tx_file);
+    let tx: TransactionV2 = from_reader(tx_reader).unwrap();
+
+    for txn in 0..5 {
+        txs.push(tx.clone());
+    }
+
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
     
     let file = File::open("src/avail_header.json").unwrap();
@@ -63,7 +74,6 @@ fn main() {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    
     let prover_modes = vec![ProverMode::NoAggregation, ProverMode::Compressed];
     
     for i in 0..prover_modes.len() {

@@ -31,5 +31,5 @@ zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 [features]
 default = ["risc0"]
 sp1 = ["sp1-sdk", "nexus-core/native" , "zksync-methods/sp1" , "zksync-core/sp1" , "adapter_sdk/zkvm-sp1"]
-risc0 = ["risc0-zkvm/std", "nexus-core/native" , "zksync-methods/risc0" , "zksync-core/risc0" , "adapter_sdk/zkvm-risc0"]
+risc0 = ["risc0-zkvm/cuda", "nexus-core/cuda-risc0" , "zksync-methods/risc0" , "zksync-core/risc0" , "adapter_sdk/cuda-zkvm-risc0"]
 

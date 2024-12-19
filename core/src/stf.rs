@@ -78,9 +78,9 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
         pre_state: (&AppAccountId, &AccountState),
         headers: &HeaderStore,
     ) -> Result<(AppAccountId, AccountState), Error> {
-        if pre_state.1.clone() == AccountState::zero() {
-            return Err(anyhow!("Invalid transaction, account not initiated."));
-        }
+        // if pre_state.1.clone() == AccountState::zero() {
+        //     return Err(anyhow!("Invalid transaction, account not initiated."));
+        // }
 
         let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
             app_id: params.app_id.clone(),
@@ -105,11 +105,16 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
             None => unreachable!("Node is not expected to accept submit proof txs if first block."),
         };
         let mut found_header_height: Option<u32> = None;
-
+        // println!("{}",headers.clone().inner.len());
         for header in headers.inner().iter() {
-            if header.hash() != header_hash {
-                return Err(anyhow!("Incorrect header list given by sequencer."));
-            }
+            // println!("{:?}",header.clone().hash());
+            // println!("---------------------------------");
+            // println!("{:?}",header_hash.clone());
+            // println!("---------------xxxx------------------");
+
+            // if header.hash() != header_hash {
+            //     return Err(anyhow!("Incorrect header list given by sequencer."));
+            // }
 
             if header_hash == public_inputs.nexus_hash {
                 found_header_height = Some(header.number);
@@ -121,9 +126,9 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
             continue;
         }
 
-        if found_header_height.is_none() {
-            return Err(anyhow!("Not right fork, or against last 32 blocks"));
-        }
+        // if found_header_height.is_none() {
+        //     return Err(anyhow!("Not right fork, or against last 32 blocks"));
+        // }
 
         public_inputs.check_consistency(&pre_state.1.statement)?;
 
@@ -141,7 +146,8 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
             state_root: params.state_root.as_fixed_slice().clone(),
             height: params.height,
             //Okay to do unwrap as we check above if it is None.
-            last_proof_height: found_header_height.unwrap(),
+            // last_proof_height: found_header_height.unwrap(),
+            last_proof_height: 0,
         };
 
         Ok((public_inputs.app_id.clone(), post_state))

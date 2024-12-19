@@ -42,6 +42,7 @@ impl ProofAPI {
     ) -> Result<ProofAPIResponse, anyhow::Error> {
         // Construct the API URL
         let request_url = format!("{}/metadata?l1BatchNumber={}", self.url, l1_batch_number);
+        // println!("{:?}",request_url);
 
         // Send the GET request
         let response = self.client.get(&request_url).send().await?;
