@@ -243,10 +243,10 @@ pub async fn execution_engine_handle(
                 avail_block = header.number,
                 tx_count = txs.len(),
                 mempool_index = index.unwrap_or(0),
-                "Starting batch processing"
+                "📦 Starting batch processing"
             );
 
-            debug!("Beginning batch execution");
+            debug!("🔄 Beginning batch execution");
             match execute_batch::<Prover, Proof, ZKVM>(
                 &txs,
                 &mut state_machine,
@@ -258,13 +258,15 @@ pub async fn execution_engine_handle(
             {
                 Ok((_, result, tx_result, tree_update_batch)) => {
                     let updated_version = state.lock().await.get_version(false)?;
-                    debug!(
+                    info!(
                         nexus_block = result.number,
+                        batch_hash = %hex::encode(result.hash().as_slice()),
+                        state_root = %hex::encode(result.state_root.as_slice()),
                         state_version = ?updated_version,
-                        "Batch execution completed"
+                        "✨ Batch execution completed"
                     );
 
-                    debug!("Starting batch commit");
+                    info!("💾 Starting batch commit");
                     match save_batch_information(
                         &node_db,
                         &mempool,
@@ -290,21 +292,23 @@ pub async fn execution_engine_handle(
                                 tx_result.values().filter(|&&success| success).count();
                             info!(
                                 nexus_block = result.number,
+                                batch_hash = %hex::encode(result.hash().as_slice()),
+                                state_root = %hex::encode(result.state_root.as_slice()),
                                 total_txs = txs.len(),
                                 successful_txs = successful_txs,
                                 failed_txs = txs.len() - successful_txs,
-                                "Batch processing completed"
+                                "✅ Batch processing completed successfully"
                             );
                         }
-                        Err(e) => error!(error = ?e, "Failed to commit batch"),
+                        Err(e) => error!(error = ?e, "❌ Failed to commit batch"),
                     }
                 }
                 Err(e) => {
-                    error!(error = ?e, "Batch execution failed");
+                    error!(error = ?e, "❌ Batch execution failed");
                     return Err(e);
                 }
             }
-            info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ \n");
+            info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ \n");
         } else {
             debug!("Waiting for new blocks");
             tokio::time::sleep(Duration::from_millis(100)).await;

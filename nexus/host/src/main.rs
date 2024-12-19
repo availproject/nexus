@@ -9,6 +9,7 @@ use host::{run_nexus, setup_components};
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
 pub use relayer::{Relayer, SimpleRelayer};
 use std::env::args;
+use std::io::Write;
 use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
 use tracing::{error, info};
@@ -43,7 +44,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ProverMode::Compressed
     };
 
-    info!("Starting Nexus node");
+    print_animated_logo(&prover_mode);
+
     let (node_db, state) = setup_components("./db");
     let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
@@ -95,4 +97,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Nexus node stopped");
     Ok(())
+}
+
+fn print_animated_logo(prover_mode: &ProverMode) {
+    let version_line = format!("                                    ║           Version: {:8}       ║                                    ", env!("CARGO_PKG_VERSION"));
+    let mode_line = format!("                                    ║      Prover Mode: {:12}    ║                                    ", format!("{:?}", prover_mode));
+
+    let logo = vec![
+        "                                    ╔═══════════════════════════════════╗                                    ",
+        "                                    ║            NEXUS NODE             ║                                    ",
+        "                                    ╚═══════════════════════════════════╝                                    ",
+        "                                                                                                            ",
+        "     ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗    ███╗   ██╗ ██████╗ ██████╗ ███████╗                 ",
+        "     ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝    ████╗  ██║██╔═══██╗██╔══██╗██╔════╝                 ",
+        "     ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗    ██╔██╗ ██║██║   ██║██║  ██║█████╗                   ",
+        "     ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║    ██║╚██╗██║██║   ██║██║  ██║██╔══╝                   ",
+        "     ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║    ██║ ╚████║╚██████╔╝██████╔╝███████╗                 ",
+        "     ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝    ╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚══════╝                 ",
+        "                                                                                                            ",
+        "                                    ╔═══════════════════════════════════╗                                    ",
+        &version_line,
+        &mode_line,
+        "                                    ╚═══════════════════════════════════╝                                    ",
+    ];
+
+    for line in logo {
+        println!("{}", line);
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    // Log the startup (this will go to winston/other loggers)
+    info!(
+        "Nexus node started - Version: {} Mode: {:?}",
+        env!("CARGO_PKG_VERSION"),
+        prover_mode
+    );
 }
