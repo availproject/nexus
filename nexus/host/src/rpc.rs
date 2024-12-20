@@ -121,7 +121,7 @@ impl From<AccountWithProof> for AccountWithProofHex {
 )]
 struct ApiDoc;
 
-/// Check if the node is alive
+/// Check if the nexus API is live
 #[utoipa::path(
     get,
     path = "/health",
@@ -158,7 +158,7 @@ async fn submit_tx(mempool: Mempool, tx: Transaction) -> Result<WithStatus<Strin
     }
 }
 
-/// Get transaction status by hash
+/// Get transaction and its status by hash
 #[utoipa::path(
     get,
     path = "/tx_status",
@@ -191,7 +191,7 @@ async fn tx_status(db: Arc<Mutex<NodeDB>>, tx_hash: H256) -> Result<WithStatus<S
     }
 }
 
-/// Get block by hash or latest
+/// Get block by hash, number or latest
 #[utoipa::path(
     get,
     path = "/block",
@@ -307,7 +307,7 @@ async fn get_block(
     }
 }
 
-/// Get account state and proof
+/// Get account state and proof against state root at any height.
 #[utoipa::path(
     get,
     path = "/account",
@@ -543,7 +543,7 @@ async fn get_state_hex(
     ))
 }
 
-/// Get header by Avail hash
+/// Get header by Avail block hash
 #[utoipa::path(
     get,
     path = "/header",
@@ -612,7 +612,7 @@ async fn get_header(
     ))
 }
 
-/// Get block range
+/// Get the block range against which proofs can be submitted for state update.
 #[utoipa::path(
     get,
     path = "/range",
