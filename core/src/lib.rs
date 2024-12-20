@@ -1,6 +1,7 @@
 #[cfg(any(feature = "native"))]
 pub mod db;
 //mod new_stf;
+mod h256;
 #[cfg(any(feature = "native"))]
 pub mod mempool;
 pub mod prover;

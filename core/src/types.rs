@@ -23,22 +23,27 @@ use solabi::{
     encode::{Encode as SolabiEncode, Encoder, Size},
 };
 //TODO: Implement formatter for H256, to display as hex.
+pub use crate::h256::H256;
 pub use crate::state::types::{AccountState, StatementDigest};
 #[cfg(any(feature = "native"))]
 use crate::zkvm::traits::ZKVMProof;
 use core::fmt::Debug as DebugTrait;
-pub use sparse_merkle_tree::H256;
+#[cfg(any(feature = "native"))]
+use utoipa::ToSchema;
 
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct AppAccountId(pub [u8; 32]);
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub struct AppId(#[codec(compact)] pub u32);
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct TxSignature(#[serde(with = "BigArray")] pub [u8; 64]);
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct AccountWithProof {
     pub account: AccountState,
     pub proof: Vec<[u8; 32]>,
@@ -50,7 +55,7 @@ pub struct AccountWithProof {
     pub nexus_state_root_hex: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct UpdatedBlob {
     commitment: [u8; 32],
     state_root: [u8; 32],
@@ -58,6 +63,7 @@ pub struct UpdatedBlob {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub enum TxParams {
     SubmitProof(SubmitProof),
     InitAccount(InitAccount),
@@ -65,6 +71,7 @@ pub enum TxParams {
 
 #[cfg(any(feature = "native"))]
 #[derive(Clone, Serialize, Eq, PartialEq, Deserialize, Debug, Encode, Decode)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct Transaction {
     pub signature: TxSignature,
     pub params: TxParams,
@@ -77,6 +84,7 @@ pub struct TransactionZKVM {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct SubmitProof {
     pub proof: Proof,
     pub nexus_hash: H256,
@@ -87,9 +95,11 @@ pub struct SubmitProof {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct Proof(pub Vec<u8>);
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct InitAccount {
     pub app_id: AppAccountId,
     pub statement: StatementDigest,
@@ -108,6 +118,7 @@ pub struct NexusRollupPI {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct NexusHeader {
     pub parent_hash: H256,
     pub prev_state_root: H256,
@@ -125,6 +136,7 @@ pub struct TransactionResult {
 
 #[cfg(any(feature = "native"))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(ToSchema))]
 pub enum TransactionStatus {
     InPool,
     Failed,
@@ -132,7 +144,14 @@ pub enum TransactionStatus {
 }
 
 #[cfg(any(feature = "native"))]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+pub struct NexusBlockWithTransactions {
+    pub transactions: Vec<TransactionWithStatus>,
+    pub header: NexusHeader,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct TransactionWithStatus {
     pub transaction: Transaction,
     pub status: TransactionStatus,
@@ -151,13 +170,6 @@ pub struct NexusBlock {
 pub struct NexusBlockWithPointers {
     pub block: NexusBlock,
     pub jmt_version: u64,
-}
-
-#[cfg(any(feature = "native"))]
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct NexusBlockWithTransactions {
-    pub transactions: Vec<TransactionWithStatus>,
-    pub header: NexusHeader,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

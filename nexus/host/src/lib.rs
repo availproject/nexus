@@ -400,6 +400,14 @@ pub async fn save_batch_information<'a>(
             jmt_version: processed_batch_info.jmt_version,
         },
     );
+    batch_transaction.put(
+        &[
+            processed_batch_info.header.number.to_be_bytes().as_slice(),
+            b"-block",
+        ]
+        .concat(),
+        &nexus_hash,
+    );
     let db_lock = node_db.lock().await;
     db_lock.put_batch(batch_transaction)?;
 
@@ -440,7 +448,7 @@ pub fn run_server(
 
     tokio::spawn(async move {
         let address =
-            SocketAddr::from_str(format!("{}:{}", String::from("0.0.0.0"), port).as_str())
+            SocketAddr::from_str(format!("{}:{}", String::from("127.0.0.1"), port).as_str())
                 .context("Unable to parse host address from config")
                 .unwrap();
 

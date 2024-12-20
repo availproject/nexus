@@ -1,3 +1,4 @@
+use crate::types::H256;
 use crate::utils::hasher::Sha256;
 use crate::{
     state::{types::AccountState, MerkleStore},
@@ -12,7 +13,6 @@ use jmt::{
     JellyfishMerkleTree, KeyHash, SimpleHasher, Version,
 };
 use rocksdb::{Options, DB};
-use sparse_merkle_tree::H256;
 use std::{
     cmp::PartialEq,
     collections::HashMap,

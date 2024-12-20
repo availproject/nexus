@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
+use crate::types::H256;
 use anyhow::{anyhow, Error};
 use rocksdb::{Options, WriteBatchWithTransaction, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
-use sparse_merkle_tree::H256;
 use tracing::{debug, error, info, instrument, span, Level};
 
 pub struct NodeDB {

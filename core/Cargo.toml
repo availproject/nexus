@@ -29,10 +29,11 @@ sha2 = { version = "0.10.8", optional = true }
 hex = "0.4.3"
 winnow = "0.6.18"
 tracing = { version = "0.1.41", optional = true }
+utoipa = { version = "5.3", optional = true }
 
 [features]
 # default = ["native-risc0"]
-native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio", "dep:tracing"]
+native = ["rocksdb", "sparse-merkle-tree/arch-64", "sparse-merkle-tree/std", "avail-subxt", "avail-core", "tokio", "dep:tracing", "utoipa"]
 zkvm = ["sparse-merkle-tree/arch-32", "sparse-merkle-tree/std"]
 native-sp1 = ["sp1-sdk", "sp1-zkvm/verify", "sha2", "native"]
 native-risc0 = ["risc0-zkvm/default", "native"]
