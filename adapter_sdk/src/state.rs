@@ -82,6 +82,7 @@ pub struct AdapterState<
     pub pp: PhantomData<ZP>,
     pub nexus_api: NexusAPI,
     pub prover_mode: ProverMode,
+    pub avail_url: String,
 }
 
 impl<
@@ -116,6 +117,7 @@ where
             pp: PhantomData,
             nexus_api: NexusAPI::new(&"http://127.0.0.1:7000"),
             prover_mode: config.prover_mode,
+            avail_url: config.avail_url,
         }
     }
 
@@ -138,7 +140,7 @@ where
 
         //On every new header,
         //Check if the block is empty for the stored app ID.
-        let mut relayer = SimpleRelayer::new();
+        let mut relayer = SimpleRelayer::new(&self.avail_url);
         let receiver = relayer.receiver();
         let start_height = match &self.previous_adapter_proof {
             Some(i) => i.2,

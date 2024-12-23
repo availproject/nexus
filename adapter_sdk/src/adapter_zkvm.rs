@@ -1,7 +1,6 @@
 use crate::traits::RollupProof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProofWithPublicInputs};
 use anyhow::{anyhow, Error};
-use nexus_core::traits::Hasher;
 use nexus_core::types::{AppAccountId, AvailHeader, Extension, StatementDigest, V3Extension, H256};
 use nexus_core::utils::hasher::ShaHasher;
 #[cfg(feature = "zkvm-risc0")]
