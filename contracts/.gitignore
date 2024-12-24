@@ -16,3 +16,5 @@ deploy-config.json
 zkout
 out
 .zksolc-libraries-cache
+broadcast
+foundryup-zksync
