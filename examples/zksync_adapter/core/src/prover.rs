@@ -4,7 +4,7 @@ use adapter_sdk::types::AdapterPublicInputs;
 use nexus_core::types::H256;
 use nexus_core::zkvm::traits::ZKVMEnv;
 use nexus_core::zkvm::ProverMode;
-// use risc0_zkvm::serde::to_vec;
+use parity_scale_codec::KeyedVec;
 
 pub fn run<Z: ZKVMEnv>() {
     let previous_adapter_pi: AdapterPublicInputs = Z::read_input::<AdapterPublicInputs>().unwrap();
@@ -17,9 +17,9 @@ pub fn run<Z: ZKVMEnv>() {
     let nexus_hash: H256 = Z::read_input::<H256>().unwrap();
     let prover_mode: ProverMode = Z::read_input::<ProverMode>().unwrap();
 
-    // if new_rollup_pi.header.number.0 > 1 {
-    //     env::verify(img_id, &to_vec(&previous_adapter_pi).unwrap()).unwrap();
-    // }
+    if new_rollup_pi.header.number.0 > 1 {
+        Z::verify(img_id, &previous_adapter_pi).unwrap();
+    }
 
     let result = STF::verify_continuity_and_proof(
         previous_adapter_pi.clone(),

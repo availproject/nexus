@@ -13,7 +13,7 @@ use anyhow::{anyhow, Error};
 use nexus_core::types::Proof;
 use nexus_core::types::{
     AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
-    SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
+    SubmitProof, Transaction, TxParams, TxSignature, H256,
 };
 #[cfg(feature = "native-risc0")]
 use nexus_core::zkvm::risczero::{ProofConversion, RiscZeroProver};
@@ -21,7 +21,7 @@ use nexus_core::zkvm::risczero::{ProofConversion, RiscZeroProver};
 use nexus_core::zkvm::sp1::{ProofConversion, Sp1Prover};
 use nexus_core::zkvm::traits::{ZKVMEnv, ZKVMProof, ZKVMProver};
 use nexus_core::zkvm::ProverMode;
-use relayer::Relayer;
+use relayer::{Relayer, SimpleRelayer};
 #[cfg(feature = "native-risc0")]
 use risc0_zkvm::{default_prover, ExecutorEnvBuilder, Journal, Prover, Receipt, ReceiptClaim};
 #[cfg(feature = "native-risc0")]
@@ -138,7 +138,7 @@ where
 
         //On every new header,
         //Check if the block is empty for the stored app ID.
-        let mut relayer = Relayer::new();
+        let mut relayer = SimpleRelayer::new();
         let receiver = relayer.receiver();
         let start_height = match &self.previous_adapter_proof {
             Some(i) => i.2,
@@ -147,9 +147,9 @@ where
         if self.previous_adapter_proof.is_none() {
             let header_hash = relayer.get_header_hash(self.starting_block_number).await;
             let nexus_hash: H256 = self.nexus_api.get_header(&header_hash).await?.hash();
-            let tx = TransactionV2 {
+            let tx = Transaction {
                 signature: TxSignature([0u8; 64]),
-                params: TxParamsV2::InitAccount(InitAccount {
+                params: TxParams::InitAccount(InitAccount {
                     app_id: AppAccountId::from(self.app_id.clone()),
                     statement: self.elf_id.clone(),
                     start_nexus_hash: nexus_hash,
@@ -274,9 +274,9 @@ where
             if is_in_range {
                 println!("INside match");
                 let client = reqwest::Client::new();
-                let tx = TransactionV2 {
+                let tx = Transaction {
                     signature: TxSignature([0u8; 64]),
-                    params: TxParamsV2::SubmitProof(SubmitProof {
+                    params: TxParams::SubmitProof(SubmitProof {
                         proof: match latest_proof.0.try_into() {
                             Ok(i) => i,
                             Err(e) => return Err(anyhow!(e)),

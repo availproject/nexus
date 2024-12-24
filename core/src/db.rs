@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Error};
-use rocksdb::{Options, DB};
+use rocksdb::{Options, WriteBatchWithTransaction, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
 use sparse_merkle_tree::H256;
@@ -7,6 +9,20 @@ use sparse_merkle_tree::H256;
 //Wrapper class to RocksDB which is used as backing storage.
 pub struct NodeDB {
     db: DB,
+}
+
+// TODO: Check if Batch updates are atomic with TRANSACTION false
+pub struct BatchTransaction(pub WriteBatchWithTransaction<false>);
+
+impl BatchTransaction {
+    pub fn new() -> Self {
+        Self(rocksdb::WriteBatchWithTransaction::<false>::default())
+    }
+    pub fn put<V: Serialize>(&mut self, serialized_key: &[u8], value: &V) -> Result<(), Error> {
+        self.0.put(serialized_key, to_vec(&value)?);
+
+        Ok(())
+    }
 }
 
 impl NodeDB {
@@ -51,6 +67,12 @@ impl NodeDB {
             },
             Ok(None) => Ok(()),
         }
+    }
+
+    pub fn put_batch(&self, batch_tx: BatchTransaction) -> Result<(), Error> {
+        self.db
+            .write(batch_tx.0)
+            .map_err(|e| anyhow!("Failed to write batch: {}", e))
     }
 
     pub fn get_current_root(&self) -> Result<Option<H256>, Error> {

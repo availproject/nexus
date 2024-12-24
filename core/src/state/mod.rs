@@ -7,7 +7,5 @@ pub mod vm_state;
 pub use self::merkle_store::*;
 #[cfg(any(feature = "native"))]
 pub use self::vm_state::VmState;
-#[cfg(any(feature = "native"))]
-pub use sparse_merkle_tree;
 
 pub mod types;

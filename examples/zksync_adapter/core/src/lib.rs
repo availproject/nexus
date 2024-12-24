@@ -206,15 +206,6 @@ impl STF {
             current_batch_commitment_string,
         );
 
-        // don't perform proof verification with dev flag
-        // if !dev_flag {
-        //     let verifier = ZksyncVerifier::new();
-        //     let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
-
-        //     if (!is_proof_verified) {
-        //         return Err(anyhow!("Proof verification failed"));
-        //     }
-        // }
 
         // don't perform proof verification for mock proof modes.
         //TODO: Separate prover config and zksync verifier config. We may want to verify zksync proofs but not generate proofs.
@@ -331,7 +322,6 @@ impl STF {
         prover.add_input(&self.prover_mode)?;
 
         // TODO: Need to write a program for add proof for recursion
-        #[cfg(feature = "risc0")]
         match prev_adapter_proof.clone() {
             Some(i) => prover.add_proof_for_recursion(i)?,
             None => (),

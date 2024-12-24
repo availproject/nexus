@@ -1,7 +1,8 @@
+use crate::traits::NexusTransaction;
 use crate::{
     types::{
-        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, RollupPublicInputsV2,
-        SubmitProof, TransactionZKVM, TxParamsV2, H256,
+        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusRollupPI,
+        SubmitProof, TransactionZKVM, TxParams, H256,
     },
     zkvm::traits::ZKVMEnv,
 };
@@ -22,27 +23,29 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
     pub fn new() -> Self {
         StateTransitionFunction { z: PhantomData }
     }
-    pub fn execute_batch(
+    pub fn execute_batch_common<F>(
         &self,
         new_avail_header: &AvailHeader,
         prev_headers: &HeaderStore,
         txs: &Vec<TransactionZKVM>,
         pre_state: &HashMap<[u8; 32], AccountState>,
-    ) -> Result<HashMap<[u8; 32], AccountState>, anyhow::Error> {
-        //Check if this is sequentially the next block.
+        mut on_tx_result: F,
+    ) -> Result<HashMap<[u8; 32], AccountState>, anyhow::Error>
+    where
+        F: FnMut(H256, Result<(), anyhow::Error>),
+    {
         if let Some(last_header) = prev_headers.first() {
             if new_avail_header.parent_hash != last_header.avail_header_hash {
-                return Err(anyhow!("Previous Nexus header not valid as per Avail Header for which block is being built."));
+                return Err(anyhow!("Previous Nexus header not valid as per Avail Header for which block is being built. Last header hash: {:?} Current header hash: {:?}, Current header number {}", last_header.avail_header_hash, new_avail_header.parent_hash, new_avail_header.number));
             }
         }
 
-        //TODO: Take mutable ref of pre_state so it can be modified directly, instead of returning post state.
         let mut post_state: HashMap<[u8; 32], AccountState> = pre_state.clone();
 
-        for (i, tx) in txs.iter().enumerate() {
+        for tx in txs.iter() {
             let state_key = match &tx.params {
-                TxParamsV2::SubmitProof(params) => params.app_id.clone(),
-                TxParamsV2::InitAccount(params) => params.app_id.clone(),
+                TxParams::SubmitProof(params) => params.app_id.clone(),
+                TxParams::InitAccount(params) => params.app_id.clone(),
             };
 
             let pre_state = match post_state.get(&state_key.0) {
@@ -50,11 +53,54 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
                 Some(i) => i,
             };
 
-            let result = self.execute_tx(tx, (&state_key, pre_state), prev_headers)?;
-            post_state.insert(result.0 .0, result.1);
+            let result = self.execute_tx(tx, (&state_key, pre_state), prev_headers);
+
+            let (app_account_id, account_state) = match result {
+                Ok((i, j)) => {
+                    on_tx_result(tx.hash(), Ok(()));
+                    (i, j)
+                }
+                Err(e) => {
+                    on_tx_result(tx.hash(), Err(e));
+
+                    continue;
+                }
+            };
+
+            post_state.insert(app_account_id.0, account_state);
         }
 
         Ok(post_state)
+    }
+
+    pub fn execute_batch(
+        &self,
+        new_avail_header: &AvailHeader,
+        prev_headers: &HeaderStore,
+        txs: &Vec<TransactionZKVM>,
+        pre_state: &HashMap<[u8; 32], AccountState>,
+    ) -> Result<HashMap<[u8; 32], AccountState>, anyhow::Error> {
+        self.execute_batch_common(new_avail_header, prev_headers, txs, pre_state, |_, _| {})
+    }
+
+    pub fn execute_batch_with_results(
+        &self,
+        new_avail_header: &AvailHeader,
+        prev_headers: &HeaderStore,
+        txs: &Vec<TransactionZKVM>,
+        pre_state: &HashMap<[u8; 32], AccountState>,
+    ) -> Result<(HashMap<[u8; 32], AccountState>, HashMap<H256, bool>), anyhow::Error> {
+        let mut tx_results = HashMap::new();
+        let post_state = self.execute_batch_common(
+            new_avail_header,
+            prev_headers,
+            txs,
+            pre_state,
+            |tx_hash, result| {
+                tx_results.insert(tx_hash, result.is_ok());
+            },
+        )?;
+        Ok((post_state, tx_results))
     }
 
     pub fn execute_tx(
@@ -65,8 +111,8 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
     ) -> Result<(AppAccountId, AccountState), anyhow::Error> {
         //TODO: Signature verification
         let post_state = match &tx.params {
-            TxParamsV2::SubmitProof(params) => self.submit_proof(params, pre_state, headers)?,
-            TxParamsV2::InitAccount(params) => self.init_account(params, pre_state)?,
+            TxParams::SubmitProof(params) => self.submit_proof(params, pre_state, headers)?,
+            TxParams::InitAccount(params) => self.init_account(params, pre_state)?,
         };
 
         Ok(post_state)
@@ -82,7 +128,7 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
             return Err(anyhow!("Invalid transaction, account not initiated."));
         }
 
-        let public_inputs: RollupPublicInputsV2 = RollupPublicInputsV2 {
+        let public_inputs: NexusRollupPI = NexusRollupPI {
             app_id: params.app_id.clone(),
             nexus_hash: params.nexus_hash.clone(),
             height: params.height,

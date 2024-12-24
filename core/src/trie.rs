@@ -1,5 +1,5 @@
-use crate::types::ShaHasher;
 use crate::types::H256;
+use crate::utils::hasher::ShaHasher;
 use anyhow::Error;
 use avail_core::Keccak256;
 use binary_merkle_tree::merkle_root;

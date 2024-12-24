@@ -13,3 +13,4 @@ Cargo.lock
 **/node_modules
 contracts/broadcast
 contracts/out
+*.bin

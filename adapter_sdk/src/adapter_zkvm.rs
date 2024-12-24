@@ -2,9 +2,8 @@ use crate::traits::RollupProof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProofWithPublicInputs};
 use anyhow::{anyhow, Error};
 use nexus_core::traits::Hasher;
-use nexus_core::types::{
-    AppAccountId, AvailHeader, Extension, ShaHasher, StatementDigest, V3Extension, H256,
-};
+use nexus_core::types::{AppAccountId, AvailHeader, Extension, StatementDigest, V3Extension, H256};
+use nexus_core::utils::hasher::ShaHasher;
 #[cfg(feature = "zkvm-risc0")]
 use risc0_zkvm::{
     guest::env::{self, verify},
@@ -101,7 +100,7 @@ pub fn verify_proof<P: RollupProof>(
     //TODO: Check inclusion proof for data blob, app index check, and empty block check.
     let mut hasher = ShaHasher::new();
 
-    hasher.0.update(&private_inputs.app_id.0.to_be_bytes());
+    digest::Digest::update(&mut hasher.0, &private_inputs.app_id.0.to_be_bytes());
 
     let hash: H256 = hasher.finish();
     let app_account_id: AppAccountId = AppAccountId::from(hash);
@@ -134,7 +133,7 @@ pub fn verify_proof<P: RollupProof>(
                     start_nexus_hash: i.start_nexus_hash,
                     app_id: app_account_id,
                     img_id: i.img_id,
-                    rollup_hash: i.rollup_hash
+                    rollup_hash: i.rollup_hash,
                 },
                 None => AdapterPublicInputs {
                     nexus_hash: nexus_hash.clone(),
@@ -143,7 +142,7 @@ pub fn verify_proof<P: RollupProof>(
                     start_nexus_hash: nexus_hash,
                     app_id: app_account_id,
                     img_id: img_id.clone(),
-                    rollup_hash: Some(H256::zero())
+                    rollup_hash: Some(H256::zero()),
                 },
             });
         }
@@ -170,7 +169,7 @@ pub fn verify_proof<P: RollupProof>(
                         start_nexus_hash: nexus_hash,
                         app_id: app_account_id,
                         img_id: img_id.clone(),
-                        rollup_hash: Some(H256::zero())
+                        rollup_hash: Some(H256::zero()),
                     })
                 }
             }
@@ -203,6 +202,6 @@ pub fn verify_proof<P: RollupProof>(
         start_nexus_hash: prev_public_input.start_nexus_hash,
         app_id: app_account_id,
         img_id: img_id.clone(),
-        rollup_hash: prev_public_input.rollup_hash
+        rollup_hash: prev_public_input.rollup_hash,
     })
 }

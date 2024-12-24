@@ -5,8 +5,8 @@ use nexus_core::mempool::Mempool;
 use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusHeader, StatementDigest,
-    TransactionV2, H256,
+    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers, NexusHeader,
+    StatementDigest, Transaction, TransactionWithStatus, H256,
 };
 use nexus_core::utils::hasher::Sha256;
 use serde::{Deserialize, Serialize};
@@ -89,12 +89,31 @@ pub fn routes(
     let vm_state_clone = vm_state.clone();
     let db_clone_2 = db.clone();
     let db_clone_3 = db.clone();
+    let db_clone_4 = db.clone();
 
     let tx = warp::path("tx")
         .and(warp::post())
         .and(warp::any().map(move || mempool_clone.clone()))
         .and(warp::body::json())
         .and_then(submit_tx);
+    let tx_status = warp::path("tx_status")
+        .and(warp::get())
+        .and(warp::any().map(move || db_clone_4.clone()))
+        .and(warp::query::<HashMap<String, String>>())
+        .and_then(
+            |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
+                match params.get("tx_hash") {
+                    Some(hash_str) => {
+                        let tx_hash = H256::try_from(hash_str.as_str());
+                        match tx_hash {
+                            Ok(hash) => tx_status(db, hash).await,
+                            Err(_) => Ok(String::from("Invalid hash")),
+                        }
+                    }
+                    None => Ok(String::from("Hash parameter not provided")),
+                }
+            },
+        );
 
     let submit_batch = warp::path("range")
         .and(warp::get())
@@ -131,9 +150,16 @@ pub fn routes(
              params: HashMap<String, String>| async move {
                 match params.get("app_account_id") {
                     Some(hash_str) => {
+                        let block_hash = match params.get("block_hash") {
+                            Some(i) => match H256::try_from(i.as_str()) {
+                                Ok(i) => Some(i),
+                                Err(_) => return Ok(String::from("Invalid hash")),
+                            },
+                            None => None,
+                        };
                         let app_account_id = H256::try_from(hash_str.as_str());
                         match app_account_id {
-                            Ok(i) => get_state(db, vm_state, &i).await,
+                            Ok(i) => get_state(db, vm_state, &i, block_hash).await,
                             Err(_) => Ok(String::from("Invalid hash")),
                         }
                     }
@@ -164,20 +190,36 @@ pub fn routes(
             },
         );
 
-    tx.or(submit_batch).or(header).or(account).or(account_hex)
+    tx.or(tx_status)
+        .or(submit_batch)
+        .or(header)
+        .or(account)
+        .or(account_hex)
 }
 
 //TODO: Better status codes and error handling.
-pub async fn submit_tx(mempool: Mempool, tx: TransactionV2) -> Result<String, Infallible> {
-    mempool.add_tx(tx).await;
+pub async fn submit_tx(mempool: Mempool, tx: Transaction) -> Result<String, Infallible> {
+    match mempool.add_tx(tx).await {
+        Ok(()) => Ok(String::from("Added tx")),
+        Err(i) => Ok(String::from("Internal Mempool error")),
+    }
+}
 
-    Ok(String::from("Added tx"))
+pub async fn tx_status(db: Arc<Mutex<NodeDB>>, tx_hash: H256) -> Result<String, Infallible> {
+    let db_lock = db.lock().await;
+    println!("Getting tx status");
+    match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice()) {
+        Ok(Some(i)) => Ok(serde_json::to_string(&i).expect("Failed to serialize Account to JSON")),
+        Ok(None) => return Ok(String::from("Transaction not found")),
+        Err(e) => return Ok(String::from("Internal error")),
+    }
 }
 
 pub async fn get_state(
     db: Arc<Mutex<NodeDB>>,
     state: Arc<Mutex<VmState>>,
     app_account_id: &H256,
+    block_hash: Option<H256>,
 ) -> Result<String, Infallible> {
     let state_lock = state.lock().await;
     let db_lock = db.lock().await;
@@ -187,17 +229,31 @@ pub async fn get_state(
         Ok(None) => HeaderStore::new(32),
         Err(_) => panic!("Header store error"),
     };
-    let current_version = match state_lock.get_version() {
-        Ok(Some(i)) => i,
-        Ok(None) => 0,
-        Err(e) => return Ok(String::from("Internal db error")),
+    // let current_version = match state_lock.get_version(true) {
+    //     Ok(Some(i)) => i,
+    //     Ok(None) => 0,
+    //     Err(e) => return Ok(String::from("Internal db error")),
+    // };
+    let version: u64 = match block_hash {
+        Some(i) => {
+            match db_lock.get::<NexusBlockWithPointers>(&[i.as_slice(), b"-block"].concat()) {
+                Ok(Some(i)) => i.jmt_version,
+                Ok(None) => return Ok(String::from("Block hash not found")),
+                Err(e) => return Ok(String::from("Internal db error")),
+            }
+        }
+        None => match state_lock.get_version(true) {
+            Ok(Some(i)) => i,
+            Ok(None) => 0,
+            Err(e) => return Ok(String::from("Internal db error")),
+        },
     };
 
-    let (account_option, proof) = match state_lock.get_with_proof(app_account_id, current_version) {
+    let (account_option, proof) = match state_lock.get_with_proof(app_account_id, version) {
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
     };
-    let root = match state_lock.get_root(current_version) {
+    let root = match state_lock.get_root(version) {
         Ok(i) => i,
         Err(e) => return Ok(String::from("Internal error")),
     };
@@ -245,7 +301,7 @@ pub async fn get_state_hex(
         Ok(None) => HeaderStore::new(32),
         Err(_) => panic!("Header store error"),
     };
-    let current_version = match state_lock.get_version() {
+    let current_version = match state_lock.get_version(true) {
         Ok(Some(i)) => i,
         Ok(None) => 0,
         Err(e) => return Ok(String::from("Internal db error")),

@@ -58,8 +58,12 @@ library JellyfishMerkleTreeVerifier {
                 )
             );
         }
+        uint8[] memory bitValue = calculateBits(
+            leaf.addr,
+            proof.siblings.length
+        );
         for (uint256 i = 0; i < proof.siblings.length; ) {
-            if (getIthBit(leaf.addr, proof.siblings.length - i) == 1) {
+            if (bitValue[i] == 1) {
                 calculatedRoot = sha256(
                     abi.encodePacked(
                         hex"4a4d543a3a496e74726e616c4e6f6465",
@@ -97,10 +101,29 @@ library JellyfishMerkleTreeVerifier {
         return 256 - leadingZeros;
     }
 
-    function getIthBit(
-        bytes32 value,
-        uint256 i
-    ) private pure returns (uint256) {
-        return (uint256(value) >> i) & 1;
+    function calculateBits(
+        bytes32 elementKey,
+        uint siblingsLen
+    ) public pure returns (uint8[] memory) {
+        uint skipBits = 256 - siblingsLen;
+        uint8[] memory result = new uint8[](siblingsLen);
+
+        uint index = 0;
+
+        // Iterate over the bits in reverse order, starting from 255 down to skipBits (inclusive)
+        for (uint i = 255; i >= skipBits && index < siblingsLen; i--) {
+            // Extract the bit at position i
+            uint bit = (uint(elementKey) >> i) & 1;
+            result[index] = uint8(bit);
+            index++;
+        }
+
+        // Reverse the array to match the expected order
+        for (uint i = 0; i < siblingsLen / 2; i++) {
+            uint8 temp = result[i];
+            result[i] = result[siblingsLen - 1 - i];
+            result[siblingsLen - 1 - i] = temp;
+        }
+        return result;
     }
 }
