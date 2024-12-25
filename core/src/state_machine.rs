@@ -138,6 +138,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
 
             Ok((Some(result.0), result.1, tx_result))
         } else {
+            //Get root for previous version as new one has no updates.
             let root = state_lock.get_root(version - 1)?;
 
             Ok((
