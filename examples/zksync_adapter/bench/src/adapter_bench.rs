@@ -89,7 +89,7 @@ fn main() {
 
     let img_id = ZKSYNC_ADAPTER_ID;
     let elf = ZKSYNC_ADAPTER_ELF.to_vec(); // Mock ELF data
-    let prover_modes = vec![ProverMode::NoAggregation, ProverMode::Compressed];
+    let prover_modes = vec![ProverMode::Compressed, ProverMode::Compressed];
 
     for i in 0..prover_modes.len() {
         let prover_mode = &prover_modes[i.clone()];

@@ -1,0 +1,27 @@
+Starting nexus with AppAccountId: AppAccountId(3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d) 
+, and start height 0
+reached here !
+Processing L1 batch number: 1
+got the proof from the zksync server
+got proof with commitment
+got account data with proof
+got range from nexus_api
+proof creation starts
+Proving took 421192 cycles
+Prover stats: SessionStats { segments: 1, total_cycles: 1048576, user_cycles: 424645 }
+Proof generation completed in: 14.952772525s
+proof creation ends
+Processing L1 batch number: 2
+Got no header, sleeping for 10 seconds to try fetching
+Processing L1 batch number: 2
+Got no header, sleeping for 10 seconds to try fetching
+Processing L1 batch number: 2
+Got no header, sleeping for 10 seconds to try fetching
+Processing L1 batch number: 2
+Got no header, sleeping for 10 seconds to try fetching
+Processing L1 batch number: 2
+Got no header, sleeping for 10 seconds to try fetching
+Processing L1 batch number: 2
+Got no header, sleeping for 10 seconds to try fetching
+Processing L1 batch number: 2
+Got no header, sleeping for 10 seconds to try fetching

@@ -6,7 +6,7 @@ use nexus_core::types::{
     AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, RollupPublicInputsV2,
     StatementDigest, SubmitProof, TransactionV2, TxParamsV2, TxSignature, H256,
 };
-
+// use nexus_core::types::{H256 as NexusH256};
 #[cfg(feature = "risc0")]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
@@ -42,6 +42,11 @@ use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 use std::io::{self};
 
 mod proof_api;
+
+pub mod constants;
+
+use crate::constants::{get_mock_l1_batch_with_metadata, get_mock_proof};
+
 // Your NodeDB struct and methods implementation here
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -294,54 +299,75 @@ async fn main() -> Result<(), Error> {
                 println!("proof creation starts"); 
                 
                 // Open a file to write the arguments
-    let mut file = File::create("arguments_output.txt")?;
+    // let mut file = File::create("arguments_output.txt")?;
 
-    // Write each argument to the file
-    writeln!(file, "prev_proof_with_pi: {:?}", prev_proof_with_pi)?;
-    writeln!(file, "account_state: {:?}", account_state)?;
-    writeln!(file, "proof: {:?}", proof)?;
-    writeln!(file, "batch_metadata: {:?}", batch_metadata.clone())?;
-    writeln!(file, "pubdata_commitments: {:?}", pubdata_commitments)?;
-    writeln!(file, "versioned_hashes: {:?}", versioned_hashes)?;
-    writeln!(file, "range[0]: {:?}", range[0])?;
+    // // Write each argument to the file
+    // writeln!(file, "prev_proof_with_pi: {:?}", prev_proof_with_pi)?;
+    // writeln!(file, "account_state: {:?}", account_state)?;
+    // writeln!(file, "proof: {:?}", proof)?;
+    // writeln!(file, "batch_metadata: {:?}", batch_metadata.clone())?;
+    // writeln!(file, "pubdata_commitments: {:?}", pubdata_commitments)?;
+    // writeln!(file, "versioned_hashes: {:?}", versioned_hashes)?;
+    // writeln!(file, "range[0]: {:?}", range[0])?;
+ 
+
+                // let mut recursive_proof = stf.create_recursive_proof::<Prover, Proof, ZKVM>(
+                //     prev_proof_with_pi,
+                //     account_state,
+                //     proof,
+                //     batch_metadata.clone(),
+                //     pubdata_commitments,
+                //     versioned_hashes,
+                //     range[0],
+                // )?;
+                
+                let (
+                    mock_prev_adapter_proof,
+                    mock_init_account,
+                    mock_new_rollup_proof,
+                    mock_new_rollup_pi,
+                    mock_pubdata_commitments,
+                    mock_versioned_hashes,
+                    mock_nexus_hash,
+                ) = create_mock_data();
 
                 let mut recursive_proof = stf.create_recursive_proof::<Prover, Proof, ZKVM>(
-                    prev_proof_with_pi,
-                    account_state,
-                    proof,
-                    batch_metadata.clone(),
-                    pubdata_commitments,
-                    versioned_hashes,
-                    range[0],
+                    mock_prev_adapter_proof,
+                    mock_init_account,
+                    mock_new_rollup_proof,
+                    mock_new_rollup_pi,
+                    mock_pubdata_commitments,
+                    mock_versioned_hashes,
+                    mock_nexus_hash,
                 )?;
 
                 println!("proof creation ends");
 
-                println!(
-                    "Current proof data: {:?}",
-                    recursive_proof
-                        .clone()
-                        .public_inputs::<RollupPublicInputsV2>()
-                        .unwrap()
-                        .rollup_hash
-                        .unwrap()
-                );
+                // println!(
+                //     "Current proof data: {:?}",
+                //     recursive_proof
+                //         .clone()
+                //         .public_inputs::<RollupPublicInputsV2>()
+                //         .unwrap()
+                //         .rollup_hash
+                //         .unwrap()
+                // );
 
-                let rollup_hash = recursive_proof
-                    .clone()
-                    .public_inputs::<RollupPublicInputsV2>()
-                    .unwrap()
-                    .rollup_hash
-                    .unwrap();
+                // let rollup_hash = recursive_proof
+                //     .clone()
+                //     .public_inputs::<RollupPublicInputsV2>()
+                //     .unwrap()
+                //     .rollup_hash
+                //     .unwrap();
 
-                #[cfg(feature = "risc0")]
-                match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
-                    Ok(()) => {
-                        println!("Proof verification successful");
-                        ()
-                    }
-                    Err(e) => return Err(anyhow!("Proof generated is invalid.")),
-                }
+                // #[cfg(feature = "risc0")]
+                // match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
+                //     Ok(()) => {
+                //         println!("Proof verification successful");
+                //         ()
+                //     }
+                //     Err(e) => return Err(anyhow!("Proof generated is invalid.")),
+                // }
 
                 #[cfg(feature = "sp1")]
                 match recursive_proof.verify(
@@ -356,65 +382,66 @@ async fn main() -> Result<(), Error> {
                     Err(e) => return Err(anyhow!("Proof generated is invalid.")),
                 }
 
-                if current_height > height_on_nexus {
-                    let public_inputs = RollupPublicInputsV2 {
-                        nexus_hash: range[0],
-                        state_root: H256::from(
-                            batch_metadata.metadata.root_hash.as_fixed_bytes().clone(),
-                        ),
-                        //TODO: remove unwrap
-                        height: current_height,
-                        start_nexus_hash: start_nexus_hash.unwrap_or_else(|| {
-                            H256::from(account_with_proof.account.start_nexus_hash)
-                        }),
-                        app_id: app_account_id.clone(),
-                        img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
-                        rollup_hash: Some(rollup_hash),
-                    };
+                // if current_height > height_on_nexus {
+                //     let public_inputs = RollupPublicInputsV2 {
+                //         nexus_hash: range[0],
+                //         state_root: H256::from(
+                //             batch_metadata.metadata.root_hash.as_fixed_bytes().clone(),
+                //         ),
+                //         //TODO: remove unwrap
+                //         height: current_height,
+                //         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| {
+                //             H256::from(account_with_proof.account.start_nexus_hash)
+                //         }),
+                //         app_id: app_account_id.clone(),
+                //         img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                //         rollup_hash: Some(rollup_hash),
+                //     };
 
-                    let tx = TransactionV2 {
-                        signature: TxSignature([0u8; 64]),
-                        params: TxParamsV2::SubmitProof(SubmitProof {
-                            app_id: app_account_id.clone(),
-                            nexus_hash: range[0],
-                            state_root: public_inputs.state_root.clone(),
-                            proof: match recursive_proof.clone().try_into() {
-                                Ok(i) => i,
-                                Err(e) => {
-                                    println!("Unable to serialise proof: {:?}", e);
+                    // let tx = TransactionV2 {
+                    //     signature: TxSignature([0u8; 64]),
+                    //     params: TxParamsV2::SubmitProof(SubmitProof {
+                    //         app_id: app_account_id.clone(),
+                    //         nexus_hash: range[0],
+                    //         state_root: public_inputs.state_root.clone(),
+                    //         proof: match recursive_proof.clone().try_into() {
+                    //             Ok(i) => i,
+                    //             Err(e) => {
+                    //                 println!("Unable to serialise proof: {:?}", e);
 
-                                    continue;
-                                }
-                            },
-                            height: public_inputs.height,
-                            data: public_inputs.rollup_hash.clone(),
-                        }),
-                    };
+                    //                 continue;
+                    //             }
+                    //         },
+                    //         height: public_inputs.height,
+                    //         data: public_inputs.rollup_hash.clone(),
+                    //     }),
+                    // };
 
                     // fs::write(
                     //     format!("./submitproof_tx_{}.json", public_inputs.height),
                     //     serde_json::to_string(&tx).unwrap(),
                     // )
                     // .await;
-                let total_txns = 10;
-                for txns in 0..total_txns {    
-                    match nexus_api.send_tx(tx.clone()).await {
-                        Ok(i) => {
-                            println!(
-                                "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
-                                &app_account_id, i, &public_inputs.state_root
-                            )
-                        }
-                        Err(e) => {
-                            println!("Error when iniating account: {:?}", e);
 
-                            continue;
-                        }
-                    }
-                }
-                } else {
-                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, height_on_nexus);
-                }
+                // let total_txns = 10;
+                // for txns in 0..total_txns {    
+                //     match nexus_api.send_tx(tx.clone()).await {
+                //         Ok(i) => {
+                //             println!(
+                //                 "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
+                //                 &app_account_id, i, &public_inputs.state_root
+                //             )
+                //         }
+                //         Err(e) => {
+                //             println!("Error when iniating account: {:?}", e);
+
+                //             continue;
+                //         }
+                //     }
+                // }
+                // } else {
+                //     println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, height_on_nexus);
+                // }
 
                 // Persist adapter state data to the database
                 db.put(&current_height.to_be_bytes(), &recursive_proof)?;
@@ -448,4 +475,40 @@ async fn main() -> Result<(), Error> {
 
         tokio::time::sleep(Duration::from_secs(10)).await;
     }
+}
+
+fn create_mock_data() -> (
+    Option<Proof>,
+    Option<(AppAccountId, AccountState)>,
+    Vec<String>,
+    L1BatchWithMetadata,
+    Vec<u8>,
+    Vec<[u8; 32]>,
+    H256,
+) {
+    let prev_adapter_proof = None;
+    let init_account = Some((
+        AppAccountId([1u8; 32]),
+        AccountState {
+            statement: StatementDigest([3u32; 8]),
+            state_root: [1u8; 32],
+            start_nexus_hash: [2u8; 32],
+            last_proof_height: 0,
+            height: 0,
+        },
+    ));
+    let new_rollup_proof = get_mock_proof();
+    let new_rollup_pi = get_mock_l1_batch_with_metadata();
+    let pubdata_commitments = vec![0u8; 10];
+    let versioned_hashes = vec![[0u8; 32]; 5];
+    let nexus_hash = H256::zero();
+    (
+        prev_adapter_proof,
+        init_account,
+        new_rollup_proof,
+        new_rollup_pi,
+        pubdata_commitments,
+        versioned_hashes,
+        nexus_hash,
+    )
 }

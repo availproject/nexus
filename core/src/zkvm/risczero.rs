@@ -1,28 +1,28 @@
 use crate::types::Proof;
 
 use super::traits::ZKVMEnv;
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 use super::traits::{ZKVMProof, ZKVMProver};
 use super::ProverMode;
 use anyhow::anyhow;
 use anyhow::Error;
 use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 use risc0_zkvm::ProverOpts;
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 use risc0_zkvm::{default_prover, Executor, ExecutorEnv, ExecutorEnvBuilder, Prover};
 use risc0_zkvm::{serde::from_slice, Receipt};
 use serde::{Deserialize, Serialize};
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 pub struct RiscZeroProver<'a> {
     env_builder: ExecutorEnvBuilder<'a>,
     elf: Vec<u8>,
     prover_mode: ProverMode,
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     fn new(elf: Vec<u8>, prover_mode: ProverMode) -> Self {
         let env_builder = ExecutorEnv::builder();
@@ -77,11 +77,11 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     }
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiscZeroProof(pub Receipt);
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 impl ZKVMProof for RiscZeroProof {
     fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(
         &mut self,
@@ -110,7 +110,7 @@ impl ZKVMProof for RiscZeroProof {
     }
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 impl TryInto<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
@@ -127,7 +127,7 @@ impl TryInto<Proof> for RiscZeroProof {
     }
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 impl TryFrom<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
@@ -162,8 +162,8 @@ impl ZKVMEnv for ZKVM {
     }
 }
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 pub trait ProofConversion: std::convert::From<RiscZeroProof> {}
 
-#[cfg(any(feature = "native-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "cuda-risc0"))]
 impl ProofConversion for RiscZeroProof {}

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod traits;
 
-#[cfg(any(feature = "native-risc0", feature = "zkvm-risc0"))]
+#[cfg(any(feature = "native-risc0", feature = "zkvm-risc0" , feature = "cuda-risc0"))]
 pub mod risczero;
 
 #[cfg(any(feature = "native-sp1", feature = "zkvm-sp1"))]

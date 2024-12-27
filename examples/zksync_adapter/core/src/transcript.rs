@@ -1,6 +1,4 @@
-
-use ark_bn254::{FrParameters, Fr};
-use ark_ff::Fp256;
+use substrate_bn::Fr;
 use num_bigint::*;
 
 use std::str::FromStr;
@@ -13,7 +11,7 @@ pub struct Transcript {
     state_1: [u8; 32], // Similarly, bytes32 translates to [u8; 32] in Rust
     challenge_counter: u32, // uint32 in Solidity is equivalent to u32 in Rust
     // TODO: make below values are constants
-    FR_MASK: Fp256<FrParameters>,
+    FR_MASK: Fr,
     DST_0: u32,
     DST_1: u32,
     DST_CHALLENGE: u32,
@@ -34,7 +32,7 @@ impl Transcript {
             DST_CHALLENGE: 2,
         }
     }
-
+    
     pub fn update_transcript(&mut self, value: &[u8]) {
         // Assuming TRANSCRIPT_BEGIN_SLOT is an initial part of the transcript
         // and it's somehow represented or stored. For this example, let's just use
