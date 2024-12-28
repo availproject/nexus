@@ -15,7 +15,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     mapping(bytes32 => bool) public messages;
     mapping(bytes32 => INexusVerifierWrapper) public verifierWrappers;
     mapping(bytes32 => MailboxMessage) public verifiedReceipts;
-
+    mapping(bytes32 => MailboxMessage) private sendMessageDetails;
     bytes32 public nexusAppID;
 
     event CallbackFailed(address indexed to, bytes data);
@@ -23,6 +23,12 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     function initialize(bytes32 _nexusAppID) public initializer {
         nexusAppID = _nexusAppID;
         __Ownable_init(msg.sender);
+    }
+
+    function getSendMessageDetails(
+        bytes32 receiptHash
+    ) public view returns (MailboxMessage memory) {
+        return sendMessageDetails[receiptHash];
     }
 
     function receiveMessage(
@@ -95,6 +101,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         }
 
         messages[receiptHash] = true;
+        sendMessageDetails[receiptHash] = receipt;
 
         emit MailboxEvent(
             nexusAppID,

@@ -44,14 +44,16 @@ contract NexusDeployment is Script {
             vm.parseJson(jsonConfig, appIdPath),
             (bytes32)
         );
-        config.appId = bytes32(appIdUint);
+        config.appId = appIdUint;
 
         string memory appId2Path = string.concat(basePath, ".appId2");
         bytes32 appId2Uint = abi.decode(
             vm.parseJson(jsonConfig, appId2Path),
             (bytes32)
         );
-        config.appId2 = bytes32(appId2Uint);
+        config.appId2 = appId2Uint;
+        console.logBytes32(config.appId2);
+        console.logBytes32(config.appId);
     }
 
     function run() public {
