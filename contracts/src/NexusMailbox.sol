@@ -7,30 +7,42 @@ import {INexusReceiver} from "./interfaces/INexusReceiver.sol";
 import {Initializable} from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
+/// @title NexusMailbox
+/// @author Rachit Anand Srivastava (@privacy_prophet)
+/// @notice Handles cross-chain message passing between different Nexus applications
+/// @dev Implements message verification and delivery using verifier wrappers
 contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     error WrapperNotAvailable();
     error InvalidParameters();
     error StateAlreadyUpdated();
 
+    /// @notice Tracks whether a message hash has been processed
     mapping(bytes32 => bool) public messages;
+    /// @notice Maps chain IDs to their verifier wrapper contracts
     mapping(bytes32 => INexusVerifierWrapper) public verifierWrappers;
+    /// @notice Stores verified message receipts by their hash
     mapping(bytes32 => MailboxMessage) public verifiedReceipts;
+    /// @notice Stores sent message details by their hash
     mapping(bytes32 => MailboxMessage) private sendMessageDetails;
+    /// @notice The unique identifier for this Nexus application
     bytes32 public nexusAppID;
 
+    /// @notice Emitted when a message callback fails
+    /// @param to The target address that failed to process the message
+    /// @param data The message data that failed to process
     event CallbackFailed(address indexed to, bytes data);
 
+    /// @notice Initializes the contract with a Nexus application ID
+    /// @param _nexusAppID The unique identifier for this Nexus application
     function initialize(bytes32 _nexusAppID) public initializer {
         nexusAppID = _nexusAppID;
         __Ownable_init(msg.sender);
     }
 
-    function getSendMessageDetails(
-        bytes32 receiptHash
-    ) public view returns (MailboxMessage memory) {
-        return sendMessageDetails[receiptHash];
-    }
-
+    /// @notice Receives and processes a cross-chain message
+    /// @param chainblockNumber The block number from the source chain
+    /// @param receipt The message receipt containing all message details
+    /// @param proof The proof verifying the authenticity of the message
     function receiveMessage(
         uint256 chainblockNumber,
         MailboxMessage calldata receipt,
@@ -70,7 +82,12 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         }
     }
 
-    // @dev we take nonce from the msg.sender since they manage and create deterministic receipt structures.
+    /// @notice Sends a cross-chain message to one or more destinations
+    /// @dev We take nonce from the msg.sender since they manage and create deterministic receipt structures
+    /// @param nexusAppIDTo Array of destination Nexus application IDs
+    /// @param to Array of destination addresses
+    /// @param nonce The message nonce
+    /// @param data The message payload
     function sendMessage(
         bytes32[] memory nexusAppIDTo,
         address[] memory to,
@@ -114,6 +131,30 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         );
     }
 
+    /// @notice Retrieves the details of a sent message
+    /// @param receiptHash The hash of the message receipt
+    /// @return The full message details
+    function getSendMessageDetails(
+        bytes32 receiptHash
+    ) public view returns (MailboxMessage memory) {
+        return sendMessageDetails[receiptHash];
+    }
+
+    /// @notice Retrieves a verified message receipt
+    /// @param receiptHash The hash of the message receipt
+    /// @return The verified message details
+    function getReceipt(
+        bytes32 receiptHash
+    ) public view returns (MailboxMessage memory) {
+        return verifiedReceipts[receiptHash];
+    }
+
+    /// @notice Sorts arrays of Nexus application IDs and addresses in parallel
+    /// @dev Uses quicksort algorithm to sort both arrays based on nexusAppIDTo values
+    /// @param nexusAppIDTo Array of Nexus application IDs to sort
+    /// @param to Array of addresses to sort in parallel
+    /// @param left The leftmost index of the sort range
+    /// @param right The rightmost index of the sort range
     function quickSort(
         bytes32[] memory nexusAppIDTo,
         address[] memory to,
@@ -148,6 +189,11 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         }
     }
 
+    /// @notice Searches for a matching Nexus application ID and returns its associated address
+    /// @dev Uses binary search on sorted arrays
+    /// @param nexusAppIDTo Array of Nexus application IDs to search
+    /// @param to Array of addresses corresponding to the application IDs
+    /// @return The matching address or address(0) if not found
     function search(
         bytes32[] memory nexusAppIDTo,
         address[] memory to
@@ -176,7 +222,10 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         return (address(0));
     }
 
-    // @dev This function can reset a verifier wrapper back to address(0)
+    /// @notice Adds or updates a verifier wrapper for a specific chain
+    /// @dev This function can reset a verifier wrapper back to address(0)
+    /// @param wrapperChainId The chain ID to set the wrapper for
+    /// @param wrapper The verifier wrapper contract address
     function addOrUpdateWrapper(
         bytes32 wrapperChainId,
         INexusVerifierWrapper wrapper

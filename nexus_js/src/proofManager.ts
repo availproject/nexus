@@ -1,9 +1,8 @@
 import { assert, Contract, Wallet, Provider as EthersProvider } from "ethers";
-import { createRequire } from 'node:module';
+import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const proofManagerAbi = require("./abi/proofManager.json");
-//@ts-ignore
-//import proofManagerAbi from "./abi/proofManager.json" with { type: "json" };
+
 import { Provider } from "zksync-ethers";
 import { AccountState } from "./types/index.js";
 import { hexlify } from "ethers";
@@ -15,7 +14,10 @@ class ProofManagerClient {
   constructor(address: string, rpc: string, privateKey: string) {
     const provider = new Provider(rpc);
     //TODO: Resolve below assertion
-    const wallet = new Wallet(privateKey, provider as unknown as EthersProvider);
+    const wallet = new Wallet(
+      privateKey,
+      provider as unknown as EthersProvider
+    );
 
     // can make this modular and have a mapping between chain ids and mailbox. Imo not necessary since MailBoxClient already maintains it.
     this.proofManager = new Contract(address, proofManagerAbi, wallet);
@@ -64,7 +66,6 @@ class ProofManagerClient {
 
     return response;
   }
-
 
   async getChainState(
     nexusAppID: string,

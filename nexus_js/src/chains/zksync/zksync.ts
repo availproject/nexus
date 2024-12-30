@@ -9,6 +9,9 @@ import { AbiCoder, ethers } from "ethers";
 import logger from "../../logger.js";
 import { InterfaceAbi } from "ethers";
 import { TransactionReceipt } from "ethers";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const MailboxAbi = require("../../abi/mailbox.json");
 
 type Proof = {
   batchNumber: number;
@@ -25,15 +28,16 @@ type ReceiveMessageArgs = {
 
 export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
   private mailboxClient: MailBoxClient;
+  private verifierChain: ChainDetails;
+
   constructor(
     private chains: { [appId: string]: ChainDetails },
-    private verifierChain: ChainDetails,
-    mailboxAbi: InterfaceAbi
+    verifierChainIndex: number
   ) {
     super();
 
-    //TODO: remove this logic from constructor.
-    this.mailboxClient = new MailBoxClient(chains, mailboxAbi);
+    this.verifierChain = chains[verifierChainIndex];
+    this.mailboxClient = new MailBoxClient(chains, MailboxAbi);
   }
 
   async sendMessage(

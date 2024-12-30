@@ -19,8 +19,41 @@
   },
   {
     "type": "function",
+    "name": "getSendMessageDetails",
+    "inputs": [
+      { "name": "receiptHash", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct MailboxMessage",
+        "components": [
+          {
+            "name": "nexusAppIDFrom",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "nexusAppIDTo",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]"
+          },
+          { "name": "data", "type": "bytes", "internalType": "bytes" },
+          { "name": "from", "type": "address", "internalType": "address" },
+          { "name": "to", "type": "address[]", "internalType": "address[]" },
+          { "name": "nonce", "type": "uint256", "internalType": "uint256" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "initialize",
-    "inputs": [],
+    "inputs": [
+      { "name": "_nexusAppID", "type": "bytes32", "internalType": "bytes32" }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -28,12 +61,12 @@
     "type": "function",
     "name": "messages",
     "inputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
-    "name": "nexusAppId",
+    "name": "nexusAppID",
     "inputs": [],
     "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
@@ -60,12 +93,12 @@
         "internalType": "struct MailboxMessage",
         "components": [
           {
-            "name": "nexusAppIdFrom",
+            "name": "nexusAppIDFrom",
             "type": "bytes32",
             "internalType": "bytes32"
           },
           {
-            "name": "nexusAppIdTo",
+            "name": "nexusAppIDTo",
             "type": "bytes32[]",
             "internalType": "bytes32[]"
           },
@@ -92,7 +125,7 @@
     "name": "sendMessage",
     "inputs": [
       {
-        "name": "nexusAppIdTo",
+        "name": "nexusAppIDTo",
         "type": "bytes32[]",
         "internalType": "bytes32[]"
       },
@@ -118,7 +151,7 @@
     "inputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "outputs": [
       {
-        "name": "nexusAppIdFrom",
+        "name": "nexusAppIDFrom",
         "type": "bytes32",
         "internalType": "bytes32"
       },
@@ -178,13 +211,13 @@
     "name": "MailboxEvent",
     "inputs": [
       {
-        "name": "nexusAppIdFrom",
+        "name": "nexusAppIDFrom",
         "type": "bytes32",
         "indexed": true,
         "internalType": "bytes32"
       },
       {
-        "name": "nexusAppIdTo",
+        "name": "nexusAppIDTo",
         "type": "bytes32[]",
         "indexed": false,
         "internalType": "bytes32[]"
@@ -212,6 +245,12 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "receiptHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false

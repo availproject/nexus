@@ -52,8 +52,6 @@ contract NexusDeployment is Script {
             (bytes32)
         );
         config.appId2 = appId2Uint;
-        console.logBytes32(config.appId2);
-        console.logBytes32(config.appId);
     }
 
     function run() public {
@@ -62,7 +60,6 @@ contract NexusDeployment is Script {
         // Deploy NexusProofManager
         NexusProofManager nexusManager = new NexusProofManager();
         console.log("NexusProofManager deployed to: ", address(nexusManager));
-        console.logBytes32(bytes32(config.appId));
 
         // Deploy and initialize NexusMailbox
         NexusMailbox mailbox = new NexusMailbox();
