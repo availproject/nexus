@@ -32,11 +32,11 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
 
   constructor(
     private chains: { [appId: string]: ChainDetails },
-    verifierChainIndex: number
+    verifierChainId: string
   ) {
     super();
 
-    this.verifierChain = chains[verifierChainIndex];
+    this.verifierChain = chains[verifierChainId];
     this.mailboxClient = new MailBoxClient(chains, MailboxAbi);
   }
 
