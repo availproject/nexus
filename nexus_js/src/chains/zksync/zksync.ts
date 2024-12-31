@@ -146,6 +146,12 @@ export default class ZKSyncVerifier extends ChainInterface<ReceiveMessageArgs> {
       new Provider(this.chains[fromAppID].rpcUrl)
     );
 
+    console.log(
+      "inside getStorageProof",
+      this.chains[fromAppID].mailboxContract,
+      storageKey,
+      batchNumber
+    );
     try {
       let proof = await storageProofManager.getProof(
         this.chains[fromAppID].mailboxContract,

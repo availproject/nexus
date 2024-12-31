@@ -69,7 +69,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         if (to != address(0)) {
             (bool success, ) = to.call(
                 abi.encodeWithSignature(
-                    "onNexusMessage(bytes32, address, bytes, uint256)",
+                    "onNexusMessage(bytes32,address,bytes,uint256)",
                     receipt.nexusAppIDFrom,
                     receipt.from,
                     receipt.data,
