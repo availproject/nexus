@@ -1,4 +1,5 @@
-use substrate_bn::Fr;
+
+use substrate_bn::{Fr,Fq,G1,G2};
 use num_bigint::*;
 
 use std::str::FromStr;
@@ -32,7 +33,7 @@ impl Transcript {
             DST_CHALLENGE: 2,
         }
     }
-    
+
     pub fn update_transcript(&mut self, value: &[u8]) {
         // Assuming TRANSCRIPT_BEGIN_SLOT is an initial part of the transcript
         // and it's somehow represented or stored. For this example, let's just use

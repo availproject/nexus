@@ -1,5 +1,7 @@
-use substrate_bn::{Fq,Fr,AffineG1,AffineG2};
-use ethers_core::k256::U256;
+use substrate_bn::{Fr,Fq,G1,G2,Gt};
+use substrate_bn::arith::U256 as FrU256;
+use substrate_bn::pairing;
+// use ethers_core::k256::U256;
 use num_bigint::*;
 
 use std::fmt::{format, Debug, DebugMap, Display};
@@ -13,7 +15,7 @@ use tiny_keccak::{Hasher, Keccak};
 use crate::transcript::Transcript;
 use crate::types::{G1Point, PartialVerifierState, Proof};
 use crate::utils::{
-    apply_fr_mask, get_bigint_from_fr, get_domain_size, get_fr_from_u8arr, get_fr_mask,
+    apply_fr_mask, get_domain_size, get_fr_from_u8arr, get_fr_mask,
     get_g2_elements, get_omega, get_pub_signal, get_public_inputs, get_scalar_field,
     get_u8arr_from_fq, get_u8arr_from_fr, get_verification_key, padd_bytes3, padd_bytes32,
     parse_proof,
@@ -30,52 +32,52 @@ impl ZksyncVerifier {
         let mut transcript = Transcript::new_transcript();
 
         transcript.update_transcript(&get_u8arr_from_fr(public_input));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_0.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_0.y));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_1.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_1.y));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_2.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_2.y));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_3.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_3.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_0.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_0.y()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_1.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_1.y()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_2.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_2.y()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_3.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.state_poly_3.y()));
 
         let etaaa = transcript.get_transcript_challenge(0);
 
         //round 1.5
-        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_s_poly.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_s_poly.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_s_poly.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_s_poly.y()));
 
         let betaa = transcript.get_transcript_challenge(1);
         let gammma = transcript.get_transcript_challenge(2);
 
         //round 2
 
-        transcript.update_transcript(&get_u8arr_from_fq(proof.copy_permutation_grand_product.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.copy_permutation_grand_product.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.copy_permutation_grand_product.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.copy_permutation_grand_product.y()));
 
         let beta_lookuppp = transcript.get_transcript_challenge(3);
         let gamma_lookuppp = transcript.get_transcript_challenge(4);
 
         //round 2.5
 
-        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_grand_product.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_grand_product.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_grand_product.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.lookup_grand_product.y()));
 
         let alphaaa = transcript.get_transcript_challenge(5);
 
         //round 3
 
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_0.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_0.y));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_1.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_1.y));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_2.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_2.y));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_3.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_3.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_0.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_0.y()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_1.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_1.y()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_2.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_2.y()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_3.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.quotient_poly_parts_3.y()));
 
         let zz = transcript.get_transcript_challenge(6);
-        let zz_in_domain_size = get_fr_from_u8arr(zz.to_vec()).pow([get_domain_size()]);
+        let zz_in_domain_size = get_fr_from_u8arr(zz.to_vec()).pow(Fr::new(FrU256::from((get_domain_size()))).unwrap());
 
         //round 4
 
@@ -118,10 +120,10 @@ impl ZksyncVerifier {
 
         // round 5
 
-        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.y));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z_omega.x));
-        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z_omega.y));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z.y()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z_omega.x()));
+        transcript.update_transcript(&get_u8arr_from_fq(proof.opening_proof_at_z_omega.y()));
 
         let uu = transcript.get_transcript_challenge(8);
 
@@ -155,7 +157,7 @@ impl ZksyncVerifier {
         pvs.v = get_fr_from_u8arr(vv.to_vec());
         pvs.u = get_fr_from_u8arr(uu.to_vec());
         pvs.z = get_fr_from_u8arr(zz.to_vec());
-        pvs.z_minus_last_omega = pvs.z.add(get_omega().pow([get_domain_size() - 1]).neg());
+        pvs.z_minus_last_omega = pvs.z.add(get_omega().pow(Fr::new(FrU256::from((get_domain_size() - 1))).unwrap()).neg());
         pvs.z_in_domain_size = zz_in_domain_size;
     }
 
@@ -208,14 +210,14 @@ impl ZksyncVerifier {
         res = res.mul(proof.lookup_grand_product_opening_at_z_omega);
         res = res.mul(pvs.power_of_alpha_6);
 
-        let mut last_omega = get_omega().pow([get_domain_size() - 1]);
+        let mut last_omega = get_omega().pow(Fr::new(FrU256::from((get_domain_size() - 1))).unwrap());
         let z_minus_last_omega = pvs.z.add(last_omega.neg());
         res = res.mul(z_minus_last_omega);
 
         let intermediate_val = pvs.l_0_at_z.mul(pvs.power_of_alpha_7);
         res = res.add(intermediate_val.neg());
 
-        let beta_gamma_power = beta_gamma.pow([get_domain_size() - 1]);
+        let beta_gamma_power = beta_gamma.pow(Fr::new(FrU256::from((get_domain_size() - 1))).unwrap());
         let subtrahend = pvs
             .power_of_alpha_8
             .mul(pvs.l_n_minus_one_at_z.mul(beta_gamma_power));
@@ -259,6 +261,7 @@ impl ZksyncVerifier {
         let lhs = proof.quotient_poly_opening_at_z.mul(vanishing);
 
         assert_eq!(lhs, result);  
+        println!("check 1 done");
     }
 
     fn evaluate_lagrange_poly_out_of_domain(
@@ -267,17 +270,18 @@ impl ZksyncVerifier {
     ) -> Fr {
         let mut omega_power = Fr::from_str("1").unwrap();
         if poly_num > 0 {
-            omega_power = get_omega().pow(&[poly_num as u64]);
+            omega_power = get_omega().pow(Fr::new(FrU256::from((poly_num as u64))).unwrap());
         }
         let mut res = at
-            .pow(&[get_domain_size()])
+            .pow(Fr::new(FrU256::from((get_domain_size()))).unwrap())
             .add(get_scalar_field().sub(Fr::from_str("1").unwrap()));
-        assert_ne!(res, Fr::zero());
+        assert_ne!(res, Fr::zero()); // can be replaced with is_zero()
+        println!("check 2 done");
 
         res = res.mul(omega_power);
 
-        let mut denominator = at.add(get_scalar_field().sub((Fr::from(omega_power))));
-        denominator = denominator.mul(Fr::from(get_domain_size()));
+        let mut denominator = at.add(get_scalar_field().sub((omega_power)));
+        denominator = denominator.mul(Fr::new(FrU256::from((get_domain_size()))).unwrap());
 
         denominator = denominator.inverse().unwrap();
         res = res.mul(denominator);
@@ -285,28 +289,28 @@ impl ZksyncVerifier {
     }
 
     fn prepare_queries(
-        vk_gate_setup_0_affine: AffineG1, 
-        vk_gate_setup_1_affine: AffineG1,
-        vk_gate_setup_2_affine: AffineG1,
-        vk_gate_setup_3_affine: AffineG1,
-        vk_gate_setup_4_affine: AffineG1,
-        vk_gate_setup_5_affine: AffineG1,
-        vk_gate_setup_6_affine: AffineG1,
-        vk_gate_setup_7_affine: AffineG1,
-        vk_gate_selectors_1_affine: AffineG1,
-        vk_permutation_3_affine: AffineG1,
-        vk_lookp_table_0_affine: AffineG1,
-        vk_lookp_table_1_affine: AffineG1,
-        vk_lookp_table_2_affine: AffineG1,
-        vk_lookp_table_3_affine: AffineG1,
+        vk_gate_setup_0_affine: G1,
+        vk_gate_setup_1_affine: G1,
+        vk_gate_setup_2_affine: G1,
+        vk_gate_setup_3_affine: G1,
+        vk_gate_setup_4_affine: G1,
+        vk_gate_setup_5_affine: G1,
+        vk_gate_setup_6_affine: G1,
+        vk_gate_setup_7_affine: G1,
+        vk_gate_selectors_1_affine: G1,
+        vk_permutation_3_affine: G1,
+        vk_lookp_table_0_affine: G1,
+        vk_lookp_table_1_affine: G1,
+        vk_lookp_table_2_affine: G1,
+        vk_lookp_table_3_affine: G1,
         pvs: PartialVerifierState,
         proof: Proof,
     ) -> (
-        AffineG1,
-        AffineG1,
+        G1,
+        G1,
         Fr,
         Fr,
-        AffineG1,
+        G1,
         Fr,
     ) {
         let z_domain_size = pvs.z_in_domain_size;
@@ -320,27 +324,21 @@ impl ZksyncVerifier {
 
         let proof_quotient_poly_parts_3_affine = proof.quotient_poly_parts_3;
 
-        let mut queries_at_z_0 = AffineG1::from_jacobian(
-            proof_quotient_poly_parts_1_affine
-                .mul(z_domain_size)
-                .add(&proof_quotient_poly_parts_0_affine)
-        ).unwrap();
+        let mut queries_at_z_0 = proof_quotient_poly_parts_1_affine
+            .mul(z_domain_size)
+            .add(proof_quotient_poly_parts_0_affine);
 
         current_z = current_z.mul(z_domain_size);
 
-        queries_at_z_0 = AffineG1::from_jacobian(
-            proof_quotient_poly_parts_2_affine
-                .mul(current_z)
-                .add(&queries_at_z_0)
-        ).unwrap();
+        queries_at_z_0 = proof_quotient_poly_parts_2_affine
+            .mul(current_z)
+            .add(queries_at_z_0);
 
         current_z = current_z.mul(z_domain_size);
 
-        queries_at_z_0 = AffineG1::from_jacobian(
-            proof_quotient_poly_parts_3_affine
-                .mul(current_z)
-                .add(&queries_at_z_0)
-        ).unwrap();
+        queries_at_z_0 = proof_quotient_poly_parts_3_affine
+            .mul(current_z)
+            .add(queries_at_z_0);
 
         let state_opening_0_z = proof.state_poly_0_opening_at_z;
 
@@ -414,25 +412,19 @@ impl ZksyncVerifier {
         let mut currenteta = eta;
 
         let mut queries_t_poly_aggregated = vk_lookp_table_0_affine;
-        queries_t_poly_aggregated = AffineG1::from_jacobian(
-            vk_lookp_table_1_affine
-                .mul(currenteta)
-                .add(&queries_t_poly_aggregated)
-        ).unwrap();
+        queries_t_poly_aggregated = vk_lookp_table_1_affine
+            .mul(currenteta)
+            .add(queries_t_poly_aggregated);
 
         currenteta = currenteta.mul(eta);
-        queries_t_poly_aggregated = AffineG1::from_jacobian(
-            vk_lookp_table_2_affine
-                .mul(currenteta)
-                .add(&queries_t_poly_aggregated)
-        ).unwrap();
+        queries_t_poly_aggregated = vk_lookp_table_2_affine
+            .mul(currenteta)
+            .add(queries_t_poly_aggregated);
         currenteta = currenteta.mul(eta);
 
-        queries_t_poly_aggregated = AffineG1::from_jacobian(
-            vk_lookp_table_3_affine
-                .mul(currenteta)
-                .add(&queries_t_poly_aggregated)
-        ).unwrap();
+        queries_t_poly_aggregated = vk_lookp_table_3_affine
+            .mul(currenteta)
+            .add(queries_t_poly_aggregated);
 
         (
             queries_at_z_0,
@@ -446,27 +438,27 @@ impl ZksyncVerifier {
 
     fn prepare_aggregated_commitment(
         queries: (
-            AffineG1,
-            AffineG1,
+            G1,
+            G1,
             Fr,
             Fr,
-            AffineG1,
+            G1,
             Fr,
         ),
-        vk_gate_selectors_0_affine: AffineG1,
-        vk_gate_selectors_1_affine: AffineG1,
-        vk_permutation_0_affine: AffineG1,
-        vk_permutation_1_affine: AffineG1,
-        vk_permutation_2_affine: AffineG1,
-        vk_lookup_selector_affine: AffineG1,
-        vk_lookup_table_type_affine: AffineG1,
+        vk_gate_selectors_0_affine: G1,
+        vk_gate_selectors_1_affine: G1,
+        vk_permutation_0_affine: G1,
+        vk_permutation_1_affine: G1,
+        vk_permutation_2_affine: G1,
+        vk_lookup_selector_affine: G1,
+        vk_lookup_table_type_affine: G1,
         copy_permutation_first_aggregated_commitment_coeff: Fr,
         lookup_s_first_aggregated_commitment_coeff: Fr,
-        queries_t_poly_aggregated: AffineG1,
+        queries_t_poly_aggregated: G1,
         lookup_grand_product_first_aggregated_commitment_coeff: Fr,
         pvs: PartialVerifierState,
         proof: Proof,
-    ) -> (AffineG1, AffineG1) {
+    ) -> (G1, G1) {
         let queries_z_0 = queries.0;
         let queries_z_1 = queries.1;
 
@@ -522,19 +514,17 @@ impl ZksyncVerifier {
             .add(aggregation_challenge.mul(proof_linearisation_poly_opening_at_z_slot));
 
         fn update_aggregation_challenge(
-            queries_commitment_pt: AffineG1,
+            queries_commitment_pt: G1,
             value_at_z: Fr,
             curr_aggregation_challenge: Fr,
             current_agg_opening_at_z: Fr,
             state_v_slot: Fr,
-            aggregated_at_z: AffineG1,
-        ) -> (Fr, AffineG1, Fr) {
+            aggregated_at_z: G1,
+        ) -> (Fr,G1,Fr) {
             let mut new_agg_challenege = curr_aggregation_challenge.mul(state_v_slot);
-            let new_aggregated_at_z = AffineG1::from_jacobian(
-                queries_commitment_pt
-                    .mul(new_agg_challenege)
-                    .add(&aggregated_at_z)
-            ).unwrap();
+            let new_aggregated_at_z = queries_commitment_pt
+                .mul(new_agg_challenege)
+                .add(aggregated_at_z);
             let new_agg_opening_at_z = new_agg_challenege
                 .mul(value_at_z)
                 .add(current_agg_opening_at_z);
@@ -690,11 +680,9 @@ impl ZksyncVerifier {
         let proof_copy_permutation_grand_product_opening_at_z_omega =
             proof.copy_permutation_grand_product_opening_at_z_omega;
 
-        let mut aggregated_z_omega = AffineG1::from_jacobian(
-        proof_copy_permutation_grand_product_affine
-            .mul(copy_permutation_coeff)
-        ).unwrap();
-
+        let mut aggregated_z_omega = proof_copy_permutation_grand_product_affine
+            .mul(copy_permutation_coeff);
+            
         let mut aggregated_opening_z_omega =
             proof_copy_permutation_grand_product_opening_at_z_omega.mul(aggregation_challenge);
 
@@ -703,22 +691,20 @@ impl ZksyncVerifier {
         let proof_state_polys_3_opening_at_z_omega_slot = proof.state_poly_3_opening_at_z_omega;
 
         fn update_aggregation_challenge_second(
-            queries_commitment_pt: AffineG1,
+            queries_commitment_pt:G1,
             value_at_zomega: Fr,
             prev_coeff: Fr,
             curr_aggregation_challenge: Fr,
             current_aggregated_opening_z_omega: Fr,
             state_v_slot: Fr,
             state_u_slot: Fr,
-            aggregated_at_z_omega: AffineG1,
-        ) -> (Fr, AffineG1, Fr) {
+            aggregated_at_z_omega: G1,
+        ) -> (Fr, G1, Fr) {
             let new_aggregation_challenge = curr_aggregation_challenge.mul(state_v_slot);
             let final_coeff = new_aggregation_challenge.mul(state_u_slot).add(prev_coeff);
-            let new_aggregated_at_z_omega = AffineG1::from_jacobian(
-                queries_commitment_pt
-                    .mul(final_coeff)
-                    .add(&aggregated_at_z_omega)
-            ).unwrap();
+            let new_aggregated_at_z_omega = queries_commitment_pt
+                .mul(final_coeff)
+                .add(aggregated_at_z_omega);
             let new_aggregated_opening_at_z_omega = new_aggregation_challenge
                 .mul(value_at_zomega)
                 .add(current_aggregated_opening_z_omega);
@@ -806,15 +792,18 @@ impl ZksyncVerifier {
             .mul(state_u)
             .add(aggregated_opening_at_z);
 
-        let mut pairing_buffer_point = AffineG1::new(
-            Fq::from_str("1").unwrap(),  // x-coordinate
-            Fq::from_str("2").unwrap()   // y-coordinate
-        ).unwrap();
-
-        pairing_buffer_point = AffineG1::from_jacobian(
-            pairing_buffer_point
-                .mul(aggregated_value)
-        ).unwrap();
+        let mut pairing_buffer_point = G1::new(
+            Fq::from_str(
+                &BigInt::parse_bytes("1".as_bytes(), 16).unwrap().to_string(),
+            )
+            .unwrap(),
+            Fq::from_str(
+                &BigInt::parse_bytes("2".as_bytes(), 16).unwrap().to_string(),
+            )
+            .unwrap(),
+            Fq::one(),
+        );
+        pairing_buffer_point = pairing_buffer_point.mul(aggregated_value);
 
         // pointMulIntoDest(PAIRING_BUFFER_POINT_X_SLOT, aggregatedValue, PAIRING_BUFFER_POINT_X_SLOT)
 
@@ -822,7 +811,7 @@ impl ZksyncVerifier {
     }
 
     fn add_assign_lookup_linearisation_contribution_with_v(
-        queries_at_z_1: AffineG1,
+        queries_at_z_1: G1,
         state_opening_0_z: Fr,
         state_opening_1_z: Fr,
         state_opening_2_z: Fr,
@@ -893,15 +882,15 @@ impl ZksyncVerifier {
     }
 
     fn add_assign_permutation_linearisation_contribution_with_v(
-        queries_at_z_1: AffineG1,
+        queries_at_z_1: G1,
         state_opening_0_z: Fr,
         state_opening_1_z: Fr,
         state_opening_2_z: Fr,
         state_opening_3_z: Fr,
-        vk_permutation_3_affine: AffineG1,
+        vk_permutation_3_affine: G1,
         proof: Proof,
         pvs: PartialVerifierState,
-    ) -> (AffineG1, Fr) {
+    ) -> (G1, Fr) {
         let state_power_of_alpha_4 = pvs.power_of_alpha_4;
         let state_power_of_alpha_5 = pvs.power_of_alpha_5;
         // z and beta are challeneges
@@ -975,26 +964,23 @@ impl ZksyncVerifier {
 
         factor = factor.mul(state_v_slot);
 
-        let temp_query_val = AffineG1::from_jacobian(
-            vk_permutation_3_affine
-                .mul(factor)
-        ).unwrap();
+        let temp_query_val = vk_permutation_3_affine.mul(factor);
         (
-            queries_at_z_1.add(-temp_query_val),
+            queries_at_z_1.sub(temp_query_val),
             copy_permutation_first_aggregated_commitment_coeff,
         )
     }
 
     fn add_assign_rescue_customgate_linearisation_contribution_with_v(
-        queries_at_z_1: AffineG1,
+        queries_at_z_1: G1,
         state_opening_0_z: Fr,
         state_opening_1_z: Fr,
         state_opening_2_z: Fr,
         state_opening_3_z: Fr,
-        vk_gate_selectors_1_affine: AffineG1,
+        vk_gate_selectors_1_affine: G1,
         proof: Proof,
         pvs: PartialVerifierState,
-    ) -> AffineG1 {
+    ) -> G1 {
         // challenges wire later
         let state_alpha_slot = pvs.alpha;
         let state_power_of_alpha_2 = pvs.power_of_alpha_2;
@@ -1004,11 +990,11 @@ impl ZksyncVerifier {
         let mut accumulator: Fr;
         let mut intermediate_value: Fr;
 
-        accumulator = state_opening_0_z.square();
+        accumulator = state_opening_0_z.mul(state_opening_0_z);
         accumulator = accumulator.sub(state_opening_1_z);
         accumulator = accumulator.mul(state_alpha_slot);
 
-        intermediate_value = state_opening_1_z.square();
+        intermediate_value = state_opening_1_z.mul(state_opening_1_z);
         intermediate_value = intermediate_value.sub(state_opening_2_z);
         intermediate_value = intermediate_value.mul(state_power_of_alpha_2);
         accumulator = accumulator.add(intermediate_value);
@@ -1020,54 +1006,43 @@ impl ZksyncVerifier {
 
         accumulator = accumulator.mul(state_v_slot);
 
-        let mut result = AffineG1::from_jacobian(
-            vk_gate_selectors_1_affine
-                .mul(accumulator)
-                .add(&queries_at_z_1)
-        ).unwrap();
-        result
+        vk_gate_selectors_1_affine
+            .mul(accumulator)
+            .add(queries_at_z_1)
     }
 
     fn main_gate_linearisation_contribution_with_v(
-        vk_gate_setup_0_affine: AffineG1,
-        vk_gate_setup_1_affine: AffineG1,
-        vk_gate_setup_2_affine: AffineG1,
-        vk_gate_setup_3_affine: AffineG1,
-        vk_gate_setup_4_affine: AffineG1,
-        vk_gate_setup_5_affine: AffineG1,
-        vk_gate_setup_6_affine: AffineG1,
-        vk_gate_setup_7_affine: AffineG1,
+        vk_gate_setup_0_affine: G1,
+        vk_gate_setup_1_affine: G1,
+        vk_gate_setup_2_affine: G1,
+        vk_gate_setup_3_affine: G1,
+        vk_gate_setup_4_affine: G1,
+        vk_gate_setup_5_affine: G1,
+        vk_gate_setup_6_affine: G1,
+        vk_gate_setup_7_affine: G1,
         state_opening_0_z: Fr,
         state_opening_1_z: Fr,
         state_opening_2_z: Fr,
         state_opening_3_z: Fr,
         proof: Proof,
         pvs: PartialVerifierState,
-    ) -> AffineG1 {
-        let mut queries_at_z_1 = AffineG1::from_jacobian(
-            vk_gate_setup_0_affine
-                .mul(state_opening_0_z)
-        ).unwrap();
-        queries_at_z_1 = AffineG1::from_jacobian(
-            queries_at_z_1
-                .add(vk_gate_setup_1_affine.mul(state_opening_1_z))
-        ).unwrap();
-        queries_at_z_1 = AffineG1::from_jacobian(
-            queries_at_z_1
-                .add(vk_gate_setup_2_affine.mul(state_opening_2_z))
-        ).unwrap();
-        queries_at_z_1 = AffineG1::from_jacobian(
-            queries_at_z_1
-                .add(vk_gate_setup_3_affine.mul(state_opening_3_z))
-        ).unwrap();
-        queries_at_z_1 = AffineG1::from_jacobian(
-            queries_at_z_1
-                .add(vk_gate_setup_4_affine.mul(state_opening_0_z.mul(state_opening_1_z)))
-        ).unwrap();
-        queries_at_z_1 = AffineG1::from_jacobian(
-            queries_at_z_1
-                .add(vk_gate_setup_5_affine.mul(state_opening_0_z.mul(state_opening_2_z)))
-        ).unwrap();
+    ) -> G1 {
+        let mut queries_at_z_1 = vk_gate_setup_0_affine.mul(state_opening_0_z);
+        queries_at_z_1 =
+            queries_at_z_1.add(vk_gate_setup_1_affine.mul(state_opening_1_z));
+        queries_at_z_1 =
+            queries_at_z_1.add(vk_gate_setup_2_affine.mul(state_opening_2_z));
+        queries_at_z_1 =
+            queries_at_z_1.add(vk_gate_setup_3_affine.mul(state_opening_3_z));
+        queries_at_z_1 = queries_at_z_1.add(
+            vk_gate_setup_4_affine
+                .mul(state_opening_0_z.mul(state_opening_1_z)),
+        );
+        queries_at_z_1 = queries_at_z_1.add(
+            vk_gate_setup_5_affine
+                .mul(state_opening_0_z.mul(state_opening_2_z))
+                ,
+        );
         queries_at_z_1 = queries_at_z_1.add(vk_gate_setup_6_affine);
 
         // proof value
@@ -1079,16 +1054,13 @@ impl ZksyncVerifier {
         // challenge
         let state_v_slot = pvs.v;
 
-        queries_at_z_1 = AffineG1::from_jacobian(
-            queries_at_z_1
-                .add(vk_gate_setup_7_affine.mul(proof_state_polys_3_opening_at_z_omega_slot))
-        ).unwrap();
+        queries_at_z_1 = queries_at_z_1.add(
+            vk_gate_setup_7_affine
+                .mul(proof_state_polys_3_opening_at_z_omega_slot),
+        );
 
         let coeff = proof_gate_selectors_0_opening_at_z.mul(state_v_slot);
-        queries_at_z_1 = AffineG1::from_jacobian(
-            queries_at_z_1
-                .mul(coeff)
-        ).unwrap();
+        queries_at_z_1 = queries_at_z_1.mul(coeff);
 
         queries_at_z_1
     }
@@ -1097,42 +1069,34 @@ impl ZksyncVerifier {
     fn final_pairing(
         state_u_slot: Fr,
         state_z_slot: Fr,
-        mut pairing_pair_generator: AffineG1,
-        mut pairing_buffer_point: AffineG1,
+        mut pairing_pair_generator: G1,
+        mut pairing_buffer_point: G1,
         proof: Proof,
     ) -> bool {
-        pairing_pair_generator = pairing_pair_generator.add(-pairing_buffer_point);
+        pairing_pair_generator = pairing_pair_generator.sub(pairing_buffer_point);
 
         let z_omega = state_z_slot.mul(get_omega());
 
         let proof_opening_proof_at_z = proof.opening_proof_at_z;
         let proof_opening_proof_at_z_omega = proof.opening_proof_at_z_omega;
-       
-        pairing_pair_generator = AffineG1::from_jacobian(
-            (proof_opening_proof_at_z.mul(state_z_slot))
-                .add(pairing_pair_generator)
-        ).unwrap();
-       
-        pairing_pair_generator = AffineG1::from_jacobian(
-            (proof_opening_proof_at_z_omega.mul(z_omega.mul(state_u_slot)))
-                .add(pairing_pair_generator)
-        ).unwrap();
+        pairing_pair_generator = (proof_opening_proof_at_z.mul(state_z_slot))
+            .add(pairing_pair_generator);
+        pairing_pair_generator = (proof_opening_proof_at_z_omega.mul(z_omega.mul(state_u_slot)))
+            .add(pairing_pair_generator);
 
         let mut pairing_pair_with_x = proof.opening_proof_at_z;
 
-        pairing_pair_with_x = AffineG1::from_jacobian(
-            proof_opening_proof_at_z_omega
-                .mul(state_u_slot)
-                .add(pairing_pair_with_x)
-        ).unwrap();
-        pairing_pair_with_x = -pairing_pair_with_x;
+        pairing_pair_with_x = proof_opening_proof_at_z_omega
+            .mul(state_u_slot)
+            .add(pairing_pair_with_x);
+        pairing_pair_with_x = pairing_pair_with_x.neg();
 
         let (g2_0_element, g2_1_element) = get_g2_elements();
 
-        let pairing1 = pairing_batch(&[pairing_pair_generator], &[g2_0_element]);
-        let pairing2 = pairing_batch(&[pairing_pair_with_x], &[g2_1_element]);
+        let pairing1 = pairing(pairing_pair_generator, g2_0_element.into());
+        let pairing2 = pairing(pairing_pair_with_x, g2_1_element.into());
 
-        if pairing1 == pairing2 {
+        if pairing1.eq(&pairing2) {
             return true;
         }
 

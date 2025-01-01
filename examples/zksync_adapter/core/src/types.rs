@@ -1,5 +1,5 @@
 use crate::constants::MAX_NUMBER_OF_BLOBS;
-use substrate_bn::{Fr,Fq,AffineG1,AffineG2};
+use substrate_bn::{Fr,Fq,G1,G2};
 use serde::{Deserialize, Serialize};
 use zksync_basic_types::{
     ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, protocol_version::ProtocolVersionId,
@@ -8,8 +8,8 @@ use zksync_basic_types::{
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;
 
-pub type G1Point = AffineG1;
-pub type G2Point = AffineG2;
+pub type G1Point = G1;
+pub type G2Point = G2;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogProcessingOutput {

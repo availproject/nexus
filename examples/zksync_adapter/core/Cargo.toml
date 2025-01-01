@@ -14,11 +14,11 @@ zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 zksync_types = { git = "https://github.com/vibhurajeev/zksync-era", optional = true }
 hex = "0.4.3"
 ethers-core = "2.0.14"
-substrate-bn = "0.6.0"
 num-bigint = "0.4.4"
 tiny-keccak = { version = "2.0", features = ["sha3","keccak"] }
 bincode = { version = "1.3.3" }
 parity-scale-codec = { version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
+substrate-bn = "0.6.0"
 
 [features]
 default = ["risc0"]
@@ -27,3 +27,4 @@ zkvm-sp1 = ["nexus-core/zkvm-sp1", "adapter_sdk/zkvm-sp1"]
 risc0 = ["nexus-core/native-risc0", "adapter_sdk/native-risc0", "native"]
 sp1 = ["nexus-core/native-sp1", "adapter_sdk/native-sp1", "native"]
 native = ["nexus-core/native", "zksync_types"]
+
