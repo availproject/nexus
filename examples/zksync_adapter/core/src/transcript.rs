@@ -1,12 +1,11 @@
-
-use substrate_bn::{Fr,Fq,G1,G2};
 use num_bigint::*;
+use substrate_bn::{Fq, Fr, G1, G2};
 
+use std::ops::{Add, Mul, Neg, Sub};
 use std::str::FromStr;
 use tiny_keccak::{Hasher, Keccak};
-use std::ops::{Add, Mul, Neg, Sub};
 
-use crate::utils::{padd_bytes32, padd_bytes3};
+use crate::utils::{padd_bytes3, padd_bytes32};
 pub struct Transcript {
     state_0: [u8; 32], // bytes32 in Solidity is equivalent to an array of 32 bytes in Rust
     state_1: [u8; 32], // Similarly, bytes32 translates to [u8; 32] in Rust

@@ -1,9 +1,9 @@
 use crate::types::{G1Point, G2Point, Proof, ProofWithPubSignal, VerificationKey};
-use substrate_bn::{Fr,Fq,G1,G2,Fq2,AffineG2,AffineG1};
 use num_bigint::*;
 use std::str::FromStr;
-use zksync_basic_types::{Address, H256, U128, U256};
 use substrate_bn::arith::U256 as FrU256;
+use substrate_bn::{AffineG1, AffineG2, Fq, Fq2, Fr, G1, G2};
+use zksync_basic_types::{Address, H256, U128, U256};
 
 #[cfg(any(feature = "native"))]
 pub use zksync_types::commitment::serialize_commitments;
@@ -37,115 +37,58 @@ pub fn read_bytes32(bytes: &[u8], start: usize) -> (H256, U256) {
 
 pub fn parse_proof(proof: Vec<String>) -> Proof {
     let proof_serialized: Vec<&str> = proof.iter().map(|p| p.as_str()).collect();
-    let state_poly_0_x =
-        Fq::from_str(proof_serialized[0]).unwrap();
-    let state_poly_0_y =
-        Fq::from_str(proof_serialized[1]).unwrap();
-    let state_poly_0_affine = G1::new(
-        state_poly_0_x,
-        state_poly_0_y,
-        Fq::one(),
-    );
+    let state_poly_0_x = Fq::from_str(proof_serialized[0]).unwrap();
+    let state_poly_0_y = Fq::from_str(proof_serialized[1]).unwrap();
+    let state_poly_0_affine = G1::new(state_poly_0_x, state_poly_0_y, Fq::one());
 
-    let state_poly_1_x =
-        Fq::from_str(proof_serialized[2]).unwrap();
-    let state_poly_1_y =
-        Fq::from_str(proof_serialized[3]).unwrap();
-    let state_poly_1_affine = G1::new(
-        state_poly_1_x,
-        state_poly_1_y,
-        Fq::one(),
-    );
+    let state_poly_1_x = Fq::from_str(proof_serialized[2]).unwrap();
+    let state_poly_1_y = Fq::from_str(proof_serialized[3]).unwrap();
+    let state_poly_1_affine = G1::new(state_poly_1_x, state_poly_1_y, Fq::one());
 
-    let state_poly_2_x =
-        Fq::from_str(proof_serialized[4]).unwrap();
-    let state_poly_2_y =
-        Fq::from_str(proof_serialized[5]).unwrap();
-    let state_poly_2_affine = G1::new(
-        state_poly_2_x,
-        state_poly_2_y,
-        Fq::one(),
-    );
+    let state_poly_2_x = Fq::from_str(proof_serialized[4]).unwrap();
+    let state_poly_2_y = Fq::from_str(proof_serialized[5]).unwrap();
+    let state_poly_2_affine = G1::new(state_poly_2_x, state_poly_2_y, Fq::one());
 
-    let state_poly_3_x =
-        Fq::from_str(proof_serialized[6]).unwrap();
-    let state_poly_3_y =
-        Fq::from_str(proof_serialized[7]).unwrap();
-    let state_poly_3_affine = G1::new(
-        state_poly_3_x,
-        state_poly_3_y,
-        Fq::one(),
-    );
+    let state_poly_3_x = Fq::from_str(proof_serialized[6]).unwrap();
+    let state_poly_3_y = Fq::from_str(proof_serialized[7]).unwrap();
+    let state_poly_3_affine = G1::new(state_poly_3_x, state_poly_3_y, Fq::one());
 
-    let copy_permutation_grand_product_x =
-        Fq::from_str(proof_serialized[8]).unwrap();
-    let copy_permutation_grand_product_y =
-        Fq::from_str(proof_serialized[9]).unwrap();
+    let copy_permutation_grand_product_x = Fq::from_str(proof_serialized[8]).unwrap();
+    let copy_permutation_grand_product_y = Fq::from_str(proof_serialized[9]).unwrap();
     let copy_permutation_grand_product_affine = G1::new(
         copy_permutation_grand_product_x,
         copy_permutation_grand_product_y,
         Fq::one(),
     );
 
-    let lookup_s_poly_x =
-        Fq::from_str(proof_serialized[10]).unwrap();
-    let lookup_s_poly_y =
-        Fq::from_str(proof_serialized[11]).unwrap();
-    let lookup_s_poly_affine = G1::new(
-        lookup_s_poly_x,
-        lookup_s_poly_y,
-        Fq::one(),
-    );
+    let lookup_s_poly_x = Fq::from_str(proof_serialized[10]).unwrap();
+    let lookup_s_poly_y = Fq::from_str(proof_serialized[11]).unwrap();
+    let lookup_s_poly_affine = G1::new(lookup_s_poly_x, lookup_s_poly_y, Fq::one());
 
-    let lookup_grand_product_x =
-        Fq::from_str(proof_serialized[12]).unwrap();
-    let lookup_grand_product_y =
-        Fq::from_str(proof_serialized[13]).unwrap();
-    let lookup_grand_product_affine = G1::new(
-        lookup_grand_product_x,
-        lookup_grand_product_y,
-        Fq::one(),
-    );
+    let lookup_grand_product_x = Fq::from_str(proof_serialized[12]).unwrap();
+    let lookup_grand_product_y = Fq::from_str(proof_serialized[13]).unwrap();
+    let lookup_grand_product_affine =
+        G1::new(lookup_grand_product_x, lookup_grand_product_y, Fq::one());
 
-    let quotient_poly_parts_0_x =
-        Fq::from_str(proof_serialized[14]).unwrap();
-    let quotient_poly_parts_0_y =
-        Fq::from_str(proof_serialized[15]).unwrap();
-    let quotient_poly_parts_0_affine = G1::new(
-        quotient_poly_parts_0_x,
-        quotient_poly_parts_0_y,
-        Fq::one(),
-    );
+    let quotient_poly_parts_0_x = Fq::from_str(proof_serialized[14]).unwrap();
+    let quotient_poly_parts_0_y = Fq::from_str(proof_serialized[15]).unwrap();
+    let quotient_poly_parts_0_affine =
+        G1::new(quotient_poly_parts_0_x, quotient_poly_parts_0_y, Fq::one());
 
-    let quotient_poly_parts_1_x =
-        Fq::from_str(proof_serialized[16]).unwrap();
-    let quotient_poly_parts_1_y =
-        Fq::from_str(proof_serialized[17]).unwrap();
-    let quotient_poly_parts_1_affine = G1::new(
-        quotient_poly_parts_1_x,
-        quotient_poly_parts_1_y,
-        Fq::one(),
-    );
+    let quotient_poly_parts_1_x = Fq::from_str(proof_serialized[16]).unwrap();
+    let quotient_poly_parts_1_y = Fq::from_str(proof_serialized[17]).unwrap();
+    let quotient_poly_parts_1_affine =
+        G1::new(quotient_poly_parts_1_x, quotient_poly_parts_1_y, Fq::one());
 
-    let quotient_poly_parts_2_x =
-        Fq::from_str(proof_serialized[18]).unwrap();
-    let quotient_poly_parts_2_y =
-        Fq::from_str(proof_serialized[19]).unwrap();
-    let quotient_poly_parts_2_affine = G1::new(
-        quotient_poly_parts_2_x,
-        quotient_poly_parts_2_y,
-        Fq::one(),
-    );
+    let quotient_poly_parts_2_x = Fq::from_str(proof_serialized[18]).unwrap();
+    let quotient_poly_parts_2_y = Fq::from_str(proof_serialized[19]).unwrap();
+    let quotient_poly_parts_2_affine =
+        G1::new(quotient_poly_parts_2_x, quotient_poly_parts_2_y, Fq::one());
 
-    let quotient_poly_parts_3_x =
-        Fq::from_str(proof_serialized[20]).unwrap();
-    let quotient_poly_parts_3_y =
-        Fq::from_str(proof_serialized[21]).unwrap();
-    let quotient_poly_parts_3_affine = G1::new(
-        quotient_poly_parts_3_x,
-        quotient_poly_parts_3_y,
-        Fq::one(),
-    );
+    let quotient_poly_parts_3_x = Fq::from_str(proof_serialized[20]).unwrap();
+    let quotient_poly_parts_3_y = Fq::from_str(proof_serialized[21]).unwrap();
+    let quotient_poly_parts_3_affine =
+        G1::new(quotient_poly_parts_3_x, quotient_poly_parts_3_y, Fq::one());
 
     let state_poly_0_opening_at_z = Fr::from_str(proof_serialized[22]).unwrap();
     let state_poly_1_opening_at_z = Fr::from_str(proof_serialized[23]).unwrap();
@@ -170,20 +113,12 @@ pub fn parse_proof(proof: Vec<String>) -> Proof {
     let quotient_poly_opening_at_z = Fr::from_str(proof_serialized[38]).unwrap();
     let linearisation_poly_opening_at_z = Fr::from_str(proof_serialized[39]).unwrap();
 
-    let opening_proof_at_z_x =
-        Fq::from_str(proof_serialized[40]).unwrap();
-    let opening_proof_at_z_y =
-        Fq::from_str(proof_serialized[41]).unwrap();
-    let opening_proof_at_z_affine = G1::new(
-        opening_proof_at_z_x,
-        opening_proof_at_z_y,
-        Fq::one(),
-    );
+    let opening_proof_at_z_x = Fq::from_str(proof_serialized[40]).unwrap();
+    let opening_proof_at_z_y = Fq::from_str(proof_serialized[41]).unwrap();
+    let opening_proof_at_z_affine = G1::new(opening_proof_at_z_x, opening_proof_at_z_y, Fq::one());
 
-    let opening_proof_at_z_omega_x =
-        Fq::from_str(proof_serialized[42]).unwrap();
-    let opening_proof_at_z_omega_y =
-        Fq::from_str(proof_serialized[43]).unwrap();
+    let opening_proof_at_z_omega_x = Fq::from_str(proof_serialized[42]).unwrap();
+    let opening_proof_at_z_omega_y = Fq::from_str(proof_serialized[43]).unwrap();
     let opening_proof_at_z_omega_affine = G1::new(
         opening_proof_at_z_omega_x,
         opening_proof_at_z_omega_y,
@@ -255,8 +190,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -279,8 +213,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -303,8 +236,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -327,8 +259,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -351,8 +282,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -375,8 +305,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -399,8 +328,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -423,8 +351,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-           ,
+            ),
         ],
         gate_selectors: vec![
             G1::new(
@@ -449,8 +376,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -473,8 +399,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
         ],
         permutation: vec![
             G1::new(
@@ -499,8 +424,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -523,8 +447,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -547,8 +470,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -571,8 +493,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
         ],
         lookup_table: vec![
             G1::new(
@@ -597,8 +518,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -621,8 +541,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -645,8 +564,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
             G1::new(
                 Fq::from_str(
                     &BigInt::parse_bytes(
@@ -669,8 +587,7 @@ pub fn get_verification_key() -> VerificationKey {
                 )
                 .unwrap(),
                 Fq::one(),
-            )
-            ,
+            ),
         ],
 
         lookup_selector: G1::new(
@@ -693,8 +610,7 @@ pub fn get_verification_key() -> VerificationKey {
             )
             .unwrap(),
             Fq::one(),
-        )
-        ,
+        ),
         lookup_table_type: G1::new(
             Fq::from_str(
                 &BigInt::parse_bytes(
@@ -715,8 +631,7 @@ pub fn get_verification_key() -> VerificationKey {
             )
             .unwrap(),
             Fq::one(),
-        )
-        ,
+        ),
         recursive_flag: false,
     }
 }
@@ -724,29 +639,51 @@ pub fn get_verification_key() -> VerificationKey {
 pub fn get_g2_elements() -> (AffineG2, AffineG2) {
     let g2_0 = AffineG2::new(
         Fq2::new(
-            // Swap x2 and x1
-            Fq::from_str("10857046999023057135944570762232829481370756359578518086990519993285655852781").unwrap(),
-            Fq::from_str("11559732032986387107991004021392285783925812861821192530917403151452391805634").unwrap(),
+            Fq::from_str(
+                "10857046999023057135944570762232829481370756359578518086990519993285655852781",
+            )
+            .unwrap(),
+            Fq::from_str(
+                "11559732032986387107991004021392285783925812861821192530917403151452391805634",
+            )
+            .unwrap(),
         ),
         Fq2::new(
-            // Swap y2 and y1
-            Fq::from_str("8495653923123431417604973247489272438418190587263600148770280649306958101930").unwrap(),
-            Fq::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531").unwrap(),
-        )
-    ).unwrap();
+            Fq::from_str(
+                "8495653923123431417604973247489272438418190587263600148770280649306958101930",
+            )
+            .unwrap(),
+            Fq::from_str(
+                "4082367875863433681332203403145435568316851327593401208105741076214120093531",
+            )
+            .unwrap(),
+        ),
+    )
+    .unwrap();
 
     let g2_1 = AffineG2::new(
         Fq2::new(
-            // Swap x2 and x1
-            Fq::from_str("496075682290949347282619629729389528669750910289829251317610107342504362928").unwrap(),
-            Fq::from_str("17212635814319756364507010169094758005397460366678210664966334781961899574209").unwrap(),
+            Fq::from_str(
+                "496075682290949347282619629729389528669750910289829251317610107342504362928",
+            )
+            .unwrap(),
+            Fq::from_str(
+                "17212635814319756364507010169094758005397460366678210664966334781961899574209",
+            )
+            .unwrap(),
         ),
         Fq2::new(
-            // Swap y2 and y1
-            Fq::from_str("15828724851114720558251891430452666121603726704878231219287131634746610441813").unwrap(),
-            Fq::from_str("2255182984359105691812395885056400739448730162863181907784180250290003009508").unwrap(),
-        )
-    ).unwrap();
+            Fq::from_str(
+                "15828724851114720558251891430452666121603726704878231219287131634746610441813",
+            )
+            .unwrap(),
+            Fq::from_str(
+                "2255182984359105691812395885056400739448730162863181907784180250290003009508",
+            )
+            .unwrap(),
+        ),
+    )
+    .unwrap();
 
     (g2_0, g2_1)
 }
@@ -776,12 +713,6 @@ pub fn get_fr_from_u8arr(arr: Vec<u8>) -> Fr {
     let fr = Fr::new(u256.expect("failed conversion to u256")).unwrap();
     fr
 }
-
-// pub fn get_bigint_from_fr(fr: Fp256<FrParameters>) -> BigInt {
-//     let mut st = fr.to_string();
-//     let temp = &st[8..8 + 64];
-//     BigInt::parse_bytes(temp.as_bytes(), 16).unwrap()
-// }
 
 pub fn padd_bytes32(input: Vec<u8>) -> Vec<u8> {
     let mut result = input.clone();

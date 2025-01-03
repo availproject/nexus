@@ -1,9 +1,9 @@
 use crate::constants::MAX_NUMBER_OF_BLOBS;
-use substrate_bn::{Fr,Fq,G1,G2};
 use serde::{Deserialize, Serialize};
+use substrate_bn::{Fq, Fr, G1, G2};
 use zksync_basic_types::{
-    ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, protocol_version::ProtocolVersionId,
-    web3::keccak256, Address, H160, H256, U256, ethabi::Token
+    ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, ethabi::Token,
+    protocol_version::ProtocolVersionId, web3::keccak256, Address, H160, H256, U256,
 };
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;
@@ -65,9 +65,8 @@ pub struct ProofWithCommitmentAndL1BatchMetaData {
     pub proof_with_l1_batch_metadata: ProofWithL1BatchMetaData,
     pub blob_commitments: Vec<H256>,
     pub pubdata_commitments: Vec<u8>,
-    pub versioned_hashes: Vec<[u8; 32]>
+    pub versioned_hashes: Vec<[u8; 32]>,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct L1BatchWithMetadata {
