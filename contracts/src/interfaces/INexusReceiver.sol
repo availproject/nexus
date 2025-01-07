@@ -2,5 +2,10 @@
 pragma solidity ^0.8.21;
 
 interface INexusReceiver {
-    function callback(bytes calldata) external view;
+    function onNexusMessage(
+        bytes32,
+        address,
+        bytes calldata,
+        uint256 nonce
+    ) external view;
 }

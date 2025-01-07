@@ -12,8 +12,8 @@ contract NexusProofManager {
     }
 
     mapping(uint256 => NexusBlock) public nexusBlock;
-    mapping(bytes32 => uint256) public nexusAppIdToLatestBlockNumber;
-    mapping(bytes32 => mapping(uint256 => bytes32)) public nexusAppIdToState;
+    mapping(bytes32 => uint256) public nexusAppIDToLatestBlockNumber;
+    mapping(bytes32 => mapping(uint256 => bytes32)) public nexusAppIDToState;
 
     error AlreadyUpdatedBlock(uint256 blockNumber);
     error InvalidBlockNumber(uint256 blockNumber, uint256 latestBlockNumber);
@@ -29,7 +29,10 @@ contract NexusProofManager {
 
     // nexus state root
     // updated when we verify the zk proof and then st block updated
-    function updateNexusBlock(uint256 blockNumber, NexusBlock calldata nexusBlockInfo) external {
+    function updateNexusBlock(
+        uint256 blockNumber,
+        NexusBlock calldata nexusBlockInfo
+    ) external {
         if (nexusBlock[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
         }
@@ -56,19 +59,25 @@ contract NexusProofManager {
                 accountState.height
             )
         );
-        JellyfishMerkleTreeVerifier.Leaf memory leaf =
-            JellyfishMerkleTreeVerifier.Leaf({addr: key, valueHash: valueHash});
+        JellyfishMerkleTreeVerifier.Leaf
+            memory leaf = JellyfishMerkleTreeVerifier.Leaf({
+                addr: key,
+                valueHash: valueHash
+            });
 
-        JellyfishMerkleTreeVerifier.Proof memory proof =
-            JellyfishMerkleTreeVerifier.Proof({leaf: leaf, siblings: siblings});
+        JellyfishMerkleTreeVerifier.Proof
+            memory proof = JellyfishMerkleTreeVerifier.Proof({
+                leaf: leaf,
+                siblings: siblings
+            });
 
         verifyRollupState(nexusBlock[nexusBlockNumber].stateRoot, proof, leaf);
 
-        if (nexusAppIdToLatestBlockNumber[key] < accountState.height) {
-            nexusAppIdToLatestBlockNumber[key] = accountState.height;
+        if (nexusAppIDToLatestBlockNumber[key] < accountState.height) {
+            nexusAppIDToLatestBlockNumber[key] = accountState.height;
         }
 
-        nexusAppIdToState[key][accountState.height] = accountState.stateRoot;
+        nexusAppIDToState[key][accountState.height] = accountState.stateRoot;
     }
 
     function verifyRollupState(
@@ -81,15 +90,18 @@ contract NexusProofManager {
         }
     }
 
-    function getChainState(uint256 blockNumber, bytes32 nexusAppID) external view returns (bytes32) {
-        uint256 latestBlockNumber = nexusAppIdToLatestBlockNumber[nexusAppID];
+    function getChainState(
+        uint256 blockNumber,
+        bytes32 nexusAppID
+    ) external view returns (bytes32) {
+        uint256 latestBlockNumber = nexusAppIDToLatestBlockNumber[nexusAppID];
         if (blockNumber == 0) {
-            return nexusAppIdToState[nexusAppID][latestBlockNumber];
+            return nexusAppIDToState[nexusAppID][latestBlockNumber];
         } else {
             if (blockNumber > latestBlockNumber) {
                 revert InvalidBlockNumber(blockNumber, latestBlockNumber);
             }
-            return nexusAppIdToState[nexusAppID][blockNumber];
+            return nexusAppIDToState[nexusAppID][blockNumber];
         }
     }
 }
