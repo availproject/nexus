@@ -20,6 +20,9 @@ members = [
     "nexus/bench",
 ]
 
+[workspace.package]
+version = "1.0.0"
+
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 sp-io = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }

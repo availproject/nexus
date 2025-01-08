@@ -1,6 +1,6 @@
 [package]
-name = "geth-methods"
-version = "0.1.0"
+name = "geth-adapter-methods"
+version.workspace = true
 edition = "2021"
 
 [build-dependencies]

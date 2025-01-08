@@ -218,7 +218,7 @@ dependencies = [
 
 [[package]]
 name = "adapter_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "digest 0.10.7",
@@ -1260,7 +1260,7 @@ dependencies = [
 
 [[package]]
 name = "bench-nexus"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "env_logger",
@@ -4655,7 +4655,7 @@ dependencies = [
 
 [[package]]
 name = "host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "avail-subxt",
@@ -6307,7 +6307,7 @@ dependencies = [
 
 [[package]]
 name = "nexus-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "avail-core 0.5.0",
@@ -7881,7 +7881,7 @@ dependencies = [
 
 [[package]]
 name = "prover"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
  "sp1-build",
