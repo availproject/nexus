@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "adapter-host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "adapter_sdk",
@@ -1243,7 +1243,7 @@ dependencies = [
 
 [[package]]
 name = "bench"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "env_logger",
@@ -2638,7 +2638,7 @@ dependencies = [
 
 [[package]]
 name = "demo_rollup_core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
@@ -4177,7 +4177,7 @@ dependencies = [
 
 [[package]]
 name = "geth-adapter-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
@@ -4187,7 +4187,7 @@ dependencies = [
 
 [[package]]
 name = "geth-adapter-host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "adapter_sdk",
@@ -4209,7 +4209,7 @@ dependencies = [
 
 [[package]]
 name = "geth-methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
 ]
@@ -6139,7 +6139,7 @@ dependencies = [
 
 [[package]]
 name = "methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
 ]
@@ -6337,7 +6337,7 @@ dependencies = [
 
 [[package]]
 name = "nexus_cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "clap 4.5.23",
 ]
@@ -8215,7 +8215,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "relayer"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "avail-subxt",
  "nexus-core",
@@ -15134,7 +15134,7 @@ dependencies = [
 
 [[package]]
 name = "zksync-adapter-host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "adapter_sdk",
@@ -15163,7 +15163,7 @@ dependencies = [
 
 [[package]]
 name = "zksync-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
@@ -15185,7 +15185,7 @@ dependencies = [
 
 [[package]]
 name = "zksync-methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
  "sp1-build",

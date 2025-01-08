@@ -1,5 +1,5 @@
 [package]
-name = "geth-adapter-methods"
+name = "geth-methods"
 version.workspace = true
 edition = "2021"
 
