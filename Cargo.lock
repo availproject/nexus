@@ -196,8 +196,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "adapter"
+version = "1.0.0"
+dependencies = [
+ "adapter_sdk",
+ "geth-adapter-core",
+ "nexus-core",
+ "risc0-zkvm",
+]
+
+[[package]]
 name = "adapter-host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "adapter_sdk",
@@ -218,7 +228,7 @@ dependencies = [
 
 [[package]]
 name = "adapter_sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "digest 0.10.7",
@@ -1243,7 +1253,7 @@ dependencies = [
 
 [[package]]
 name = "bench"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "env_logger",
@@ -1260,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "bench-nexus"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "env_logger",
@@ -1841,9 +1851,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.23"
+version = "4.5.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3135e7ec2ef7b10c6ed8950f0f792ed96ee093fa088608f1c76e569722700c84"
+checksum = "9560b07a799281c7e0958b9296854d6fafd4c5f31444a7e5bb1ad6dde5ccf1bd"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1851,9 +1861,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.23"
+version = "4.5.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30582fc632330df2bd26877bde0c1f4470d57c582bbc070376afcd04d8cb4838"
+checksum = "874e0dd3eb68bf99058751ac9712f622e61e6f393a94f7128fa26e3f02f5c7cd"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1863,9 +1873,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.18"
+version = "4.5.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ac6a0c7b1a9e9a5186361f67dfa1b88213572f427fb9ab038efb2bd8c582dab"
+checksum = "54b755194d6389280185988721fffba69495eed5ee9feeee9a599b53db80318c"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -2637,8 +2647,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "demo-rollup-adapter"
+version = "1.0.0"
+dependencies = [
+ "adapter_sdk",
+ "demo_rollup_core",
+ "nexus-core",
+ "risc0-zkvm",
+]
+
+[[package]]
 name = "demo_rollup_core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
@@ -4177,7 +4197,7 @@ dependencies = [
 
 [[package]]
 name = "geth-adapter-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
@@ -4187,7 +4207,7 @@ dependencies = [
 
 [[package]]
 name = "geth-adapter-host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "adapter_sdk",
@@ -4209,7 +4229,7 @@ dependencies = [
 
 [[package]]
 name = "geth-methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
 ]
@@ -4655,7 +4675,7 @@ dependencies = [
 
 [[package]]
 name = "host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "avail-subxt",
@@ -5258,9 +5278,9 @@ dependencies = [
 
 [[package]]
 name = "inventory"
-version = "0.3.16"
+version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5d80fade88dd420ce0d9ab6f7c58ef2272dde38db874657950f827d4982c817"
+checksum = "3b31349d02fe60f80bbbab1a9402364cad7460626d6030494b08ac4a2075bf81"
 dependencies = [
  "rustversion",
 ]
@@ -5755,9 +5775,9 @@ dependencies = [
 
 [[package]]
 name = "libz-sys"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2d16453e800a8cf6dd2fc3eb4bc99b786a9b90c663b8559a5b1a041bf89e472"
+checksum = "df9b68e50e6e0b26f672573834882eb57759f6db9b3be2ea3c35c91188bb4eaa"
 dependencies = [
  "cc",
  "libc",
@@ -5779,9 +5799,9 @@ checksum = "f051f77a7c8e6957c0696eac88f26b0117e54f52d3fc682ab19397a8812846a4"
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.4.14"
+version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
+checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
 name = "litemap"
@@ -6026,7 +6046,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2cffa4ad52c6f791f4f8b15f0c05f9824b2ced1160e88cc393d64fff9a8ac64"
 dependencies = [
- "rustix 0.38.42",
+ "rustix 0.38.43",
 ]
 
 [[package]]
@@ -6139,7 +6159,7 @@ dependencies = [
 
 [[package]]
 name = "methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
 ]
@@ -6307,7 +6327,7 @@ dependencies = [
 
 [[package]]
 name = "nexus-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "avail-core 0.5.0",
@@ -6337,9 +6357,26 @@ dependencies = [
 
 [[package]]
 name = "nexus_cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
- "clap 4.5.23",
+ "clap 4.5.24",
+]
+
+[[package]]
+name = "nexus_runtime"
+version = "1.0.0"
+dependencies = [
+ "nexus-core",
+ "risc0-zkvm",
+]
+
+[[package]]
+name = "nexus_runtime_sp1"
+version = "1.0.0"
+dependencies = [
+ "nexus-core",
+ "risc0-zkvm",
+ "sp1-zkvm",
 ]
 
 [[package]]
@@ -7881,7 +7918,7 @@ dependencies = [
 
 [[package]]
 name = "prover"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
  "sp1-build",
@@ -8215,7 +8252,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "relayer"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "avail-subxt",
  "nexus-core",
@@ -8854,14 +8891,14 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.42"
+version = "0.38.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f93dc38ecbab2eb790ff964bb77fa94faf256fd3e73285fd7ba0903b76bedb85"
+checksum = "a78891ee6bf2340288408954ac787aa063d8e8817e9f53abb37c695c6d834ef6"
 dependencies = [
  "bitflags 2.6.0",
  "errno 0.3.10",
  "libc",
- "linux-raw-sys 0.4.14",
+ "linux-raw-sys 0.4.15",
  "windows-sys 0.59.0",
 ]
 
@@ -9330,9 +9367,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework-sys"
-version = "2.13.0"
+version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1863fd3768cd83c56a7f60faa4dc0d403f1b6df0a38c3c25f44b7894e45370d5"
+checksum = "49db231d56a190491cb4aeda9527f1ad45345af50b0851622a7adb8c03b01c32"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -11986,7 +12023,7 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "chrono",
- "clap 4.5.23",
+ "clap 4.5.24",
  "dirs",
 ]
 
@@ -12156,7 +12193,7 @@ checksum = "bc363eda811717369513ca72abafbb5cdec0ed16cda12458ca5321e4167e97ff"
 dependencies = [
  "anyhow",
  "bincode",
- "clap 4.5.23",
+ "clap 4.5.24",
  "dirs",
  "eyre",
  "itertools 0.13.0",
@@ -12863,7 +12900,7 @@ dependencies = [
  "fastrand",
  "getrandom 0.2.15",
  "once_cell",
- "rustix 0.38.42",
+ "rustix 0.38.43",
  "windows-sys 0.59.0",
 ]
 
@@ -14521,7 +14558,7 @@ dependencies = [
  "either",
  "home",
  "once_cell",
- "rustix 0.38.42",
+ "rustix 0.38.43",
 ]
 
 [[package]]
@@ -14532,7 +14569,7 @@ checksum = "b4ee928febd44d98f2f459a4a79bd4d928591333a494a10a868418ac1b39cf1f"
 dependencies = [
  "either",
  "home",
- "rustix 0.38.42",
+ "rustix 0.38.43",
  "winsafe",
 ]
 
@@ -15133,8 +15170,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "zksync-adapter"
+version = "1.0.0"
+dependencies = [
+ "nexus-core",
+ "risc0-zkvm",
+ "zksync-core",
+]
+
+[[package]]
 name = "zksync-adapter-host"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "adapter_sdk",
@@ -15162,8 +15208,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "zksync-adapter-sp1"
+version = "1.0.0"
+dependencies = [
+ "nexus-core",
+ "sp1-derive",
+ "sp1-zkvm",
+ "zksync-core",
+]
+
+[[package]]
 name = "zksync-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
@@ -15185,7 +15241,7 @@ dependencies = [
 
 [[package]]
 name = "zksync-methods"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "risc0-build",
  "sp1-build",

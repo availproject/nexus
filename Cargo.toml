@@ -5,20 +5,29 @@ members = [
     "core",
     "nexus/host",
     "nexus/prover",
-    "examples/demo_rollup/host", 
+    "nexus/prover/sp1-guest",
+    "nexus/prover/risc0-guest",
+    "examples/demo_rollup/host",
     "examples/demo_rollup/methods",
+    "examples/demo_rollup/methods/guest",
     "examples/demo_rollup/core",
     "examples/mock_geth_adapter/host",
     "examples/mock_geth_adapter/methods",
+    "examples/mock_geth_adapter/methods/guest",
     "examples/mock_geth_adapter/core",
     "examples/zksync_adapter/host",
     "examples/zksync_adapter/methods",
+    "examples/zksync_adapter/methods/risc0-guest",
+    "examples/zksync_adapter/methods/sp1-guest",
     "examples/zksync_adapter/core",
     "adapter_sdk",
-    "nexus_cli", 
-    "examples/zksync_adapter/bench", 
+    "nexus_cli",
+    "examples/zksync_adapter/bench",
     "nexus/bench",
 ]
+
+[workspace.package]
+version = "1.0.0"
 
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }

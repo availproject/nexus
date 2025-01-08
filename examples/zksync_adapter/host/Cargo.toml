@@ -1,6 +1,6 @@
 [package]
 name = "zksync-adapter-host"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [dependencies]
@@ -32,4 +32,3 @@ zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 default = ["risc0"]
 sp1 = ["sp1-sdk", "nexus-core/native" , "zksync-methods/sp1" , "zksync-core/sp1" , "adapter_sdk/zkvm-sp1"]
 risc0 = ["risc0-zkvm/std", "nexus-core/native" , "zksync-methods/risc0" , "zksync-core/risc0" , "adapter_sdk/zkvm-risc0"]
-

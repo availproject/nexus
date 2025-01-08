@@ -1,16 +1,18 @@
 [package]
 name = "bench"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [dependencies]
-nexus-core = { path = "../../../core" , default-features = false, optional = true }
-zksync-core = { path = "../core" , default-features = false, optional = true }
+nexus-core = { path = "../../../core", default-features = false, optional = true }
+zksync-core = { path = "../core", default-features = false, optional = true }
 sparse-merkle-tree = { git = "https://github.com/vibhurajeev/sparse-merkle-tree.git", rev = "a2f94a7", default-features = false }
 primitive-types = "0.12"
 zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
-zksync-methods = { path = "../methods", default-features = false ,optional = true }
-risc0-zkvm = {version = "1.1.1", default-features = false, features = ["std"], optional = true}
+zksync-methods = { path = "../methods", default-features = false, optional = true }
+risc0-zkvm = { version = "1.1.1", default-features = false, features = [
+  "std",
+], optional = true }
 sp1-sdk = { version = "3.4.0", optional = true }
 bincode = "1.3.3"
 env_logger = "0.11.5"
@@ -19,12 +21,22 @@ log = "0.4.22"
 [[bench]]
 name = "adapter_bench"
 path = "src/adapter_bench.rs"
-harness = false #disable default harness
+harness = false               #disable default harness
 
 [features]
 default = ["risc0"]
-risc0 = ["nexus-core/native-risc0" , "zksync-core/risc0" , "zksync-methods/risc0" , "risc0-zkvm/cuda"]
-sp1 = ["nexus-core/native-sp1" , "zksync-core/sp1" , "zksync-methods/sp1" , "sp1-sdk/cuda"]
+risc0 = [
+  "nexus-core/native-risc0",
+  "zksync-core/risc0",
+  "zksync-methods/risc0",
+  "risc0-zkvm/cuda",
+]
+sp1 = [
+  "nexus-core/native-sp1",
+  "zksync-core/sp1",
+  "zksync-methods/sp1",
+  "sp1-sdk/cuda",
+]
 
 [env]
 RUST_LOG = "info"
