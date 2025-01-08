@@ -1,9 +1,7 @@
 [package]
-name = "adapter"
+name = "demo-rollup-adapter"
 version.workspace = true
 edition = "2021"
-
-[workspace]
 
 [dependencies]
 # If you want to try (experimental) std support, add `features = [ "std" ]` to risc0-zkvm
