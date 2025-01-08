@@ -21,9 +21,9 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @notice Maps chain IDs to their verifier wrapper contracts
     mapping(bytes32 => VerifierInfo) public verifierWrappers;
     /// @notice Stores verified message receipts by their hash
-    mapping(bytes32 => MailboxMessage) public verifiedReceipts;
+    mapping(bytes32 => MailboxMessage) public verifiedMessages;
     /// @notice Stores sent message details by their hash
-    mapping(bytes32 => MailboxMessage) private sendMessageDetails;
+    mapping(bytes32 => MailboxMessage) private sendMessages;
     /// @notice The unique identifier for this Nexus application
     bytes32 public nexusAppID;
 
@@ -58,7 +58,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash = keccak256(abi.encode(receipt));
 
         /// @dev we check if not exists, using nexusAppID = 0 since this can is imposed by mailbox that the nexusAppID is not 0 when storing
-        if (verifiedReceipts[receiptHash].nexusAppIDFrom != bytes32(0)) {
+        if (verifiedMessages[receiptHash].nexusAppIDFrom != bytes32(0)) {
             revert StateAlreadyUpdated();
         }
 
@@ -68,7 +68,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             proof,
             verifierInfo.mailboxAddress
         );
-        verifiedReceipts[receiptHash] = receipt;
+        verifiedMessages[receiptHash] = receipt;
 
         address to = search(receipt.nexusAppIDTo, receipt.to);
         if (to != address(0)) {
@@ -123,7 +123,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         }
 
         messages[receiptHash] = true;
-        sendMessageDetails[receiptHash] = receipt;
+        sendMessages[receiptHash] = receipt;
 
         emit MailboxEvent(
             nexusAppID,
@@ -139,19 +139,19 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @notice Retrieves the details of a sent message
     /// @param receiptHash The hash of the message receipt
     /// @return The full message details
-    function getSendMessageDetails(
+    function getSendMessage(
         bytes32 receiptHash
     ) public view returns (MailboxMessage memory) {
-        return sendMessageDetails[receiptHash];
+        return sendMessages[receiptHash];
     }
 
     /// @notice Retrieves a verified message receipt
     /// @param receiptHash The hash of the message receipt
     /// @return The verified message details
-    function getReceipt(
+    function getVerifiedMessage(
         bytes32 receiptHash
     ) public view returns (MailboxMessage memory) {
-        return verifiedReceipts[receiptHash];
+        return verifiedMessages[receiptHash];
     }
 
     /// @notice Sorts arrays of Nexus application IDs and addresses in parallel

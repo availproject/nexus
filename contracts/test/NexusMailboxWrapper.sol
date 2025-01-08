@@ -24,7 +24,7 @@ contract NexusMailboxWrapper is NexusMailbox {
             proof,
             verifierInfo.mailboxAddress
         );
-        verifiedReceipts[keccak256(abi.encode(from, receiptHash))] = receipt;
+        verifiedMessages[keccak256(abi.encode(from, receiptHash))] = receipt;
     }
 
     function searchWrapper(
