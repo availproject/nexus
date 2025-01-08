@@ -11,7 +11,7 @@ contract VerifierWrapper is INexusVerifierWrapper, EthereumVerifier {
 
     error InvalidEntry();
     error InvalidSlotValue();
-
+    error InvalidAccount();
     struct Proof {
         bytes accountProof;
         address addr;
@@ -33,9 +33,13 @@ contract VerifierWrapper is INexusVerifierWrapper, EthereumVerifier {
     function parseAndVerify(
         uint256 chainblockNumber,
         bytes32 receipt,
-        bytes calldata data
+        bytes calldata data,
+        address from
     ) external {
         Proof memory proof = abi.decode(data, (Proof));
+        if (proof.addr != from) {
+            revert InvalidAccount();
+        }
         bytes32 state = nexus.getChainState(chainblockNumber, nexusAppID);
         (, , , bytes32 storageRoot) = verifyAccount(
             state,

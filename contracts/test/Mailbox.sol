@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 import "forge-std/test.sol";
-import {MailboxMessage as NexusReceipt} from "../src/interfaces/INexusMailbox.sol";
+import {MailboxMessage as NexusReceipt, VerifierInfo} from "../src/interfaces/INexusMailbox.sol";
 import "../src/NexusProofManager.sol";
 import "../src/interfaces/INexusProofManager.sol";
 import "../src/mock/ERC20.sol";
@@ -36,7 +36,13 @@ contract MailBoxTest is Test {
             IZKSyncNexusManagerRouter(address(zksyncDiamond)),
             smt
         );
-        mailbox.addOrUpdateWrapper(bytes32(targetnexusAppID), wrapper);
+        mailbox.addOrUpdateWrapper(
+            bytes32(targetnexusAppID),
+            VerifierInfo(
+                INexusVerifierWrapper(address(wrapper)),
+                0x6bc15F6C8abD245812C7eC650D4586b9B52Ae546
+            )
+        );
     }
 
     function testSendMessage() public {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.21;
 
-import {MailboxMessage, INexusMailbox} from "./interfaces/INexusMailbox.sol";
+import {MailboxMessage, INexusMailbox, VerifierInfo} from "./interfaces/INexusMailbox.sol";
 import {INexusVerifierWrapper} from "./interfaces/INexusVerifierWrapper.sol";
 import {INexusReceiver} from "./interfaces/INexusReceiver.sol";
 import {Initializable} from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
@@ -19,7 +19,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @notice Tracks whether a message hash has been processed
     mapping(bytes32 => bool) public messages;
     /// @notice Maps chain IDs to their verifier wrapper contracts
-    mapping(bytes32 => INexusVerifierWrapper) public verifierWrappers;
+    mapping(bytes32 => VerifierInfo) public verifierWrappers;
     /// @notice Stores verified message receipts by their hash
     mapping(bytes32 => MailboxMessage) public verifiedReceipts;
     /// @notice Stores sent message details by their hash
@@ -48,10 +48,10 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         MailboxMessage calldata receipt,
         bytes calldata proof
     ) public {
-        INexusVerifierWrapper verifier = verifierWrappers[
+        VerifierInfo memory verifierInfo = verifierWrappers[
             receipt.nexusAppIDFrom
         ];
-        if (address(verifier) == address(0)) {
+        if (address(verifierInfo.verifier) == address(0)) {
             revert WrapperNotAvailable();
         }
 
@@ -62,7 +62,12 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             revert StateAlreadyUpdated();
         }
 
-        verifier.parseAndVerify(chainblockNumber, receiptHash, proof);
+        verifierInfo.verifier.parseAndVerify(
+            chainblockNumber,
+            receiptHash,
+            proof,
+            verifierInfo.mailboxAddress
+        );
         verifiedReceipts[receiptHash] = receipt;
 
         address to = search(receipt.nexusAppIDTo, receipt.to);
@@ -224,12 +229,12 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
 
     /// @notice Adds or updates a verifier wrapper for a specific chain
     /// @dev This function can reset a verifier wrapper back to address(0)
-    /// @param wrapperChainId The chain ID to set the wrapper for
-    /// @param wrapper The verifier wrapper contract address
+    /// @param nexusAppIDFrom The chain ID to set the wrapper for
+    /// @param verifierInfo The verifier wrapper contract address
     function addOrUpdateWrapper(
-        bytes32 wrapperChainId,
-        INexusVerifierWrapper wrapper
+        bytes32 nexusAppIDFrom,
+        VerifierInfo memory verifierInfo
     ) public onlyOwner {
-        verifierWrappers[wrapperChainId] = wrapper;
+        verifierWrappers[nexusAppIDFrom] = verifierInfo;
     }
 }

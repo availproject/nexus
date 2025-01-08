@@ -2,5 +2,10 @@
 pragma solidity ^0.8.21;
 
 interface INexusVerifierWrapper {
-    function parseAndVerify(uint256 chainblockNumber, bytes32 receipt, bytes calldata) external;
+    function parseAndVerify(
+        uint256 chainblockNumber,
+        bytes32 receipt,
+        bytes calldata,
+        address from
+    ) external;
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.21;
+import {INexusVerifierWrapper} from "./INexusVerifierWrapper.sol";
 
 struct MailboxMessage {
     bytes32 nexusAppIDFrom;
@@ -8,6 +9,11 @@ struct MailboxMessage {
     address from;
     address[] to; // if specified on verification, the callback on "to" function will be called
     uint256 nonce; // TODO: Check if nonce can be moved to data field to be handled by sender.
+}
+
+struct VerifierInfo {
+    INexusVerifierWrapper verifier;
+    address mailboxAddress;
 }
 
 interface INexusMailbox {
