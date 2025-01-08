@@ -15,6 +15,7 @@ use std::fmt::Debug as DebugTrait;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{debug, error, info, instrument, warn};
 
 pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
     stf: StateTransitionFunction<Z>,
@@ -23,10 +24,9 @@ pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
 }
 
 impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
+    #[instrument(level = "debug", skip(state))]
     pub fn new(state: Arc<Mutex<VmState>>) -> Self {
-        // let chain_state_path = format!("{}/chain_state", path);
-        // let state = VmState::new(root, &chain_state_path);
-
+        debug!("Creating new StateMachine");
         StateMachine {
             stf: StateTransitionFunction::new(),
             //      db: node_db,
@@ -35,11 +35,17 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         }
     }
 
+    #[instrument(level = "debug", skip(self, state_root))]
     pub async fn commit_state(
         &mut self,
         state_root: &H256,
         node_batch: &NodeBatch,
+        batch_number: u32,
     ) -> Result<(), Error> {
+        debug!(
+            "Committing state in state machine for batch {}",
+            batch_number
+        );
         let mut state_lock = self.state.lock().await;
         state_lock.commit(node_batch)?;
 
@@ -54,15 +60,21 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
             return Err(anyhow::anyhow!("State roots do not match to commit."));
         }
 
+        info!(
+            "State commitment done for batch {}. State root: {:?}",
+            batch_number, state_root
+        );
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self, avail_header, old_nexus_headers, txs), fields(num_txs = txs.len(), num_headers = old_nexus_headers.inner().len()))]
     pub async fn execute_batch(
         &mut self,
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
         txs: &Vec<Transaction>,
     ) -> Result<(Option<TreeUpdateBatch>, StateUpdate, HashMap<H256, bool>), Error> {
+        debug!("Executing batch in state machine");
         //TODO: Increment version for each update.
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
 
@@ -72,7 +84,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                 Some(i) => i,
                 None => 0,
             };
-            println!("Got previous versions");
+
             txs.iter().try_for_each(|tx| {
                 let app_account_id: AppAccountId = match &tx.params {
                     TxParams::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
@@ -120,6 +132,8 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         let mut state_lock = self.state.lock().await;
 
         if !stf_state_result.is_empty() {
+            let num_state_changes = stf_state_result.len();
+
             let result = state_lock.update_set(
                 stf_state_result
                     .into_iter()
@@ -136,11 +150,20 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
 
             state_lock.update_version(version)?;
 
+            info!(
+                "Pre execution of batch {} successful. State changes count: {}",
+                avail_header.number, num_state_changes
+            );
             Ok((Some(result.0), result.1, tx_result))
         } else {
             //Get root for previous version as new one has no updates.
             let root = state_lock.get_root(version - 1)?;
 
+            info!(
+                "Pre execution of batch {} successful. State changes count: {}",
+                avail_header.number,
+                stf_state_result.len()
+            );
             Ok((
                 None,
                 StateUpdate {

@@ -7,8 +7,8 @@ use nexus_core::{
     types::{AppId, StatementDigest},
     zkvm::{
         risczero::{RiscZeroProof, ZKVM},
-        traits::{ZKVMProof, ZKVMEnv, ZKVMProver},
-        ProverMode
+        traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
+        ProverMode,
     },
 };
 
@@ -22,7 +22,9 @@ fn main() {
             adapter_elf_id: StatementDigest(ADAPTER_ID),
             vk: [0u8; 32],
             rollup_start_height: 606460,
-            prover_mode: ProverMode::MockProof
+            prover_mode: ProverMode::MockProof,
+            //TODO: Replace with configurable value.
+            avail_url: String::from("wss://turing-rpc.avail.so:443/ws"),
         },
     );
     let rt = tokio::runtime::Runtime::new().unwrap();

@@ -47,42 +47,47 @@ impl Relayer for SimpleRelayer {
     fn start(&self, start_height: u32) -> impl Future<Output = ()> + Send {
         async move {
             println!("Started client.");
-            let (subxt_client, _) = avail_subxt::build_client(self.rpc_url.clone(), false)
-                .await
-                .unwrap();
+            let (mut subxt_client, mut ws_client) =
+                avail_subxt::build_client(self.rpc_url.clone(), false)
+                    .await
+                    .unwrap();
             println!("Built client");
-
             let mut next_height = start_height;
             let mut stop_rx = self.stop.subscribe();
-
             loop {
                 if *stop_rx.borrow() {
                     println!("Stopping the relayer.");
                     break;
                 }
 
-                let hash = match subxt_client
-                    .rpc()
-                    .block_hash(Some(next_height.into()))
-                    .await
-                {
+                if !ws_client.is_connected() {
+                    (subxt_client, ws_client) =
+                        match avail_subxt::build_client(self.rpc_url.clone(), false).await {
+                            Ok(i) => (i.0, i.1),
+                            Err(e) => {
+                                println!("Error reconnecting to rpc {}", e);
+                                tokio::time::sleep(Duration::from_secs(2)).await;
+                                continue;
+                            }
+                        };
+                }
+
+                let finalized_head = match subxt_client.rpc().finalized_head().await {
                     Ok(i) => i,
-                    Err(_) => {
-                        println!("Error getting block: {}", next_height);
+                    Err(e) => {
+                        println!("Error getting finalized header {}: {}", next_height, e);
                         tokio::time::sleep(Duration::from_secs(2)).await;
                         continue;
                     }
                 };
 
-                if hash.is_none() {
-                    println!("No block yet, trying again in 2 seconds.");
-                    tokio::time::sleep(Duration::from_secs(2)).await;
-                    continue;
-                }
-
-                let hash = hash.unwrap();
-                let header = match subxt_client.rpc().header(Some(hash)).await {
-                    Ok(i) => i,
+                let finalized_header = match subxt_client.rpc().header(Some(finalized_head)).await {
+                    Ok(Some(i)) => i,
+                    Ok(None) => {
+                        println!("Cannot retrieve finalized head. Trying in 2 seconds");
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
                     Err(_) => {
                         println!("Error getting header: {}", next_height);
                         tokio::time::sleep(Duration::from_secs(2)).await;
@@ -90,13 +95,50 @@ impl Relayer for SimpleRelayer {
                     }
                 };
 
-                if header.is_none() {
-                    println!("No header yet, trying again in 2 seconds.");
+                let header = if finalized_header.number == next_height {
+                    finalized_header.clone()
+                } else if finalized_header.number < next_height {
+                    println!("Waiting for block {} to finalize", next_height);
                     tokio::time::sleep(Duration::from_secs(2)).await;
                     continue;
-                }
+                } else {
+                    let hash = match subxt_client
+                        .rpc()
+                        .block_hash(Some(next_height.into()))
+                        .await
+                    {
+                        Ok(i) => i,
+                        Err(_) => {
+                            println!("Error getting block: {}", next_height);
+                            tokio::time::sleep(Duration::from_secs(2)).await;
+                            continue;
+                        }
+                    };
 
-                let header = header.unwrap();
+                    if hash.is_none() {
+                        println!("No block yet, trying again in 2 seconds.");
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+
+                    let hash = hash.unwrap();
+                    let header = match subxt_client.rpc().header(Some(hash)).await {
+                        Ok(i) => i,
+                        Err(_) => {
+                            println!("Error getting header: {}", next_height);
+                            tokio::time::sleep(Duration::from_secs(2)).await;
+                            continue;
+                        }
+                    };
+
+                    if header.is_none() {
+                        println!("No header yet, trying again in 2 seconds.");
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+
+                    header.unwrap()
+                };
 
                 if let Err(e) = self.sender.send(header) {
                     println!("Failed to send header: {}", e);

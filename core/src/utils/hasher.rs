@@ -1,3 +1,4 @@
+use crate::types::H256;
 #[cfg(any(feature = "native-risc0", feature = "zkvm-risc0"))]
 pub use risc0_zkvm::sha::rust_crypto::Digest;
 #[cfg(any(feature = "native-risc0", feature = "zkvm-risc0"))]
@@ -6,7 +7,6 @@ pub use risc0_zkvm::sha::rust_crypto::Sha256;
 pub use sha2::Digest;
 #[cfg(not(any(feature = "native-risc0", feature = "zkvm-risc0")))]
 pub use sha2::Sha256;
-use sparse_merkle_tree::H256;
 
 pub struct ShaHasher(pub Sha256);
 

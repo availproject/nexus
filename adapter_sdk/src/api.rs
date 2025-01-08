@@ -56,7 +56,7 @@ impl NexusAPI {
     }
 
     pub async fn get_range(&self) -> Result<Vec<H256>, anyhow::Error> {
-        let response = reqwest::get("http://127.0.0.1:7000/range").await?;
+        let response = reqwest::get(format!("{}/range", self.url)).await?;
 
         // Check if the request was successful
         if !response.status().is_success() {

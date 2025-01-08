@@ -93,7 +93,7 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
+    let nexus_api = NexusAPI::new(&"http://dev.nexus.avail.tools");
 
     // Create or open the database
     let db_path = format!("db/{:?}", app_id);
@@ -119,24 +119,7 @@ async fn main() -> Result<(), Error> {
                 vk: [0u8; 32],
                 rollup_start_height: 606460,
                 prover_mode: prover_mode.clone(),
-            };
-            AdapterStateData {
-                last_height: 0,
-                adapter_config,
-            }
-        };
-    let adapter_state_data =
-        if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
-            data
-        } else {
-            // Initialize with default values if no data found in the database
-            let adapter_config = AdapterConfig {
-                app_id: AppId(app_id),
-                elf: ZKSYNC_ADAPTER_ELF.to_vec(),
-                adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
-                vk: [0u8; 32],
-                rollup_start_height: 606460,
-                prover_mode: prover_mode.clone(),
+                avail_url: String::from("wss://turing-rpc.avail.so:443/ws"),
             };
             AdapterStateData {
                 last_height: 0,

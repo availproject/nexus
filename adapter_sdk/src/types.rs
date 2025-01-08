@@ -35,4 +35,5 @@ pub struct AdapterConfig {
     pub vk: [u8; 32],
     pub rollup_start_height: u32,
     pub prover_mode: ProverMode,
+    pub avail_url: String,
 }

@@ -1,16 +1,15 @@
 #[cfg(any(feature = "native"))]
 pub mod db;
 //mod new_stf;
-pub mod state;
-#[cfg(any(feature = "native"))]
-pub mod state_machine;
-pub mod traits;
-//mod trie;
-pub mod agg_types;
+mod h256;
 #[cfg(any(feature = "native"))]
 pub mod mempool;
 pub mod prover;
+pub mod state;
+#[cfg(any(feature = "native"))]
+pub mod state_machine;
 pub mod stf;
+pub mod traits;
 pub mod types;
 pub mod utils;
 pub mod zkvm;
