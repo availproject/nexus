@@ -9,7 +9,7 @@ use nexus_core::{
     traits::NexusTransaction,
     types::{
         AvailHeader, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader,
-        Proof as NexusProof, Transaction, TransactionResult, TransactionStatus,
+        Proof as NexusProof, StatementDigest, Transaction, TransactionResult, TransactionStatus,
         TransactionWithStatus, TransactionZKVM, TxParams, H256,
     },
     zkvm::{
@@ -118,6 +118,7 @@ async fn execute_batch<
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     prover_mode: ProverMode,
+    prev_proof: Option<P>,
 ) -> Result<(P, NexusHeader, HashMap<H256, bool>, Option<TreeUpdateBatch>), Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
@@ -155,11 +156,19 @@ where
             .collect();
 
         let zkvm_txs = zkvm_txs?;
+        let img_id = StatementDigest(NEXUS_RUNTIME_ID);
 
         zkvm_prover.add_input(&zkvm_txs).unwrap();
         zkvm_prover.add_input(&state_update).unwrap();
         zkvm_prover.add_input(&header).unwrap();
         zkvm_prover.add_input(&header_store).unwrap();
+        zkvm_prover.add_input(&img_id).unwrap();
+        match prev_proof {
+            Some(i) => {
+                zkvm_prover.add_proof_for_recursion(i).unwrap();
+            }
+            _ => (),
+        }
         let mut proof = zkvm_prover.prove()?;
 
         let result: NexusHeader = proof.public_inputs()?;
@@ -195,6 +204,16 @@ pub async fn execution_engine_handle(
     info!("Starting execution engine in {:?} mode", prover_mode);
     const MAX_HEADERS: usize = 5;
     let mut header_array: Vec<Header> = Vec::new();
+
+    // Initialize prev_proof from RocksDB
+    let mut prev_proof: Option<Proof> = {
+        let db_lock = node_db.lock().await;
+        match db_lock.get::<Proof>(b"prev_proof") {
+            Ok(Some(proof)) => Some(proof),
+            Ok(None) => None,
+            Err(_) => return Err(anyhow!("Failed to retrieve prev_proof from RocksDB")),
+        }
+    };
 
     loop {
         if *shutdown_rx.borrow() {
@@ -253,10 +272,16 @@ pub async fn execution_engine_handle(
                 &AvailHeader::from(&header),
                 &mut old_headers,
                 prover_mode.clone(),
+                prev_proof.clone(),
             )
             .await
             {
-                Ok((_, result, tx_result, tree_update_batch)) => {
+                Ok((proof, result, tx_result, tree_update_batch)) => {
+                    prev_proof = Some(proof.clone());
+                    {
+                        let db_lock = node_db.lock().await;
+                        db_lock.put(b"prev_proof", &proof)?;
+                    }
                     let updated_version = state.lock().await.get_version(false)?;
                     info!(
                         nexus_block = result.number,

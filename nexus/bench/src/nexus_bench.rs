@@ -37,6 +37,7 @@ fn create_mock_data() -> (
     StateMachine<ZKVM, Proof>,
     AvailHeader,
     HeaderStore,
+    Option<Proof>,
 ) {
     let _node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
     let mut db_options = Options::default();
@@ -46,15 +47,16 @@ fn create_mock_data() -> (
     let txs: Vec<Transaction> = Vec::new();
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
-    let file = File::open("src/avail_header.json").unwrap();
-    let reader = BufReader::new(file);
-    let header: AvailHeader = from_reader(reader).unwrap();
+    let avail_header_file = File::open("src/avail_header.json").unwrap();
+    let avail_header_reader = BufReader::new(avail_header_file);
+    let header: AvailHeader = from_reader(avail_header_reader).unwrap();
 
-    let file2 = File::open("src/header_store.json").unwrap();
-    let reader2 = BufReader::new(file2);
-    let header_store: HeaderStore = from_reader(reader2).unwrap();
+    let header_store_file = File::open("src/header_store.json").unwrap();
+    let header_store_reader = BufReader::new(header_store_file);
+    let header_store: HeaderStore = from_reader(header_store_reader).unwrap();
+    let proof: Option<Proof> = None;
 
-    (txs, state_machine, header, header_store)
+    (txs, state_machine, header, header_store, proof)
 }
 
 fn main() {
@@ -65,9 +67,9 @@ fn main() {
 
     let prover_modes = vec![ProverMode::NoAggregation, ProverMode::Compressed];
 
-    for i in 0..prover_modes.len() {
-        let (txs, mut state_machine, header, mut header_store) = create_mock_data();
-        let prover_mode = &prover_modes[i.clone()];
+    for mode in 0..prover_modes.len() {
+        let (txs, mut state_machine, header, mut header_store, proof) = create_mock_data();
+        let prover_mode = &prover_modes[mode.clone()];
 
         let start = Instant::now();
 
@@ -80,6 +82,7 @@ fn main() {
                 &header,
                 &mut header_store,
                 prover_mode.clone(),
+                proof,
             )
             .await
             .unwrap();
