@@ -7,5 +7,5 @@ interface INexusReceiver {
         address,
         bytes calldata,
         uint256 nonce
-    ) external view;
+    ) external;
 }
