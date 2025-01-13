@@ -71,6 +71,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         verifiedMessages[receiptHash] = receipt;
 
         address to = search(receipt.nexusAppIDTo, receipt.to);
+
         if (to != address(0)) {
             (bool success, ) = to.call(
                 abi.encodeWithSignature(
