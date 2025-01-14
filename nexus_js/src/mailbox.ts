@@ -1,13 +1,16 @@
 import { ethers, InterfaceAbi, Provider } from "ethers";
 import logger from "./logger.js";
 import { ChainDetails, Networks } from "./types.js";
-import { MailboxMessageStruct } from "./types/Mailbox.js";
+import { Mailbox, MailboxMessageStruct } from "./types/Mailbox.js";
 import { TransactionReceipt } from "ethers";
 
 class MailboxUtils {
   protected chains: Map<string, ChainDetails>;
 
-  constructor(chains: { [appId: string]: ChainDetails }, private mailboxAbi: InterfaceAbi) {
+  constructor(
+    chains: { [appId: string]: ChainDetails },
+    private mailboxAbi: InterfaceAbi
+  ) {
     this.chains = new Map<string, ChainDetails>();
     for (const appId in chains) {
       if (Object.prototype.hasOwnProperty.call(chains, appId)) {
@@ -34,7 +37,9 @@ class MailboxUtils {
     }
     const receipt: MailboxMessageStruct = {
       nexusAppIDFrom: ethers.encodeBytes32String(nexusAppIDFrom),
-      nexusAppIDTo: nexusAppIDTo.map((appId) => ethers.encodeBytes32String(appId)),
+      nexusAppIDTo: nexusAppIDTo.map((appId) =>
+        ethers.encodeBytes32String(appId)
+      ),
       data: data,
       from: ethers.encodeBytes32String(from),
       to: to.map((toAddress) => ethers.encodeBytes32String(toAddress)),
@@ -47,7 +52,6 @@ class MailboxUtils {
   protected getMailboxContract(nexusAppId: string): ethers.Contract {
     const chainInfo = this.chains.get(nexusAppId);
     if (!chainInfo) {
-
       throw new Error("Chain info not known to mailbox");
     }
     const provider = new ethers.JsonRpcProvider(chainInfo.rpcUrl);
@@ -62,14 +66,17 @@ class MailboxUtils {
       chainInfo.mailboxContract,
       this.mailboxAbi,
       new ethers.Wallet(chainInfo.privateKey, provider)
-    )
+    );
 
     return mailboxContract;
   }
 }
 
 export default class MailBoxClient extends MailboxUtils {
-  constructor(chains: { [appId: string]: ChainDetails }, mailboxAbi: InterfaceAbi) {
+  constructor(
+    chains: { [appId: string]: ChainDetails },
+    mailboxAbi: InterfaceAbi
+  ) {
     if (Object.keys(chains).length === 0) {
       throw new Error("At least one account state mapping must be provided.");
     }
@@ -96,11 +103,35 @@ export default class MailBoxClient extends MailboxUtils {
   ): Promise<TransactionReceipt> {
     const mailboxContract = this.getMailboxContract(nexusAppIDFrom);
     console.log("mailbox contract", await mailboxContract.getAddress());
-    const tx = await mailboxContract?.receiveMessage(chainblockNumber, receipt, proof);
+    const tx = await mailboxContract?.receiveMessage(
+      chainblockNumber,
+      receipt,
+      proof
+    );
 
     const txReceipt = await tx.wait();
 
     return txReceipt;
+  }
+
+  async getSendMessageDetails(
+    nexusAppIDFrom: string,
+    receiptHash: string
+  ): Promise<MailboxMessageStruct> {
+    const mailboxContract = this.getMailboxContract(nexusAppIDFrom);
+    const messageDetails = await mailboxContract.getSendMessageDetails(
+      receiptHash
+    );
+    return messageDetails;
+  }
+
+  async getReceipt(
+    nexusAppIDFrom: string,
+    receiptHash: string
+  ): Promise<MailboxMessageStruct> {
+    const mailboxContract = this.getMailboxContract(nexusAppIDFrom);
+    const messageDetails = await mailboxContract.getReceipt(receiptHash);
+    return messageDetails;
   }
 
   addChain(key: string, chainDetails: ChainDetails): void {

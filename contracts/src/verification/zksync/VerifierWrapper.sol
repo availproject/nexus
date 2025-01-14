@@ -8,6 +8,7 @@ import {INexusProofManager} from "../../interfaces/INexusProofManager.sol";
 
 contract VerifierWrapper is INexusVerifierWrapper, StorageProofVerifier {
     error InvalidProof();
+    error InvalidAccount();
     error VerificationFailed();
 
     constructor(
@@ -18,9 +19,13 @@ contract VerifierWrapper is INexusVerifierWrapper, StorageProofVerifier {
     function parseAndVerify(
         uint256,
         bytes32 receipt,
-        bytes calldata data
+        bytes calldata data,
+        address from
     ) external view {
         StorageProof memory proof = abi.decode(data, (StorageProof));
+        if (proof.account != from) {
+            revert InvalidAccount();
+        }
         if (proof.value == bytes32(0)) {
             revert InvalidProof();
         }

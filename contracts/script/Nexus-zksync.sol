@@ -10,6 +10,7 @@ import {SparseMerkleTree} from "../src/verification/zksync/SparseMerkleTree.sol"
 import {VerifierWrapper} from "../src/verification/zksync/VerifierWrapper.sol";
 import {IZKSyncNexusManagerRouter} from "../src/verification/zksync/StorageProof.sol";
 import {INexusProofManager} from "../src/interfaces/INexusProofManager.sol";
+import {VerifierInfo} from "../src/interfaces/INexusMailbox.sol";
 import {INexusVerifierWrapper} from "../src/interfaces/INexusVerifierWrapper.sol";
 
 contract NexusDeployment is Script {
@@ -44,14 +45,14 @@ contract NexusDeployment is Script {
             vm.parseJson(jsonConfig, appIdPath),
             (bytes32)
         );
-        config.appId = bytes32(appIdUint);
+        config.appId = appIdUint;
 
         string memory appId2Path = string.concat(basePath, ".appId2");
         bytes32 appId2Uint = abi.decode(
             vm.parseJson(jsonConfig, appId2Path),
             (bytes32)
         );
-        config.appId2 = bytes32(appId2Uint);
+        config.appId2 = appId2Uint;
     }
 
     function run() public {
@@ -60,7 +61,6 @@ contract NexusDeployment is Script {
         // Deploy NexusProofManager
         NexusProofManager nexusManager = new NexusProofManager();
         console.log("NexusProofManager deployed to: ", address(nexusManager));
-        console.logBytes32(bytes32(config.appId));
 
         // Deploy and initialize NexusMailbox
         NexusMailbox mailbox = new NexusMailbox();
@@ -86,7 +86,10 @@ contract NexusDeployment is Script {
         // Add or update wrapper in mailbox
         mailbox.addOrUpdateWrapper(
             config.appId2,
-            INexusVerifierWrapper(address(verifierWrapper))
+            VerifierInfo(
+                INexusVerifierWrapper(address(verifierWrapper)),
+                address(0) // this needs to be updatated after the from chain mailbox is deployed
+            )
         );
 
         vm.stopBroadcast();
