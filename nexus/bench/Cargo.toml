@@ -17,6 +17,7 @@ nexus-host = {package = "host", path = "../host", default-features = false , opt
 rocksdb = {version = "0.22.0"}
 tokio = "1.36.0"
 serde_json = "1.0.114"
+risc0-zkvm-platform = { version = "1.2.0" , features = ["sys-getenv"] }
 
 [[bench]]
 name = "nexus_bench"

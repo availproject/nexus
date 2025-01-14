@@ -43,16 +43,46 @@ fn create_mock_data() -> (
     db_options.create_if_missing(true);
 
     let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
-    let txs: Vec<Transaction> = Vec::new();
+    let mut txs: Vec<Transaction> = Vec::new();
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
-    let file = File::open("src/avail_header.json").unwrap();
-    let reader = BufReader::new(file);
-    let header: AvailHeader = from_reader(reader).unwrap();
+    // Read all file names from the transactions directory
+    let dir_path = "src/transactions";
+    let mut files = fs::read_dir(dir_path)
+        .unwrap()
+        .filter_map(|entry| {
+            entry.ok().and_then(|e| {
+                let path = e.path();
+                if path.is_file() && path.extension().unwrap_or_default() == "json" {
+                    path.file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                } else {
+                    None
+                }
+            })
+        })
+        .collect::<Vec<_>>();
 
-    let file2 = File::open("src/header_store.json").unwrap();
-    let reader2 = BufReader::new(file2);
-    let header_store: HeaderStore = from_reader(reader2).unwrap();
+    // Sort files to ensure consistent ordering
+    files.sort();
+
+    let num_txns = 10; // can change the number of transactions to be included from here
+
+    for txns in 0..num_txns.min(files.len()) {
+        let file_path = format!("{}/{}", dir_path, files[txns]);
+        let tx_file = File::open(&file_path).unwrap();
+        let tx_reader = BufReader::new(tx_file);
+        let tx: Transaction = from_reader(tx_reader).unwrap();
+        txs.push(tx);
+    }
+
+    let avail_header = File::open("src/avail_header.json").unwrap();
+    let avail_header_reader = BufReader::new(avail_header);
+    let header: AvailHeader = from_reader(avail_header_reader).unwrap();
+
+    let header_store = File::open("src/header_store.json").unwrap();
+    let header_store_reader = BufReader::new(header_store);
+    let header_store: HeaderStore = from_reader(header_store_reader).unwrap();
 
     (txs, state_machine, header, header_store)
 }
@@ -65,24 +95,25 @@ fn main() {
 
     let prover_modes = vec![ProverMode::NoAggregation, ProverMode::Compressed];
 
-    for i in 0..prover_modes.len() {
+    for mode in 0..prover_modes.len() {
         let (txs, mut state_machine, header, mut header_store) = create_mock_data();
-        let prover_mode = &prover_modes[i.clone()];
+        let prover_mode = &prover_modes[mode.clone()];
 
         let start = Instant::now();
 
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         rt.block_on(async {
-            let (proof, header) = execute_batch::<Prover, Proof, ZKVM>(
-                &txs,
-                &mut state_machine,
-                &header,
-                &mut header_store,
-                prover_mode.clone(),
-            )
-            .await
-            .unwrap();
+            let (proof, header, tx_result, tree_update_batch) =
+                execute_batch::<Prover, Proof, ZKVM>(
+                    &txs,
+                    &mut state_machine,
+                    &header,
+                    &mut header_store,
+                    prover_mode.clone(),
+                )
+                .await
+                .unwrap();
 
             let duration = start.elapsed();
             println!("Proof generation took: {:?}", duration);
