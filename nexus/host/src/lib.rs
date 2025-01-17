@@ -147,9 +147,11 @@ where
                     zkvm_prover.add_proof_for_recursion(receipt).unwrap();
                 }
 
+                let txn_with_no_proof = tx.to_no_proof();
+
                 Ok(TransactionZKVM {
-                    signature: tx.signature.clone(),
-                    params: tx.params.clone(),
+                    signature: txn_with_no_proof.signature.clone(),
+                    params: txn_with_no_proof.params.clone(),
                 })
             })
             .collect();
