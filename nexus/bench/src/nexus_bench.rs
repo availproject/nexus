@@ -66,10 +66,13 @@ fn create_mock_data() -> (
     // Sort files to ensure consistent ordering
     files.sort();
 
-    let num_txns = 10; // can change the number of transactions to be included from here
+    let num_txns = 300; // desired number of transactions
+    let files_len = files.len(); // actual number of files available
 
-    for txns in 0..num_txns.min(files.len()) {
-        let file_path = format!("{}/{}", dir_path, files[txns]);
+    for i in 0..num_txns {
+        // Use modulo to loop back to start when we run out of files
+        let file_index = i % files_len;
+        let file_path = format!("{}/{}", dir_path, files[file_index]);
         let tx_file = File::open(&file_path).unwrap();
         let tx_reader = BufReader::new(tx_file);
         let tx: Transaction = from_reader(tx_reader).unwrap();
