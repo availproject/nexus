@@ -69,9 +69,9 @@ fn create_mock_data() -> (
     let num_txns = 300; // desired number of transactions
     let files_len = files.len(); // actual number of files available
 
-    for i in 0..num_txns {
+    for tx in 0..num_txns {
         // Use modulo to loop back to start when we run out of files
-        let file_index = i % files_len;
+        let file_index = tx % files_len;
         let file_path = format!("{}/{}", dir_path, files[file_index]);
         let tx_file = File::open(&file_path).unwrap();
         let tx_reader = BufReader::new(tx_file);
