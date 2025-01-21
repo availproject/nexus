@@ -101,14 +101,11 @@ fn create_mock_data() -> (
 }
 
 async fn create_mock_transactions() {
-    let (txs, mut state_machine, avail_headers, mut header_store) = create_mock_data();
+    let (_, mut state_machine, avail_headers, mut header_store) = create_mock_data();
         let mock_txs: Vec<Transaction> = Vec::new();
-        let start = Instant::now();
-
-        let rt: tokio::runtime::Runtime = tokio::runtime::Runtime::new().unwrap();
         let prover_mode = ProverMode::NoAggregation;
 
-        let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
+        let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
             &mock_txs,
             &mut state_machine,
             &avail_headers[0],
@@ -151,7 +148,7 @@ async fn create_mock_transactions() {
             }
         }
 
-        let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
+        let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
             &mock_txs,
             &mut state_machine,
             &avail_headers[1],
@@ -165,12 +162,10 @@ async fn create_mock_transactions() {
         fs::write("src/headers/nexus_header_2.json", json_string).unwrap();
 
         let nexus_header_2 = fs::read_to_string("src/headers/nexus_header_2.json").unwrap();
-
-        // making 100 init transactions with diff app account id and store the results
         let header_2: NexusHeader = serde_json::from_str(&nexus_header_2).unwrap();
         println!("Nexus header 2 {:?}", header_2);
-        // making 100 submit proof transactions
 
+        // making 100 submit proof transactions
         let submit_proof_file = File::open("src/submit_proof_transactions/submit_proof_txn.json").unwrap();
         let submit_proof_txn_reader = BufReader::new(submit_proof_file);
         let submit_proof_txn: Transaction = from_reader(submit_proof_txn_reader).unwrap();
@@ -250,15 +245,13 @@ async fn main() {
     }
 
     for mode in 0..prover_modes.len() {
-        let (txs, mut state_machine, avail_headers, mut header_store) = create_mock_data();
+        let (_, mut state_machine, avail_headers, mut header_store) = create_mock_data();
         let prover_mode = &prover_modes[mode.clone()];
 
         {
             let start = Instant::now();
-
-            let rt = tokio::runtime::Runtime::new().unwrap();
     
-            let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
+            let (proof, _, _, _) = execute_batch::<Prover, Proof, ZKVM>(
                 &init_account_transactions,
                 &mut state_machine,
                 &avail_headers[0],
@@ -288,8 +281,6 @@ async fn main() {
 
         {
             let start = Instant::now();
-
-            let rt = tokio::runtime::Runtime::new().unwrap();
     
             let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
                 &submit_proof_transactions,
@@ -318,6 +309,5 @@ async fn main() {
             let file_size = metadata.len();
             println!("Size of the binary file: {} bytes", file_size);
         }
-
     }
 }
