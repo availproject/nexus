@@ -13,6 +13,7 @@ use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::env::args;
+use std::fs;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use web3::transports::Http;
@@ -50,7 +51,7 @@ async fn main() -> Result<(), Error> {
     } else {
         ProverMode::Compressed
     };
-    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
+    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7001");
 
     // Create or open the database
     let db_path = "db";
@@ -68,6 +69,7 @@ async fn main() -> Result<(), Error> {
             vk: [0u8; 32],
             rollup_start_height: 606460,
             prover_mode,
+            avail_url: String::from("wss://turing-rpc.avail.so:443/ws"),
         };
         AdapterStateData {
             last_height: 0,
@@ -228,6 +230,12 @@ async fn main() -> Result<(), Error> {
                             data: None,
                         }),
                     };
+
+                    let json_string = serde_json::to_string_pretty(&tx).unwrap();
+                    let file_name = "submit_proof_txn.json";
+                    fs::write(file_name, json_string).unwrap();
+
+                    // save this txn
                     match nexus_api.send_tx(tx).await {
                         Ok(i) => {
                             println!(

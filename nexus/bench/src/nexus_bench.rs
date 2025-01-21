@@ -1,17 +1,20 @@
+use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
+use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::{
     db::NodeDB,
     state::vm_state::VmState,
     state_machine::StateMachine,
     types::{
-        AccountState, AppAccountId, AppId, AvailHeader, DataLookup, Digest, DigestItem, Extension, HeaderStore, InitAccount, KateCommitment, NexusHeader, NexusRollupPI, Proof, StatementDigest, SubmitProof, Transaction, TxParams, TxSignature, V3Extension, H256
+        AppAccountId, AppId, AvailHeader, DataLookup, Digest, DigestItem, Extension, HeaderStore,
+        InitAccount, KateCommitment, NexusHeader, NexusRollupPI, StatementDigest, SubmitProof,
+        Transaction, TxParams, TxSignature, V3Extension, H256,
     },
     zkvm::ProverMode,
 };
-use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_host::execute_batch;
 use rocksdb::Options;
-use serde_json::from_reader;
 use serde::{Deserialize, Serialize};
+use serde_json::from_reader;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -20,7 +23,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
-use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
 
 #[cfg(feature = "risc0")]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
@@ -38,7 +40,6 @@ struct AdapterStateData {
     last_height: u32,
     adapter_config: AdapterConfig,
 }
-
 
 //@TODO : use mockproofs for bench
 fn create_mock_data() -> (
@@ -99,45 +100,28 @@ fn create_mock_data() -> (
     (txs, state_machine, avail_headers, header_store)
 }
 
-#[tokio::main]
-async fn main() {
-    #[cfg(any(feature = "sp1"))]
-    env_logger::Builder::from_env("RUST_LOG")
-        .filter_level(log::LevelFilter::Info)
-        .init();
-
-    let prover_modes = vec![ProverMode::NoAggregation, ProverMode::Compressed];
-
-    for mode in 0..prover_modes.len() {
-        let (txs, mut state_machine, avail_headers, mut header_store) = create_mock_data();
+async fn create_mock_transactions() {
+    let (txs, mut state_machine, avail_headers, mut header_store) = create_mock_data();
         let mock_txs: Vec<Transaction> = Vec::new();
-        let prover_mode = &prover_modes[mode.clone()];
-
         let start = Instant::now();
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt: tokio::runtime::Runtime = tokio::runtime::Runtime::new().unwrap();
+        let prover_mode = ProverMode::NoAggregation;
 
-        rt.block_on(async {
-            let (proof, header, tx_result, tree_update_batch) =
-                execute_batch::<Prover, Proof, ZKVM>(
-                    &mock_txs,
-                    &mut state_machine,
-                    &avail_headers[0],
-                    &mut header_store,
-                    prover_mode.clone(),
-                )
-                .await
+        let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
+            &mock_txs,
+            &mut state_machine,
+            &avail_headers[0],
+            &mut header_store,
+            prover_mode.clone(),
+        )
+        .await
+        .unwrap();
 
-                .unwrap();
+        let json_string = serde_json::to_string_pretty(&header).unwrap();
+        fs::write("src/headers/nexus_header_1.json", json_string).unwrap();
 
-            // store the header from here 
-            println!("header {:?}", header);
-
-            let json_string = serde_json::to_string_pretty(&header).unwrap();
-            fs::write("nexus_header_1.json", json_string).unwrap();
-        });
-
-        let nexus_header_1 = fs::read_to_string("nexus_header_1.json").unwrap();
+        let nexus_header_1 = fs::read_to_string("src/headers/nexus_header_1.json").unwrap();
 
         // making 100 init transactions with diff app account id and store the results
         let header_1: NexusHeader = serde_json::from_str(&nexus_header_1).unwrap();
@@ -154,7 +138,7 @@ async fn main() {
                 }),
             };
             let json_string = serde_json::to_string_pretty(&tx).unwrap();
-            let file_name = format!("txns/init_account_txn_{}.json", txn_index);
+            let file_name = format!("src/init_account_transactions/init_account_txn_{}.json", txn_index);
             fs::write(file_name, json_string).unwrap();
             match nexus_api.send_tx(tx).await {
                 Ok(i) => {
@@ -167,37 +151,39 @@ async fn main() {
             }
         }
 
-        rt.block_on(async {
-            let (proof, header, tx_result, tree_update_batch) =
-                execute_batch::<Prover, Proof, ZKVM>(
-                    &mock_txs,
-                    &mut state_machine,
-                    &avail_headers[1],
-                    &mut header_store,
-                    prover_mode.clone(),
-                )
-                .await
-                .unwrap();
+        let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
+            &mock_txs,
+            &mut state_machine,
+            &avail_headers[1],
+            &mut header_store,
+            prover_mode.clone(),
+        )
+        .await
+        .unwrap();
 
-            // store the header from here 
-            println!("header {:?}", header);
+        let json_string = serde_json::to_string_pretty(&header).unwrap();
+        fs::write("src/headers/nexus_header_2.json", json_string).unwrap();
 
-            let json_string = serde_json::to_string_pretty(&header).unwrap();
-            fs::write("nexus_header_2.json", json_string).unwrap();
-        });
-
-        let nexus_header_2 = fs::read_to_string("nexus_header_2.json").unwrap();
+        let nexus_header_2 = fs::read_to_string("src/headers/nexus_header_2.json").unwrap();
 
         // making 100 init transactions with diff app account id and store the results
         let header_2: NexusHeader = serde_json::from_str(&nexus_header_2).unwrap();
         println!("Nexus header 2 {:?}", header_2);
         // making 100 submit proof transactions
 
-        for txn_index in 0..100 {
+        let submit_proof_file = File::open("src/submit_proof_transactions/submit_proof_txn.json").unwrap();
+        let submit_proof_txn_reader = BufReader::new(submit_proof_file);
+        let submit_proof_txn: Transaction = from_reader(submit_proof_txn_reader).unwrap();
 
+        let random_proof = match submit_proof_txn.params {
+            TxParams::SubmitProof(proof) => proof.proof,
+            _ => panic!("Invalid transaction"),
+        };
+
+        for txn_index in 0..100 {
             let public_inputs = NexusRollupPI {
                 nexus_hash: header_2.hash(),
-                state_root: H256::from(header_2.state_root.as_fixed_bytes().clone()),
+                state_root: H256::from(header_2.state_root.as_fixed_slice().clone()),
                 //TODO: remove unwrap
                 height: header_2.number,
                 start_nexus_hash: H256::zero(), // for now
@@ -211,15 +197,15 @@ async fn main() {
                 params: TxParams::SubmitProof(SubmitProof {
                     app_id: AppAccountId::from(AppId(txn_index as u32)),
                     nexus_hash: header_2.hash(),
-                    state_root: H256::from(header_2.state_root.as_fixed_bytes().clone()),
-                    proof: Proof(vec![0u8]),
+                    state_root: H256::from(header_2.state_root.as_fixed_slice().clone()),
+                    proof: random_proof.clone(), // need to generate the actual proof but for now using a random proof
                     height: header_2.number,
                     data: None,
                 }),
             };
 
             let json_string = serde_json::to_string_pretty(&tx).unwrap();
-            let file_name = format!("txns/submit_proof_txn_{}.json", txn_index);
+            let file_name = format!("src/submit_proof_transactions/submit_proof_txn_{}.json", txn_index);
             fs::write(file_name, json_string).unwrap();
 
             match nexus_api.send_tx(tx).await {
@@ -235,6 +221,102 @@ async fn main() {
                     continue;
                 }
             }
+        }
+}
+
+#[tokio::main]
+async fn main() {
+    #[cfg(any(feature = "sp1"))]
+    env_logger::Builder::from_env("RUST_LOG")
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
+    let prover_modes = vec![ProverMode::NoAggregation]; // for now only NoAggregation Mode
+    let mut init_account_transactions: Vec<Transaction> = vec![];
+    let mut submit_proof_transactions: Vec<Transaction> = vec![];
+
+    for txn_index in 0..100 {
+        let file_name = format!("src/submit_proof_transactions/submit_proof_txn_{}.json", txn_index);
+        let file_content = fs::read_to_string(file_name).unwrap();
+        let tx: Transaction = serde_json::from_str(&file_content).unwrap();
+        init_account_transactions.push(tx);
+    }
+
+    for txn_index in 0..100 {
+        let file_name = format!("src/init_account_transactions/init_account_txn_{}.json", txn_index);
+        let file_content = fs::read_to_string(file_name).unwrap();
+        let tx: Transaction = serde_json::from_str(&file_content).unwrap();
+        submit_proof_transactions.push(tx);
+    }
+
+    for mode in 0..prover_modes.len() {
+        let (txs, mut state_machine, avail_headers, mut header_store) = create_mock_data();
+        let prover_mode = &prover_modes[mode.clone()];
+
+        {
+            let start = Instant::now();
+
+            let rt = tokio::runtime::Runtime::new().unwrap();
+    
+            let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
+                &init_account_transactions,
+                &mut state_machine,
+                &avail_headers[0],
+                &mut header_store,
+                prover_mode.clone(),
+            )
+            .await
+            .unwrap();
+    
+            let duration = start.elapsed();
+            println!("Proof generation took: {:?}", duration);
+    
+            let current_dir = env::current_dir().unwrap();
+            let mut out_sr_path = PathBuf::from(current_dir);
+            #[cfg(feature = "risc0")]
+            out_sr_path.push("succinct_receipt_risc0.bin");
+    
+            #[cfg(feature = "sp1")]
+            out_sr_path.push("succinct_receipt_sp1.bin");
+            let serialized_data = bincode::serialize(&proof).unwrap();
+            let _ = fs::write(out_sr_path.clone(), serialized_data).unwrap();
+    
+            let metadata = fs::metadata(&out_sr_path).unwrap();
+            let file_size = metadata.len();
+            println!("Size of the binary file: {} bytes", file_size);
+        }
+
+        {
+            let start = Instant::now();
+
+            let rt = tokio::runtime::Runtime::new().unwrap();
+    
+            let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
+                &submit_proof_transactions,
+                &mut state_machine,
+                &avail_headers[0],
+                &mut header_store,
+                prover_mode.clone(),
+            )
+            .await
+            .unwrap();
+    
+            let duration = start.elapsed();
+            println!("Proof generation took: {:?}", duration);
+    
+            let current_dir = env::current_dir().unwrap();
+            let mut out_sr_path = PathBuf::from(current_dir);
+            #[cfg(feature = "risc0")]
+            out_sr_path.push("succinct_receipt_risc0.bin");
+    
+            #[cfg(feature = "sp1")]
+            out_sr_path.push("succinct_receipt_sp1.bin");
+            let serialized_data = bincode::serialize(&proof).unwrap();
+            let _ = fs::write(out_sr_path.clone(), serialized_data).unwrap();
+    
+            let metadata = fs::metadata(&out_sr_path).unwrap();
+            let file_size = metadata.len();
+            println!("Size of the binary file: {} bytes", file_size);
         }
 
     }
