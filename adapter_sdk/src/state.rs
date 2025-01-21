@@ -115,7 +115,7 @@ where
             db: Arc::new(Mutex::new(db)),
             p: PhantomData,
             pp: PhantomData,
-            nexus_api: NexusAPI::new(&"http://127.0.0.1:7000"),
+            nexus_api: NexusAPI::new(&"http://127.0.0.1:7001"),
             prover_mode: config.prover_mode,
             avail_url: config.avail_url,
         }
@@ -161,7 +161,7 @@ where
             let client = reqwest::Client::new();
 
             let response = client
-                .post("http://127.0.0.1:7000/tx")
+                .post("http://127.0.0.1:7001/tx")
                 .json(&tx)
                 .send()
                 .await?;
@@ -247,7 +247,7 @@ where
                 &latest_proof.2, &latest_proof.1.state_root
             );
 
-            let response = reqwest::get("http://127.0.0.1:7000/range").await?;
+            let response = reqwest::get("http://127.0.0.1:7001/range").await?;
 
             // Check if the request was successful
             if !response.status().is_success() {
@@ -292,7 +292,7 @@ where
                 };
 
                 let response = client
-                    .post("http://127.0.0.1:7000/tx")
+                    .post("http://127.0.0.1:7001/tx")
                     .json(&tx)
                     .send()
                     .await?;

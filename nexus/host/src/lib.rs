@@ -241,6 +241,7 @@ pub async fn execution_engine_handle(
             };
 
             let (txs, index) = mempool.get_current_txs().await;
+            println!("********************************************** Received txns {:?}", txs.len());
             info!(
                 avail_block = header.number,
                 tx_count = txs.len(),

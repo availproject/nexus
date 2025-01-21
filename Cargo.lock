@@ -1272,8 +1272,10 @@ dependencies = [
 name = "bench-nexus"
 version = "1.0.0"
 dependencies = [
+ "adapter_sdk",
  "bincode",
  "env_logger",
+ "geth-methods",
  "host",
  "log",
  "nexus-core",
@@ -1282,6 +1284,7 @@ dependencies = [
  "risc0-zkvm",
  "risc0-zkvm-platform",
  "rocksdb",
+ "serde",
  "serde_json",
  "sp1-sdk",
  "sparse-merkle-tree",
