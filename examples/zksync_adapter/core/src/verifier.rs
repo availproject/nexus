@@ -1,9 +1,8 @@
 use substrate_bn::arith::U256 as FrU256;
 use substrate_bn::pairing;
-use substrate_bn::{Fq, Fr, Gt, G1, G2};
-// use ethers_core::k256::U256;
+use substrate_bn::{Fq, Fr, Gt, G1, G2, AffineG1, AffineG2};
+use substrate_bn::pairing_batch;
 use num_bigint::*;
-
 use std::fmt::{format, Debug, DebugMap, Display};
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -264,7 +263,6 @@ impl ZksyncVerifier {
         let lhs = proof.quotient_poly_opening_at_z.mul(vanishing);
 
         assert_eq!(lhs, result);
-        println!("check 1 done");
     }
 
     fn evaluate_lagrange_poly_out_of_domain(poly_num: u64, at: Fr) -> Fr {
@@ -276,7 +274,6 @@ impl ZksyncVerifier {
             .pow(Fr::new(FrU256::from((get_domain_size()))).unwrap())
             .add(get_scalar_field().sub(Fr::from_str("1").unwrap()));
         assert_ne!(res, Fr::zero()); // can be replaced with is_zero()
-        println!("check 2 done");
 
         res = res.mul(omega_power);
 
@@ -1063,7 +1060,7 @@ impl ZksyncVerifier {
 
         let (g2_0_element, g2_1_element) = get_g2_elements();
 
-        // // Convert to affine and back to ensure normalization
+        // Convert to affine and back to ensure normalization
         let affine_p1 = AffineG1::from_jacobian(pairing_pair_generator).unwrap();
         let affine_p2 = AffineG1::from_jacobian(pairing_pair_with_x).unwrap();
 
@@ -1157,7 +1154,6 @@ impl ZksyncVerifier {
         );
 
         println!("Is Proof Verified: {:?}", is_proof_verified);
-
         is_proof_verified
     }
 }
