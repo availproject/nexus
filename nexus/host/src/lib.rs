@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Error};
+use avail_da_submitter::run_proof_submitter;
 pub use avail_subxt::Header;
 use jmt::storage::TreeUpdateBatch;
 use nexus_core::{
@@ -42,6 +43,7 @@ use tokio::sync::{mpsc::UnboundedReceiver, watch, Mutex};
 use tokio::time::{sleep, Duration};
 use warp::Filter;
 
+pub mod avail_da_submitter;
 pub mod rpc;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AvailToNexusPointer {
@@ -238,7 +240,20 @@ pub async fn execution_engine_handle(
                 }
             };
 
-            let (txs, index) = mempool.get_current_txs().await;
+            let (txs, index) = if (old_headers.inner().len() == 0) {
+                mempool.get_current_txs().await
+            } else {
+                loop {
+                    let (txs, index) = mempool.get_current_txs().await;
+
+                    if txs.len() <= 100 {
+                        continue;
+                    }
+
+                    break (txs, index);
+                }
+            };
+
             info!(
                 avail_block = header.number,
                 tx_count = txs.len(),
@@ -256,7 +271,7 @@ pub async fn execution_engine_handle(
             )
             .await
             {
-                Ok((_, result, tx_result, tree_update_batch)) => {
+                Ok((proof, result, tx_result, tree_update_batch)) => {
                     let updated_version = state.lock().await.get_version(false)?;
                     info!(
                         nexus_block = result.number,
@@ -284,6 +299,7 @@ pub async fn execution_engine_handle(
                                 None => 0,
                             },
                         },
+                        proof,
                     )
                     .await
                     {
@@ -323,12 +339,19 @@ pub async fn execution_engine_handle(
     level = "debug",
     skip(node_db, mempool, state_machine, processed_batch_info)
 )]
-pub async fn save_batch_information<'a>(
+pub async fn save_batch_information<
+    'a,
+    P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
+>(
     node_db: &Arc<Mutex<NodeDB>>,
     mempool: &Mempool,
     state_machine: &mut StateMachine<ZKVM, Proof>,
     processed_batch_info: ProcessedBatchInfo<'a>,
-) -> Result<(), Error> {
+    proof: P,
+) -> Result<(), Error>
+where
+    <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
+{
     debug!(
         nexus_block = processed_batch_info.header.number,
         "Starting batch commit"
@@ -400,6 +423,7 @@ pub async fn save_batch_information<'a>(
             jmt_version: processed_batch_info.jmt_version,
         },
     );
+    batch_transaction.put(&[nexus_hash.as_slice(), b"-proof"].concat(), &proof);
     batch_transaction.put(
         &[
             processed_batch_info.header.number.to_be_bytes().as_slice(),
@@ -448,7 +472,7 @@ pub fn run_server(
 
     tokio::spawn(async move {
         let address =
-            SocketAddr::from_str(format!("{}:{}", String::from("0.0.0.0"), port).as_str())
+            SocketAddr::from_str(format!("{}:{}", String::from("127.0.0.1"), port).as_str())
                 .context("Unable to parse host address from config")
                 .unwrap();
 
@@ -475,8 +499,10 @@ pub async fn run_nexus(
 ) -> Result<(), Error> {
     let mut shutdown_rx_1 = shutdown_rx.clone();
     let mut shutdown_rx_2 = shutdown_rx.clone();
+    let mut shutdown_rx_3 = shutdown_rx.clone();
     let db_clone = node_db.clone();
     let db_clone_2 = node_db.clone();
+    let db_clone_3 = node_db.clone();
     let state_2 = state.clone();
 
     let receiver = {
@@ -489,6 +515,9 @@ pub async fn run_nexus(
     let relayer_handle = tokio::spawn(async move {
         relayer_handle(relayer_mutex, db_clone_2, shutdown_rx_1.clone()).await
     });
+
+    let proof_submitter_handle =
+        tokio::spawn(async move { run_proof_submitter(db_clone_3, shutdown_rx_3.clone()).await });
 
     let execution_engine = tokio::spawn(async move {
         execution_engine_handle(
@@ -505,10 +534,15 @@ pub async fn run_nexus(
 
     let server_handle = run_server(mempool, db_clone, state, shutdown_rx, server_port);
 
-    let result = tokio::try_join!(server_handle, execution_engine, relayer_handle);
+    let result = tokio::try_join!(
+        server_handle,
+        execution_engine,
+        relayer_handle,
+        proof_submitter_handle
+    );
 
     match result {
-        Ok((_, execution_engine_result, _)) => {
+        Ok((_, execution_engine_result, _, _)) => {
             info!("✅ Exited node gracefully");
 
             match execution_engine_result {

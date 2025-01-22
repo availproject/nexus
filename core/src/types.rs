@@ -10,6 +10,8 @@ pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
 use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
 #[cfg(any(feature = "native"))]
+pub use avail_subxt::utils::H256 as AvailH256;
+#[cfg(any(feature = "native"))]
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
 use jmt::proof::{SparseMerkleLeafNode, SparseMerkleNode, SparseMerkleProof, UpdateMerkleProof};
 use jmt::storage::TreeUpdateBatch;
@@ -75,6 +77,7 @@ pub enum TxParams {
 pub struct Transaction {
     pub signature: TxSignature,
     pub params: TxParams,
+    pub proof: Option<Proof>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode)]
@@ -125,6 +128,17 @@ pub struct NexusHeader {
     pub state_root: H256,
     pub tx_root: H256,
     pub avail_header_hash: H256,
+    pub number: u32,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct PalletNexusHeader {
+    pub parent_hash: AvailH256,
+    pub prev_state_root: AvailH256,
+    pub state_root: AvailH256,
+    pub tx_root: AvailH256,
+    pub avail_header_hash: AvailH256,
     pub number: u32,
 }
 
