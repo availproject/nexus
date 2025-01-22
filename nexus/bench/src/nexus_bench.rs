@@ -48,11 +48,26 @@ fn create_mock_data() -> (
     Vec<AvailHeader>,
     HeaderStore,
 ) {
-    let _node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
+    
+    let db_path = "./db/node_db";
+    let runtime_db_path = "./db/runtime_db";
+
+    // Remove the database directory if it exists
+    if fs::metadata(db_path).is_ok() {
+        fs::remove_dir_all(db_path).expect("Failed to remove existing node_db directory");
+    }
+
+    // Create a new RocksDB instance
+    let _node_db: NodeDB = NodeDB::from_path(&String::from(db_path));
     let mut db_options = Options::default();
     db_options.create_if_missing(true);
 
-    let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
+    // Remove runtime_db directory if it exists
+    if fs::metadata(runtime_db_path).is_ok() {
+        fs::remove_dir_all(runtime_db_path).expect("Failed to remove existing runtime_db directory");
+    }
+
+    let state = Arc::new(Mutex::new(VmState::new(&String::from(runtime_db_path))));
     let mut txs: Vec<Transaction> = Vec::new();
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
@@ -151,7 +166,7 @@ async fn create_mock_transactions() {
         let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
             &mock_txs,
             &mut state_machine,
-            &avail_headers[1],
+            &avail_headers[1], 
             &mut header_store,
             prover_mode.clone(),
         )
@@ -285,7 +300,7 @@ async fn main() {
             let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
                 &submit_proof_transactions,
                 &mut state_machine,
-                &avail_headers[0],
+                &avail_headers[1],
                 &mut header_store,
                 prover_mode.clone(),
             )
