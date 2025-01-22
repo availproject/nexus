@@ -38,27 +38,11 @@ fn create_mock_data() -> (
     Vec<AvailHeader>,
     HeaderStore,
 ) {
-    
-    let db_path = "./db/node_db";
-    let runtime_db_path = "./db/runtime_db";
-
-    // Remove the database directory if it exists
-    if fs::metadata(db_path).is_ok() {
-        fs::remove_dir_all(db_path).expect("Failed to remove existing node_db directory");
-    }
-
-    // Create a new RocksDB instance
-    let _node_db: NodeDB = NodeDB::from_path(&String::from(db_path));
+    let _node_db: NodeDB = NodeDB::from_path(&String::from("./db/node_db"));
     let mut db_options = Options::default();
     db_options.create_if_missing(true);
 
-    // Remove runtime_db directory if it exists
-    if fs::metadata(runtime_db_path).is_ok() {
-        fs::remove_dir_all(runtime_db_path).expect("Failed to remove existing runtime_db directory");
-    }
-
-    let state = Arc::new(Mutex::new(VmState::new(&String::from(runtime_db_path))));
-    let mut txs: Vec<Transaction> = Vec::new();
+    let state = Arc::new(Mutex::new(VmState::new(&String::from("./db/runtime_db"))));
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
     let avail_header = File::open("src/avail_header.json").unwrap();
@@ -75,38 +59,27 @@ fn create_mock_data() -> (
 async fn bench_init_account_transactions(header: NexusHeader, prover_mode: ProverMode, state_machine: &mut StateMachine<ZKVM, Proof>, avail_headers: Vec<AvailHeader>, mut header_store: HeaderStore) -> Proof {
     let mut init_account_transactions: Vec<Transaction> = Vec::new();
 
-        for txn_index in 0..100 {
-            let tx = Transaction {
-                signature: TxSignature([0u8; 64]),
-                params: TxParams::InitAccount(InitAccount {
-                    app_id: AppAccountId::from(AppId(txn_index as u32)),
-                    statement: StatementDigest(ADAPTER_ID),
-                    start_nexus_hash: header_1.hash(),
-                }),
-            };
-            let json_string = serde_json::to_string_pretty(&tx).unwrap();
-            let file_name = format!("src/init_account_transactions/init_account_txn_{}.json", txn_index);
-            fs::write(file_name, json_string).unwrap();
-            match nexus_api.send_tx(tx).await {
-                Ok(i) => {
-                    println!("Completed init account for app id {:?}", txn_index);
-                }
-                Err(e) => {
-                    println!("Error when iniating account: {:?}", e);
-                    continue;
-                }
-            }
-        }
+    for txn_index in 0..100 {
+        let tx = Transaction {
+            signature: TxSignature([0u8; 64]),
+            params: TxParams::InitAccount(InitAccount {
+                app_id: AppAccountId::from(AppId(txn_index as u32)),
+                statement: StatementDigest(ADAPTER_ID),
+                start_nexus_hash: header.hash(),
+            }),
+        };
+        init_account_transactions.push(tx);
+    }
 
-        let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
-            &mock_txs,
-            &mut state_machine,
-            &avail_headers[1], 
-            &mut header_store,
-            prover_mode.clone(),
-        )
-        .await
-        .unwrap();
+    let (proof, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
+        &init_account_transactions,
+        state_machine,
+        &avail_headers[1],
+        &mut header_store,
+        prover_mode.clone(),
+    )
+    .await
+    .unwrap();   
 
     // store header into json file
     let json_string = serde_json::to_string_pretty(&header).unwrap();
@@ -123,71 +96,89 @@ async fn bench_submit_proof_transactions(prover_mode: ProverMode, state_machine:
         let tx: Transaction = serde_json::from_str(&file_content).unwrap();
         submit_proof_transactions.push(tx);
     }
+    let (proof, _, _, _) = execute_batch::<Prover, Proof, ZKVM>(
+        &submit_proof_transactions,
+        state_machine,
+        &avail_headers[1],
+        &mut header_store,
+        prover_mode.clone(), 
+    )
+    .await
+    .unwrap();
 
-    for mode in 0..prover_modes.len() {
-        let (_, mut state_machine, avail_headers, mut header_store) = create_mock_data();
-        let prover_mode = &prover_modes[mode.clone()];
+    proof
+}
 
-        {
-            let start = Instant::now();
-    
-            let (proof, _, _, _) = execute_batch::<Prover, Proof, ZKVM>(
-                &init_account_transactions,
-                &mut state_machine,
-                &avail_headers[0],
-                &mut header_store,
-                prover_mode.clone(),
-            )
-            .await
-            .unwrap();
-    
-            let duration = start.elapsed();
-            println!("Proof generation took: {:?}", duration);
-    
-            let current_dir = env::current_dir().unwrap();
-            let mut out_sr_path = PathBuf::from(current_dir);
-            #[cfg(feature = "risc0")]
-            out_sr_path.push("succinct_receipt_risc0.bin");
-    
-            #[cfg(feature = "sp1")]
-            out_sr_path.push("succinct_receipt_sp1.bin");
-            let serialized_data = bincode::serialize(&proof).unwrap();
-            let _ = fs::write(out_sr_path.clone(), serialized_data).unwrap();
-    
-            let metadata = fs::metadata(&out_sr_path).unwrap();
-            let file_size = metadata.len();
-            println!("Size of the binary file: {} bytes", file_size);
-        }
+fn get_proof_size(proof: Proof) -> u64 {
+    let current_dir = env::current_dir().unwrap();
+    let mut out_sr_path = PathBuf::from(current_dir);
+    #[cfg(feature = "risc0")]
+    out_sr_path.push("succinct_receipt_risc0.bin");
 
-        {
-            let start = Instant::now();
+    #[cfg(feature = "sp1")]
+    out_sr_path.push("succinct_receipt_sp1.bin");
+    let serialized_data = bincode::serialize(&proof).unwrap();
+    let _ = fs::write(out_sr_path.clone(), serialized_data).unwrap();
+    let metadata = fs::metadata(&out_sr_path).unwrap();
+    let file_size = metadata.len();
+    file_size
+}
+
+#[tokio::main]
+async fn main() {
+    #[cfg(any(feature = "sp1"))]
+    env_logger::Builder::from_env("RUST_LOG")
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
+    let (mut state_machine, avail_headers, mut header_store) = create_mock_data();
+    let mock_txs: Vec<Transaction> = Vec::new();
+    let no_aggregation_prover_mode = ProverMode::NoAggregation;
+    let compressed_prover_mode = ProverMode::Compressed;
+
+    let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
+        &mock_txs,
+        &mut state_machine,
+        &avail_headers[0],
+        &mut header_store,
+        no_aggregation_prover_mode.clone(),
+    )
+    .await
+    .unwrap();
+
+    let init_account_time_start = Instant::now();
+    // bench how much time it takes to with 100 init account transactions with no aggregation prover mode
+    let mut proof = bench_init_account_transactions(header.clone(), no_aggregation_prover_mode.clone(), &mut state_machine, avail_headers.clone(), header_store.clone()).await;
+    let init_account_transactions_duration = init_account_time_start.elapsed();
+    println!("Proof generation time for Init account transactions with prover mode no aggregation took: {:?}", init_account_transactions_duration);
+
+    let mut file_size = get_proof_size(proof);
+    println!("Size of the Proof Binary: {} bytes", file_size);
+
+    let submit_account_time_start = Instant::now();
+    // bench how much time it take to work with 100 submit proof transactions with no aggregation prover mode
+    proof = bench_submit_proof_transactions(no_aggregation_prover_mode.clone(),  &mut state_machine, avail_headers.clone(), header_store.clone()).await;
+    let submit_account_transactions_duration = submit_account_time_start.elapsed();
+    println!("Proof generation time for Submit account transactions with prover mode no aggregation took: {:?}", submit_account_transactions_duration);
     
-            let (proof, header, tx_result, tree_update_batch) = execute_batch::<Prover, Proof, ZKVM>(
-                &submit_proof_transactions,
-                &mut state_machine,
-                &avail_headers[1],
-                &mut header_store,
-                prover_mode.clone(),
-            )
-            .await
-            .unwrap();
-    
-            let duration = start.elapsed();
-            println!("Proof generation took: {:?}", duration);
-    
-            let current_dir = env::current_dir().unwrap();
-            let mut out_sr_path = PathBuf::from(current_dir);
-            #[cfg(feature = "risc0")]
-            out_sr_path.push("succinct_receipt_risc0.bin");
-    
-            #[cfg(feature = "sp1")]
-            out_sr_path.push("succinct_receipt_sp1.bin");
-            let serialized_data = bincode::serialize(&proof).unwrap();
-            let _ = fs::write(out_sr_path.clone(), serialized_data).unwrap();
-    
-            let metadata = fs::metadata(&out_sr_path).unwrap();
-            let file_size = metadata.len();
-            println!("Size of the binary file: {} bytes", file_size);
-        }
-    }
+    file_size = get_proof_size(proof);
+    println!("Size of the Proof Binary: {} bytes", file_size);
+
+    let init_account_time_start = Instant::now();
+    // bench how much time it takes to with 100 init account transactions with compressed prover mode
+    proof = bench_init_account_transactions(header.clone(), compressed_prover_mode.clone(), &mut state_machine, avail_headers.clone(), header_store.clone()).await;
+    let init_account_transactions_duration = init_account_time_start.elapsed();
+    println!("Proof generation time for Init account transactions with compressed prover mode took: {:?}", init_account_transactions_duration);
+
+    file_size = get_proof_size(proof);
+    println!("Size of the Proof Binary: {} bytes", file_size);
+
+    let submit_account_time_start = Instant::now();
+    // bench how much time it take to work with 100 submit proof transactions with compressed prover mode
+    proof = bench_submit_proof_transactions(compressed_prover_mode.clone(), &mut state_machine, avail_headers.clone(), header_store.clone()).await;
+    let submit_account_transactions_duration = submit_account_time_start.elapsed();
+    println!("Proof generation took for Submit account transactions with compressed prover mode took: {:?}", submit_account_transactions_duration);
+
+    file_size = get_proof_size(proof);
+    println!("Size of the Proof Binary: {} bytes", file_size);
 }
