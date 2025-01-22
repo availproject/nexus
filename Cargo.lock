@@ -1292,6 +1292,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "bench-setup"
+version = "1.0.0"
+dependencies = [
+ "actix-web",
+ "adapter_sdk",
+ "anyhow",
+ "geth-adapter-core",
+ "geth-methods",
+ "nexus-core",
+ "parity-scale-codec",
+ "relayer",
+ "risc0-zkvm",
+ "serde",
+ "serde_json",
+ "sp-runtime 33.0.0",
+ "tokio",
+ "tracing-subscriber 0.3.19",
+ "warp",
+ "web3",
+]
+
+[[package]]
 name = "bigdecimal"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
