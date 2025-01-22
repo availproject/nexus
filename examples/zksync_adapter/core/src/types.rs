@@ -1,20 +1,15 @@
 use crate::constants::MAX_NUMBER_OF_BLOBS;
-use ark_bn254::{g1, g1::Parameters, Bn254, FqParameters, Fr, FrParameters, G1Projective};
-use ark_ec::short_weierstrass_jacobian::GroupAffine;
-use ark_ec::*;
-use ark_ff::{Field, Fp256, Fp256Parameters, One, PrimeField, UniformRand, Zero};
-use ark_poly::univariate::DensePolynomial;
-use ark_poly::{domain, Polynomial};
 use serde::{Deserialize, Serialize};
+use substrate_bn::{Fq, Fr, G1, G2};
 use zksync_basic_types::{
-    ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, protocol_version::ProtocolVersionId,
-    web3::keccak256, Address, H160, H256, U256, ethabi::Token
+    ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, ethabi::Token,
+    protocol_version::ProtocolVersionId, web3::keccak256, Address, H160, H256, U256,
 };
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;
 
-pub type G1Point = <Bn254 as PairingEngine>::G1Affine;
-pub type G2Point = <Bn254 as PairingEngine>::G2Affine;
+pub type G1Point = G1;
+pub type G2Point = G2;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LogProcessingOutput {
@@ -70,9 +65,8 @@ pub struct ProofWithCommitmentAndL1BatchMetaData {
     pub proof_with_l1_batch_metadata: ProofWithL1BatchMetaData,
     pub blob_commitments: Vec<H256>,
     pub pubdata_commitments: Vec<u8>,
-    pub versioned_hashes: Vec<[u8; 32]>
+    pub versioned_hashes: Vec<[u8; 32]>,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct L1BatchWithMetadata {
@@ -304,55 +298,55 @@ pub struct ProofWithPubSignal {
 
 #[derive(Debug, Clone)]
 pub struct PartialVerifierState {
-    pub alpha: Fp256<FrParameters>,
-    pub beta: Fp256<FrParameters>,
-    pub gamma: Fp256<FrParameters>,
-    pub power_of_alpha_2: Fp256<FrParameters>,
-    pub power_of_alpha_3: Fp256<FrParameters>,
-    pub power_of_alpha_4: Fp256<FrParameters>,
-    pub power_of_alpha_5: Fp256<FrParameters>,
-    pub power_of_alpha_6: Fp256<FrParameters>,
-    pub power_of_alpha_7: Fp256<FrParameters>,
-    pub power_of_alpha_8: Fp256<FrParameters>,
-    pub eta: Fp256<FrParameters>,
-    pub beta_lookup: Fp256<FrParameters>,
-    pub gamma_lookup: Fp256<FrParameters>,
-    pub beta_plus_one: Fp256<FrParameters>,
-    pub beta_gamma_plus_gamma: Fp256<FrParameters>,
-    pub v: Fp256<FrParameters>,
-    pub u: Fp256<FrParameters>,
-    pub z: Fp256<FrParameters>,
-    pub z_minus_last_omega: Fp256<FrParameters>,
-    pub l_0_at_z: Fp256<FrParameters>,
-    pub l_n_minus_one_at_z: Fp256<FrParameters>,
-    pub z_in_domain_size: Fp256<FrParameters>,
+    pub alpha: Fr,
+    pub beta: Fr,
+    pub gamma: Fr,
+    pub power_of_alpha_2: Fr,
+    pub power_of_alpha_3: Fr,
+    pub power_of_alpha_4: Fr,
+    pub power_of_alpha_5: Fr,
+    pub power_of_alpha_6: Fr,
+    pub power_of_alpha_7: Fr,
+    pub power_of_alpha_8: Fr,
+    pub eta: Fr,
+    pub beta_lookup: Fr,
+    pub gamma_lookup: Fr,
+    pub beta_plus_one: Fr,
+    pub beta_gamma_plus_gamma: Fr,
+    pub v: Fr,
+    pub u: Fr,
+    pub z: Fr,
+    pub z_minus_last_omega: Fr,
+    pub l_0_at_z: Fr,
+    pub l_n_minus_one_at_z: Fr,
+    pub z_in_domain_size: Fr,
 }
 
 impl PartialVerifierState {
     pub fn new() -> Self {
         PartialVerifierState {
-            alpha: Fp256::<FrParameters>::zero(),
-            beta: Fp256::<FrParameters>::zero(),
-            gamma: Fp256::<FrParameters>::zero(),
-            power_of_alpha_2: Fp256::<FrParameters>::zero(),
-            power_of_alpha_3: Fp256::<FrParameters>::zero(),
-            power_of_alpha_4: Fp256::<FrParameters>::zero(),
-            power_of_alpha_5: Fp256::<FrParameters>::zero(),
-            power_of_alpha_6: Fp256::<FrParameters>::zero(),
-            power_of_alpha_7: Fp256::<FrParameters>::zero(),
-            power_of_alpha_8: Fp256::<FrParameters>::zero(),
-            eta: Fp256::<FrParameters>::zero(),
-            beta_lookup: Fp256::<FrParameters>::zero(),
-            gamma_lookup: Fp256::<FrParameters>::zero(),
-            beta_plus_one: Fp256::<FrParameters>::zero(),
-            beta_gamma_plus_gamma: Fp256::<FrParameters>::zero(),
-            v: Fp256::<FrParameters>::zero(),
-            u: Fp256::<FrParameters>::zero(),
-            z: Fp256::<FrParameters>::zero(),
-            z_minus_last_omega: Fp256::<FrParameters>::zero(),
-            l_0_at_z: Fp256::<FrParameters>::zero(),
-            l_n_minus_one_at_z: Fp256::<FrParameters>::zero(),
-            z_in_domain_size: Fp256::<FrParameters>::zero(),
+            alpha: Fr::zero(),
+            beta: Fr::zero(),
+            gamma: Fr::zero(),
+            power_of_alpha_2: Fr::zero(),
+            power_of_alpha_3: Fr::zero(),
+            power_of_alpha_4: Fr::zero(),
+            power_of_alpha_5: Fr::zero(),
+            power_of_alpha_6: Fr::zero(),
+            power_of_alpha_7: Fr::zero(),
+            power_of_alpha_8: Fr::zero(),
+            eta: Fr::zero(),
+            beta_lookup: Fr::zero(),
+            gamma_lookup: Fr::zero(),
+            beta_plus_one: Fr::zero(),
+            beta_gamma_plus_gamma: Fr::zero(),
+            v: Fr::zero(),
+            u: Fr::zero(),
+            z: Fr::zero(),
+            z_minus_last_omega: Fr::zero(),
+            l_0_at_z: Fr::zero(),
+            l_n_minus_one_at_z: Fr::zero(),
+            z_in_domain_size: Fr::zero(),
         }
     }
 }

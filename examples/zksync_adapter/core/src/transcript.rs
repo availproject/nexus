@@ -1,19 +1,17 @@
-
-use ark_bn254::{FrParameters, Fr};
-use ark_ff::Fp256;
 use num_bigint::*;
+use substrate_bn::{Fq, Fr, G1, G2};
 
+use std::ops::{Add, Mul, Neg, Sub};
 use std::str::FromStr;
 use tiny_keccak::{Hasher, Keccak};
-use std::ops::{Add, Mul, Neg, Sub};
 
-use crate::utils::{padd_bytes32, padd_bytes3};
+use crate::utils::{padd_bytes3, padd_bytes32};
 pub struct Transcript {
     state_0: [u8; 32], // bytes32 in Solidity is equivalent to an array of 32 bytes in Rust
     state_1: [u8; 32], // Similarly, bytes32 translates to [u8; 32] in Rust
     challenge_counter: u32, // uint32 in Solidity is equivalent to u32 in Rust
     // TODO: make below values are constants
-    FR_MASK: Fp256<FrParameters>,
+    FR_MASK: Fr,
     DST_0: u32,
     DST_1: u32,
     DST_CHALLENGE: u32,
