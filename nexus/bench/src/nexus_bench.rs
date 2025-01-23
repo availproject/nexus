@@ -61,9 +61,7 @@ fn create_mock_data(
     let avail_header_reader = BufReader::new(avail_header);
     let avail_headers: Vec<AvailHeader> = from_reader(avail_header_reader).unwrap();
 
-    let header_store: File = File::open("src/header_store.json").unwrap();
-    let header_store_reader = BufReader::new(header_store);
-    let header_store: HeaderStore = from_reader(header_store_reader).unwrap();
+    let header_store: HeaderStore = HeaderStore::new(23);
 
     (state_machine, avail_headers, header_store)
 }
