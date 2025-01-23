@@ -9,7 +9,7 @@ use risc0_build_ethereum::generate_solidity_files;
 const SOLIDITY_IMAGE_ID_PATH: &str = "../../../contracts/src/ImageID.sol";
 
 #[cfg(any(feature = "risc0"))]
-const SOLIDITY_ELF_PATH: &str = "../../../contracts/tests/Elf.sol";
+const SOLIDITY_ELF_PATH: &str = "../../../contracts/test/Elf.sol";
 
 fn main() {
     #[cfg(any(feature = "risc0"))]
