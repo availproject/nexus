@@ -31,7 +31,7 @@ struct AdapterStateData {
 async fn main() {
     let prover_mode = ProverMode::MockProof;
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7001");
-
+    let mut submit_proof_transactions = Vec::<Transaction>::new();
     for txn_index in 0..100 {
         let adapter_config = AdapterConfig {
             app_id: AppId(txn_index),
@@ -111,11 +111,9 @@ async fn main() {
             }),
         };
 
-        let json_string = serde_json::to_string_pretty(&tx).unwrap();
-        let file_name = format!(
-            "src/submit_proof_transactions/submit_proof_transaction_{}.json",
-            txn_index
-        );
-        fs::write(file_name, json_string).unwrap();
+        submit_proof_transactions.push(tx.clone());
     };
+
+    let json = serde_json::to_string_pretty(&submit_proof_transactions).unwrap();
+    fs::write("src/submit_proof_transactions/transactions.json", json).unwrap();    
 }
