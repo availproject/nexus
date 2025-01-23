@@ -32,7 +32,9 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
-fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
+fn create_mock_data(
+    prover_mode: ProverMode,
+) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
     let db_path = "./db";
     let prover_mode_string = match prover_mode {
         ProverMode::NoAggregation => "no_aggregation",
@@ -110,8 +112,10 @@ async fn bench_submit_proof_transactions(
     avail_headers: Vec<AvailHeader>,
     header_store: &mut HeaderStore,
 ) -> Proof {
-    let file_content = fs::read_to_string("src/submit_proof_transactions/transactions.json").unwrap();
-    let mut submit_proof_transactions: Vec<Transaction> = serde_json::from_str(&file_content).unwrap();
+    let file_content =
+        fs::read_to_string("src/submit_proof_transactions/transactions.json").unwrap();
+    let mut submit_proof_transactions: Vec<Transaction> =
+        serde_json::from_str(&file_content).unwrap();
 
     let (proof, _, _, _) = execute_batch::<Prover, Proof, ZKVM>(
         &submit_proof_transactions,
@@ -151,7 +155,8 @@ async fn main() {
     let no_aggregation_prover_mode = ProverMode::NoAggregation;
     let compressed_prover_mode = ProverMode::Compressed;
 
-    let (mut state_machine, avail_headers, mut header_store) = create_mock_data(no_aggregation_prover_mode.clone());
+    let (mut state_machine, avail_headers, mut header_store) =
+        create_mock_data(no_aggregation_prover_mode.clone());
     let mock_txs: Vec<Transaction> = Vec::new();
 
     let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
@@ -173,7 +178,7 @@ async fn main() {
         avail_headers.clone(),
         &mut header_store,
     )
-    .await; 
+    .await;
 
     let init_account_transactions_duration = init_account_time_start.elapsed();
     println!("Proof generation time for Init account transactions with prover mode no aggregation took: {:?}", init_account_transactions_duration);
@@ -197,7 +202,8 @@ async fn main() {
     file_size = get_proof_size(proof);
     println!("Size of the Proof Binary: {} bytes", file_size);
 
-    let (mut state_machine, avail_headers, mut header_store) = create_mock_data(compressed_prover_mode.clone());
+    let (mut state_machine, avail_headers, mut header_store) =
+        create_mock_data(compressed_prover_mode.clone());
 
     let mock_txs: Vec<Transaction> = Vec::new();
 
@@ -210,7 +216,7 @@ async fn main() {
     )
     .await
     .unwrap();
-    
+
     let init_account_time_start = Instant::now();
     // bench how much time it takes to with 100 init account transactions with compressed prover mode
     proof = bench_init_account_transactions(
