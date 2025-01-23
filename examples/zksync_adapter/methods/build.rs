@@ -6,10 +6,10 @@ use risc0_build_ethereum::generate_solidity_files;
 
 // Paths where the generated Solidity files will be written.
 #[cfg(any(feature = "risc0"))]
-const SOLIDITY_IMAGE_ID_PATH: &str = "../../../contracts/src/ImageID.sol";
+const SOLIDITY_IMAGE_ID_PATH: &str = "../../../contracts/src/ZksyncImageID.sol";
 
 #[cfg(any(feature = "risc0"))]
-const SOLIDITY_ELF_PATH: &str = "../../../contracts/test/Elf.sol";
+const SOLIDITY_ELF_PATH: &str = "../../../contracts/test/ZksyncElf.sol";
 
 fn main() {
     #[cfg(any(feature = "risc0"))]
