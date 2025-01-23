@@ -2,10 +2,11 @@
 pragma solidity ^0.8.21;
 
 import {JellyfishMerkleTreeVerifier} from "./lib/JellyfishMerkleTreeVerifier.sol";
+import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
 
 contract NexusProofManager {
     uint256 public latestNexusBlockNumber = 0;
-
+    RiscZeroVerifierRouter public immutable risc0Router;
     struct NexusBlock {
         bytes32 stateRoot;
         bytes32 blockHash;
@@ -26,6 +27,10 @@ contract NexusProofManager {
         uint128 lastProofHeight;
         uint128 height;
     }
+    
+    constructor(address _risc0Router) {
+        risc0Router = RiscZeroVerifierRouter(_risc0Router);
+    }
 
     // nexus state root
     // updated when we verify the zk proof and then st block updated
@@ -38,6 +43,16 @@ contract NexusProofManager {
         }
         nexusBlock[blockNumber] = nexusBlockInfo;
         // TODO: verify a zk proof from nexus
+
+        // add risc0 verification here
+        // ethereum mainnet => 0x8EaB2D97Dfce405A1692a21b3ff3A172d593D319
+        // ethereum Holesky => 0xf70aBAb028Eb6F4100A24B203E113D94E87DE93C 
+        
+        risc0Router.verifyProof(
+            blockNumber, // bytes calldata seal
+            nexusBlockInfo.blockHash, // bytes32 ImageID
+            nexusBlockInfo.stateRoot // bytes32 JournalDigest
+        );
 
         if (blockNumber > latestNexusBlockNumber) {
             latestNexusBlockNumber = blockNumber;
