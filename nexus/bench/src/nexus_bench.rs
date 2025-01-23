@@ -59,7 +59,10 @@ fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<
     let avail_header_reader = BufReader::new(avail_header);
     let avail_headers: Vec<AvailHeader> = from_reader(avail_header_reader).unwrap();
 
-    let header_store: HeaderStore = HeaderStore::new(23);
+    let header_store: File = File::open("src/header_store.json").unwrap();
+    let header_store_reader = BufReader::new(header_store);
+    let header_store: HeaderStore = from_reader(header_store_reader).unwrap();
+
     (state_machine, avail_headers, header_store)
 }
 
@@ -113,7 +116,7 @@ async fn bench_submit_proof_transactions(
     let (proof, _, _, _) = execute_batch::<Prover, Proof, ZKVM>(
         &submit_proof_transactions,
         state_machine,
-        &avail_headers[1],
+        &avail_headers[2],
         header_store,
         prover_mode.clone(),
     )
@@ -170,7 +173,8 @@ async fn main() {
         avail_headers.clone(),
         &mut header_store,
     )
-    .await;
+    .await; 
+
     let init_account_transactions_duration = init_account_time_start.elapsed();
     println!("Proof generation time for Init account transactions with prover mode no aggregation took: {:?}", init_account_transactions_duration);
 
@@ -186,6 +190,7 @@ async fn main() {
         &mut header_store,
     )
     .await;
+
     let submit_account_transactions_duration = submit_account_time_start.elapsed();
     println!("Proof generation time for Submit account transactions with prover mode no aggregation took: {:?}", submit_account_transactions_duration);
 
@@ -205,7 +210,7 @@ async fn main() {
     )
     .await
     .unwrap();
-
+    
     let init_account_time_start = Instant::now();
     // bench how much time it takes to with 100 init account transactions with compressed prover mode
     proof = bench_init_account_transactions(
@@ -216,6 +221,7 @@ async fn main() {
         &mut header_store,
     )
     .await;
+
     let init_account_transactions_duration = init_account_time_start.elapsed();
     println!("Proof generation time for Init account transactions with compressed prover mode took: {:?}", init_account_transactions_duration);
 
@@ -231,6 +237,7 @@ async fn main() {
         &mut header_store,
     )
     .await;
+
     let submit_account_transactions_duration = submit_account_time_start.elapsed();
     println!("Proof generation took for Submit account transactions with compressed prover mode took: {:?}", submit_account_transactions_duration);
 
