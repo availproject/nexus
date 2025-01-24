@@ -3,7 +3,7 @@ pragma solidity ^0.8.21;
 
 import {JellyfishMerkleTreeVerifier} from "./lib/JellyfishMerkleTreeVerifier.sol";
 import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
-import {ImageID} from "./ImageID.sol"; // auto-generated from cargo-build 
+import {ImageID} from "./GethImageID.sol"; // auto-generated from cargo-build 
 
 contract NexusProofManager {
     uint256 public latestNexusBlockNumber = 0;
