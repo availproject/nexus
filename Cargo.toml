@@ -38,3 +38,4 @@ sp-std = { git = "https://github.com/availproject/substrate.git", branch = "gold
 sp-core-hashing = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 # Remove below patch once rust version can be updated for zkvm
 bumpalo = { git = "https://github.com/fitzgen/bumpalo", tag = "3.14.0" }
+tiny-keccak = { git = "https://github.com/risc0/tiny-keccak", tag = "tiny-keccak/v2.0.2-risczero.0" }

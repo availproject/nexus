@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 zksync-methods = { path = "../methods", default-features = false }
-risc0-zkvm = { version = "1.1.1", default-features = false }
+risc0-zkvm = { version = "1.2.1", default-features = false }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = "1.0"
 nexus-core = { path = "../../../core", default-features = false, optional = true }
@@ -31,4 +31,4 @@ zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
 [features]
 default = ["risc0"]
 sp1 = ["sp1-sdk", "nexus-core/native" , "zksync-methods/sp1" , "zksync-core/sp1" , "adapter_sdk/zkvm-sp1"]
-risc0 = ["risc0-zkvm/std", "nexus-core/native" , "zksync-methods/risc0" , "zksync-core/risc0" , "adapter_sdk/zkvm-risc0"]
+risc0 = ["risc0-zkvm/std", "risc0-zkvm/unstable", "nexus-core/native" , "zksync-methods/risc0" , "zksync-core/risc0" , "adapter_sdk/zkvm-risc0"]
