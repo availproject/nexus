@@ -29,7 +29,6 @@ risc0 = [
   "nexus-core/native-risc0",
   "zksync-core/risc0",
   "zksync-methods/risc0",
-  "risc0-zkvm/cuda",
 ]
 sp1 = [
   "nexus-core/native-sp1",

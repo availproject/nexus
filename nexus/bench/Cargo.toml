@@ -29,7 +29,7 @@ harness = false #disable default harness
 
 [features]
 default = ["risc0"]
-risc0 = ["nexus-core/native-risc0", "prover/risc0", "risc0-zkvm/cuda", "nexus-host/risc0" ]
+risc0 = ["nexus-core/native-risc0", "prover/risc0", "nexus-host/risc0" ]
 sp1 = ["nexus-core/native-sp1" , "sp1-sdk/cuda" , "prover/sp1" , "nexus-host/sp1" ]
 
 [env]

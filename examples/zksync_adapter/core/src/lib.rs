@@ -20,7 +20,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "native"))]
 use types::L1BatchNumber;
 pub use zksync_basic_types::ethabi::{Bytes, Token};
-use zksync_basic_types::{web3::keccak256, H256, U256, U64};
+use zksync_basic_types::{H256, U256, U64};
+use tiny_keccak::{Hasher, Keccak};
 // use zksync_types::commitment::serialize_commitments;
 // use zksync_types::commitment::serialize_commitments;
 pub mod constants;
@@ -156,7 +157,12 @@ impl STF {
         ])
         .unwrap();
 
-        let public_input = U256::from_big_endian(&keccak256(&val)) >> PUBLIC_INPUT_SHIFT;
+        // let public_input = U256::from_big_endian(&Keccak::v256().finalize(&mut val).into()) >> PUBLIC_INPUT_SHIFT;
+        let mut hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&val);
+        keccak.finalize(&mut hash);
+        let public_input = U256::from_big_endian(&hash) >> PUBLIC_INPUT_SHIFT;
         public_input
     }
 
@@ -187,7 +193,11 @@ impl STF {
         let auxiliary_output_hash = new_rollup_pi.metadata.aux_data_hash;
         result.extend_from_slice(auxiliary_output_hash.as_bytes());
 
-        let hash = keccak256(&result);
+        // let hash = Keccak::v256().finalize(&mut result).into();
+        let mut hash = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&result);
+        keccak.finalize(&mut hash);
         let current_batch_commitment = H256::from(hash);
         let current_batch_commitment_string =
             format!("0x{}", hex::encode(current_batch_commitment.as_bytes()));
