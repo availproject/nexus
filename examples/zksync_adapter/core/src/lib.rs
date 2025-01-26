@@ -224,7 +224,7 @@ impl STF {
                 let verifier = ZksyncVerifier::new();
                 let is_proof_verified = verifier.verify(public_input.to_string(), new_rollup_proof);
 
-                if (!is_proof_verified) {
+                if (is_proof_verified) {
                     return Err(anyhow!("Proof verification failed"));
                 }
             }
