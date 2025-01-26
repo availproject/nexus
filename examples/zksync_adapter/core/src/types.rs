@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 use substrate_bn::{Fq, Fr, G1, G2};
 use zksync_basic_types::{
     ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, ethabi::Token,
-    protocol_version::ProtocolVersionId, web3::keccak256, Address, H160, H256, U256,
+    protocol_version::ProtocolVersionId, Address, H160, H256, U256,
 };
+use tiny_keccak::{Hasher, Keccak};
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;
 
@@ -129,13 +130,20 @@ impl L1BatchHeader {
 
     /// Creates a hash of the priority ops data.
     pub fn priority_ops_onchain_data_hash(&self) -> H256 {
-        let mut rolling_hash: H256 = keccak256(&[]).into();
+        let mut output = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&[]);  // Initialize with empty slice
+        keccak.finalize(&mut output);
+        let mut rolling_hash = H256::from(output);
         for onchain_data in &self.priority_ops_onchain_data {
             let mut preimage = Vec::new();
-            preimage.extend(rolling_hash.as_fixed_bytes());
-            preimage.extend(onchain_data.onchain_data_hash.as_fixed_bytes());
-
-            rolling_hash = keccak256(&preimage).into();
+            preimage.extend_from_slice(rolling_hash.as_bytes());
+            preimage.extend_from_slice(onchain_data.onchain_data_hash.as_bytes());
+            let mut output = [0u8; 32];
+            let mut keccak = Keccak::v256();
+            keccak.update(&preimage);
+            keccak.finalize(&mut output);
+            rolling_hash = H256::from(output);
         }
 
         rolling_hash
@@ -391,6 +399,11 @@ impl L1BatchPassThroughData {
     }
 
     pub fn hash(&self) -> H256 {
-        H256::from_slice(&keccak256(&self.to_bytes()))
+        let bytes = self.to_bytes();
+        let mut output = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(&bytes);
+        keccak.finalize(&mut output);
+        H256::from(output)
     }
 }
