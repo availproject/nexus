@@ -77,26 +77,6 @@ pub struct Transaction {
     pub params: TxParams,
 }
 
-#[cfg(any(feature = "native"))]
-impl Transaction {
-    pub fn to_no_proof(&self) -> Transaction {
-        Transaction {
-            signature: self.signature.clone(),
-            params: match &self.params {
-                TxParams::SubmitProof(submit_proof) => TxParams::SubmitProof(SubmitProof {
-                    proof: Proof(vec![]), // removed proof it's not needed
-                    nexus_hash: submit_proof.nexus_hash,
-                    state_root: submit_proof.state_root,
-                    height: submit_proof.height,
-                    app_id: submit_proof.app_id.clone(),
-                    data: submit_proof.data,
-                }),
-                TxParams::InitAccount(init_account) => TxParams::InitAccount(init_account.clone()),
-            },
-        }
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode)]
 pub struct TransactionZKVM {
     pub signature: TxSignature,
