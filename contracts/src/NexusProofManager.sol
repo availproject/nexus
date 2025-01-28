@@ -14,6 +14,24 @@ contract NexusProofManager {
         bytes32 blockHash;
     }
 
+    /* 
+    pub parent_hash: H256,
+    pub prev_state_root: H256,
+    pub state_root: H256,
+    pub tx_root: H256,
+    pub avail_header_hash: H256,
+    pub number: u32,
+    */
+
+    struct NexusHeader {
+        bytes32 parentHash;
+        bytes32 prevStateRoot;
+        bytes32 stateRoot;
+        bytes32 txRoot;
+        bytes32 availHeaderHash;
+        uint32 number;
+    }
+
     mapping(uint256 => NexusBlock) public nexusBlock;
     mapping(bytes32 => uint256) public nexusAppIDToLatestBlockNumber;
     mapping(bytes32 => mapping(uint256 => bytes32)) public nexusAppIDToState;
@@ -38,7 +56,9 @@ contract NexusProofManager {
     // updated when we verify the zk proof and then st block updated
     function updateNexusBlock(
         uint256 blockNumber,
-        NexusBlock calldata nexusBlockInfo
+        NexusBlock calldata nexusBlockInfo,
+        bytes calldata proof,
+        NexusHeader calldata header
     ) external {
         if (nexusBlock[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
@@ -49,11 +69,21 @@ contract NexusProofManager {
         // add risc0 verification here
         // ethereum mainnet => 0x8EaB2D97Dfce405A1692a21b3ff3A172d593D319
         // ethereum Holesky => 0xf70aBAb028Eb6F4100A24B203E113D94E87DE93C 
+       
+        // the header is what we get from commiting the proof on risc0 
+        bytes memory journal = abi.encode(
+            header.parentHash,
+            header.prevStateRoot,
+            header.stateRoot,
+            header.txRoot,
+            header.availHeaderHash,
+            header.number
+        );
         
         risc0Router.verifyProof(
-            blockNumber, // bytes calldata seal
+            proof, // bytes calldata seal
             imageId, // bytes32 ImageID
-            nexusBlockInfo.blockHash // bytes32 JournalDigest
+            sha256(journal) // bytes32 JournalDigest
         );
 
         if (blockNumber > latestNexusBlockNumber) {
