@@ -1273,6 +1273,7 @@ name = "bench-nexus"
 version = "1.0.0"
 dependencies = [
  "adapter_sdk",
+ "anyhow",
  "bincode",
  "env_logger",
  "geth-methods",
@@ -6379,6 +6380,31 @@ dependencies = [
  "tracing",
  "utoipa 5.3.1",
  "winnow 0.6.22",
+]
+
+[[package]]
+name = "nexus_bench_setup"
+version = "1.0.0"
+dependencies = [
+ "actix-web",
+ "adapter_sdk",
+ "anyhow",
+ "geth-adapter-core",
+ "geth-methods",
+ "host",
+ "nexus-core",
+ "parity-scale-codec",
+ "prover",
+ "relayer",
+ "risc0-zkvm",
+ "rocksdb",
+ "serde",
+ "serde_json",
+ "sp-runtime 33.0.0",
+ "tokio",
+ "tracing-subscriber 0.3.19",
+ "warp",
+ "web3",
 ]
 
 [[package]]
