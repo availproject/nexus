@@ -15,7 +15,6 @@ members = [
     "examples/mock_geth_adapter/methods",
     "examples/mock_geth_adapter/methods/guest",
     "examples/mock_geth_adapter/core",
-    "examples/mock_geth_adapter/bench_setup",
     "examples/zksync_adapter/host",
     "examples/zksync_adapter/methods",
     "examples/zksync_adapter/methods/risc0-guest",
