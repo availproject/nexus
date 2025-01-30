@@ -51,7 +51,7 @@ async fn main() -> Result<(), Error> {
     } else {
         ProverMode::Compressed
     };
-    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7001");
+    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
     // Create or open the database
     let db_path = "db";

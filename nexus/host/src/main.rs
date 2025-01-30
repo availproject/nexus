@@ -82,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 relayer_mutex,
                 node_db,
                 state_machine,
-                (prover_mode, 7001),
+                (prover_mode, 7000),
                 state,
                 shutdown_rx,
             )

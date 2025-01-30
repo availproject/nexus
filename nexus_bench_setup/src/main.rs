@@ -117,7 +117,7 @@ async fn generate_submit_proof_transactions(
     prover_mode: ProverMode,
     header: NexusHeader,
 ) {
-    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7001");
+    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
     let mut submit_proof_transactions = Vec::<Transaction>::new();
     for txn_index in 0..100 {
         let adapter_config = AdapterConfig {
