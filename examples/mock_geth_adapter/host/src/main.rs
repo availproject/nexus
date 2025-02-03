@@ -231,11 +231,6 @@ async fn main() -> Result<(), Error> {
                         }),
                     };
 
-                    let json_string = serde_json::to_string_pretty(&tx).unwrap();
-                    let file_name = "submit_proof_txn.json";
-                    fs::write(file_name, json_string).unwrap();
-
-                    // save this txn
                     match nexus_api.send_tx(tx).await {
                         Ok(i) => {
                             println!(
