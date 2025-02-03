@@ -108,7 +108,7 @@ pub async fn relayer_handle(
     info!("Exited relayer handle");
 }
 
-async fn execute_batch<
+pub async fn execute_batch<
     Z: ZKVMProver<P>,
     P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
     E: ZKVMEnv,

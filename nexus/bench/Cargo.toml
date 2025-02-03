@@ -17,6 +17,12 @@ nexus-host = {package = "host", path = "../host", default-features = false , opt
 rocksdb = {version = "0.22.0"}
 tokio = "1.36.0"
 serde_json = "1.0.114"
+risc0-zkvm-platform = { version = "1.2.0" , features = ["sys-getenv"] }
+adapter_sdk = { path = "../../adapter_sdk", features = ["native-risc0"] }
+geth-methods = { path = "../../examples/mock_geth_adapter/methods" }
+serde = "1.0"
+anyhow = "1.0.80"
+
 
 [[bench]]
 name = "nexus_bench"
@@ -25,7 +31,7 @@ harness = false #disable default harness
 
 [features]
 default = ["risc0"]
-risc0 = ["nexus-core/native-risc0", "risc0-zkvm/cuda" , "prover/risc0" , "nexus-host/risc0" ]
+risc0 = ["nexus-core/native-risc0", "risc0-zkvm/cuda", "prover/risc0", "nexus-host/risc0" ]
 sp1 = ["nexus-core/native-sp1" , "sp1-sdk/cuda" , "prover/sp1" , "nexus-host/sp1" ]
 
 [env]

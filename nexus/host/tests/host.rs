@@ -215,7 +215,7 @@ async fn test_out_of_order_headers() {
             Arc::new(Mutex::new(mock_relayer)),
             node_db.clone(),
             state_machine,
-            (prover_mode, 7001),
+            (prover_mode, 7000),
             state,
             shutdown_rx,
         )

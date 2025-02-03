@@ -23,7 +23,8 @@ members = [
     "adapter_sdk",
     "nexus_cli",
     "examples/zksync_adapter/bench",
-    "nexus/bench",
+    "nexus/bench", 
+    "nexus_bench_setup", 
 ]
 
 [workspace.package]
