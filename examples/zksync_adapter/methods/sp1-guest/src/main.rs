@@ -1,6 +1,6 @@
 #![no_main]
-use zksync_core::prover::run;
 use nexus_core::zkvm::sp1::SP1ZKVM;
+use zksync_core::prover::run;
 sp1_zkvm::entrypoint!(main);
 
 fn main() {

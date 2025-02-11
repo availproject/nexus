@@ -13,4 +13,19 @@ anyhow = "1.0.81"
 nexus-core = { path = "../../../core", default-features = false, features = [
   "zkvm-risc0",
 ] }
-serde = "1.0.197"
+
+# Core dependencies
+# For implementing multiproof implementation from scratch
+# (Can remove some dependencies after multiproof PR is merged)
+dusk-plonk = { git = "https://github.com/availproject/plonk.git", tag = "v0.12.0-polygon-2" }
+dusk-bytes = { version = "0.1.6", default-features = false }
+avail-rust = { git = "https://github.com/availproject/avail.git", rev = "741aa316" }
+color-eyre = { version = "0.6.2", default-features = false }
+serde_json = "1.0.138"
+rstest = "0.24.0"
+tokio = "1.43.0"
+serde = { version = "1.0.217", features = ["derive"] }
+avail-core = { git = "https://github.com/utsire/avail-core", rev = "a4e539dedada70a103a1d364e36465b7bdeb533c", default-features = false, features = [ "runtime"] }
+kate = { git = "https://github.com/utsire/avail-core", rev = "a4e539dedada70a103a1d364e36465b7bdeb533c", default-features = false, features = ["std"] }
+kate-recovery = { git = "https://github.com/utsire/avail-core", rev = "a4e539dedada70a103a1d364e36465b7bdeb533c", default-features = false  }
+rayon = "1.10.0"

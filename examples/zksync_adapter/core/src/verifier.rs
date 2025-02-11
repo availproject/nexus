@@ -1,7 +1,3 @@
-use substrate_bn::arith::U256 as FrU256;
-use substrate_bn::pairing;
-use substrate_bn::{Fq, Fr, Gt, G1, G2, AffineG1, AffineG2};
-use substrate_bn::pairing_batch;
 use num_bigint::*;
 use std::fmt::{format, Debug, DebugMap, Display};
 use std::hash::Hash;
@@ -9,6 +5,10 @@ use std::marker::PhantomData;
 use std::ops::{Add, Mul, Neg, Sub};
 use std::str::FromStr;
 use std::vec;
+use substrate_bn::arith::U256 as FrU256;
+use substrate_bn::pairing;
+use substrate_bn::pairing_batch;
+use substrate_bn::{AffineG1, AffineG2, Fq, Fr, Gt, G1, G2};
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::transcript::Transcript;

@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "native"))]
 use utoipa::ToSchema;
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct StatementDigest(pub [u32; 8]);
