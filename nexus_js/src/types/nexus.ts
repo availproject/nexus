@@ -10,6 +10,14 @@ type AccountState = {
   height: number;
 };
 
+type NexusHeader = {
+  parent_hash: string;
+  prev_state_root: string;
+  state_root: string;
+  avail_header_hash: string;
+  number: number;
+}
+
 type AccountApiResponse = {
   info: NexusState;
   chainStateNumber: number;
@@ -32,4 +40,5 @@ export {
   NexusState,
   AccountState,
   AccountApiResponse,
+  NexusHeader
 }

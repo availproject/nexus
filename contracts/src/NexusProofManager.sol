@@ -2,13 +2,34 @@
 pragma solidity ^0.8.21;
 
 import {JellyfishMerkleTreeVerifier} from "./lib/JellyfishMerkleTreeVerifier.sol";
+import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
+import {ImageID} from "./GethImageID.sol"; // auto-generated from cargo-build 
 
 contract NexusProofManager {
     uint256 public latestNexusBlockNumber = 0;
-
+    RiscZeroVerifierRouter public immutable risc0Router;
+    bytes32 public constant imageId = ImageID.ADAPTER_ID; // added for the auto-generated contract
     struct NexusBlock {
         bytes32 stateRoot;
         bytes32 blockHash;
+    }
+
+    /* 
+    pub parent_hash: H256,
+    pub prev_state_root: H256,
+    pub state_root: H256,
+    pub tx_root: H256,
+    pub avail_header_hash: H256,
+    pub number: u32,
+    */
+
+    struct NexusHeader {
+        bytes32 parentHash;
+        bytes32 prevStateRoot;
+        bytes32 stateRoot;
+        bytes32 txRoot;
+        bytes32 availHeaderHash;
+        uint32 number;
     }
 
     mapping(uint256 => NexusBlock) public nexusBlock;
@@ -26,18 +47,44 @@ contract NexusProofManager {
         uint128 lastProofHeight;
         uint128 height;
     }
+    
+    constructor(address _risc0Router) {
+        risc0Router = RiscZeroVerifierRouter(_risc0Router);
+    }
 
     // nexus state root
     // updated when we verify the zk proof and then st block updated
     function updateNexusBlock(
         uint256 blockNumber,
-        NexusBlock calldata nexusBlockInfo
+        NexusBlock calldata nexusBlockInfo,
+        bytes calldata proof,
+        NexusHeader calldata header
     ) external {
         if (nexusBlock[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
         }
         nexusBlock[blockNumber] = nexusBlockInfo;
         // TODO: verify a zk proof from nexus
+
+        // add risc0 verification here
+        // ethereum mainnet => 0x8EaB2D97Dfce405A1692a21b3ff3A172d593D319
+        // ethereum Holesky => 0xf70aBAb028Eb6F4100A24B203E113D94E87DE93C 
+       
+        // the header is what we get from commiting the proof on risc0 
+        bytes memory journal = abi.encode(
+            header.parentHash,
+            header.prevStateRoot,
+            header.stateRoot,
+            header.txRoot,
+            header.availHeaderHash,
+            header.number
+        );
+        
+        risc0Router.verifyProof(
+            proof, // bytes calldata seal
+            imageId, // bytes32 ImageID
+            sha256(journal) // bytes32 JournalDigest
+        );
 
         if (blockNumber > latestNexusBlockNumber) {
             latestNexusBlockNumber = blockNumber;
