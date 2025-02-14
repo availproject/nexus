@@ -1,0 +1,31 @@
+[package]
+name = "ethereum-adapter-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ethereum-adapter-methods = { path = "../methods" }
+risc0-zkvm = { version = "1.2.0" }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenv = "0.15.0"
+clap = "4.5.9"
+env_logger = "0.11.3"
+tokio = "1.36.0"
+helios-consensus-core = { workspace = true }
+helios-ethereum = { workspace = true }
+sp1-helios-primitives = { workspace = true }
+serde = { workspace = true }
+serde_cbor = "0.11.2"
+log = "0.4.22"
+alloy-primitives = { workspace = true }
+alloy = { workspace = true }
+anyhow = { workspace = true }
+cargo_metadata = "0.18"
+reqwest = { workspace = true }
+tree_hash = { workspace = true }
+serde_json = { workspace = true }
+nexus-core = { path = "../../../core", default-features = false, features = [
+  "native-risc0",
+] }
+
+adapter_sdk = { path = "../../../adapter_sdk", features = ["native-risc0"] }

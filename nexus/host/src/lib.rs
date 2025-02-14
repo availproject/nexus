@@ -448,7 +448,7 @@ pub fn run_server(
 
     tokio::spawn(async move {
         let address =
-            SocketAddr::from_str(format!("{}:{}", String::from("0.0.0.0"), port).as_str())
+            SocketAddr::from_str(format!("{}:{}", String::from("127.0.0.1"), port).as_str())
                 .context("Unable to parse host address from config")
                 .unwrap();
 

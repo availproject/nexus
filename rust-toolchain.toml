@@ -1,4 +1,4 @@
 [toolchain]
-channel = "nightly"
+channel = "1.81"
 components = ["rustfmt", "rust-src"]
 profile = "minimal"

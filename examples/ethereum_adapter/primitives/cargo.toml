@@ -1,0 +1,14 @@
+[package]
+version = "0.1.0"
+name = "sp1-helios-primitives"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+bincode = "1.3.3"
+helios-consensus-core = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-primitives = { workspace = true }
+nexus-core = { path = "../../../core", default-features = false, features = [
+  "zkvm-risc0",
+] }

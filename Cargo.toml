@@ -20,6 +20,10 @@ members = [
     "examples/zksync_adapter/methods/risc0-guest",
     "examples/zksync_adapter/methods/sp1-guest",
     "examples/zksync_adapter/core",
+    "examples/ethereum_adapter/methods",
+    "examples/ethereum_adapter/methods/guest",
+    "examples/ethereum_adapter/host",
+    "examples/ethereum_adapter/primitives",
     "adapter_sdk",
     "nexus_cli",
     "examples/zksync_adapter/bench",
@@ -30,6 +34,24 @@ members = [
 [workspace.package]
 version = "1.0.0"
 
+[workspace.dependencies]
+#Helios dependencies
+helios = { git = "https://github.com/a16z/helios", version = "0.7.0", rev = "8bf5b52feaccafc21cbd8b6a785b28815377fe41" }
+helios-consensus-core = { git = "https://github.com/a16z/helios", version = "0.7.0", rev = "8bf5b52feaccafc21cbd8b6a785b28815377fe41" }
+helios-ethereum = { git = "https://github.com/a16z/helios", version = "0.7.0", rev = "8bf5b52feaccafc21cbd8b6a785b28815377fe41" }
+sp1-helios-primitives = { path = "examples/ethereum_adapter/primitives" }
+tree_hash = "0.7.0"
+alloy-primitives = "0.7.7"
+alloy = { version = "0.1.1", features = ["full"] }
+alloy-sol-types = "0.7.7"
+
+#General dependencies
+serde = "1.0"
+anyhow = "1.0"
+serde_json = "1.0.113"
+reqwest = { version = "0.12.9", features = ["json"] }
+tokio = "1.36.0"
+
 [patch.crates-io]
 sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 sp-io = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
@@ -38,3 +60,5 @@ sp-std = { git = "https://github.com/availproject/substrate.git", branch = "gold
 sp-core-hashing = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 # Remove below patch once rust version can be updated for zkvm
 bumpalo = { git = "https://github.com/fitzgen/bumpalo", tag = "3.14.0" }
+# From upstream: https://github.com/a16z/helios/blob/master/Cargo.toml#L115
+ethereum_hashing = { git = "https://github.com/ncitron/ethereum_hashing", rev = "7ee70944ed4fabe301551da8c447e4f4ae5e6c35" }
