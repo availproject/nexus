@@ -7,3 +7,4 @@ halmos-cheatcodes/=lib/openzeppelin-contracts-upgradeable/lib/halmos-cheatcodes/
 openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
 openzeppelin-contracts/=lib/openzeppelin-contracts/
 risc0/=lib/risc0-ethereum/contracts/src/
+openzeppelin/contracts=lib/openzeppelin-contracts/contracts/

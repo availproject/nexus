@@ -68,6 +68,7 @@ async fn main() -> Result<(), Error> {
             vk: [0u8; 32],
             rollup_start_height: 606460,
             prover_mode,
+            avail_url: String::from("http://"), // TODO : replace with proper URL
         };
         AdapterStateData {
             last_height: 0,
