@@ -6,20 +6,36 @@ import "../src/NexusProofManager.sol";
 import "../src/interfaces/INexusProofManager.sol";
 import "../src/mock/ERC20.sol";
 import "../src/verification/ethereum/Verifier.sol";
+import {IRiscZeroVerifier} from "risc0/IRiscZeroVerifier.sol";
+import {RiscZeroCheats} from "risc0/test/RiscZeroCheats.sol";
 
-contract EthereumVerifierTest is Test {
+contract EthereumVerifierTest is Test, RiscZeroCheats {
     NexusProofManager proofManager;
     ERC20Token erc20;
     EthereumVerifier verifier;
+    RiscZeroVerifierRouter risc0Router;
+    IRiscZeroVerifier risc0Verifier;
 
     bytes32 private constant EMPTY_TRIE_ROOT_HASH =
         0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
     bytes32 private constant EMPTY_CODE_HASH =
         0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
 
+    // parameters for `updateNexusBlock` function
+    // IMP : proof used here is a fake proof. Not a STARK proof
+    // This journal is extracted from the nexus geth adapter verification
+    bytes journal = hex"690000000d0000006e0000005a000000c9000000d80000009f000000aa0000008f0000002100000009000000e800000066000000bc000000b5000000ac0000004600000056000000b9000000de0000007600000050000000e30000008100000042000000c800000039000000f80000002200000008000000060000009a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040420f00170000001a0000003a0000004b0000001f00000001000000460000005a0000008b000000f90000002f00000022000000fd000000bf0000008400000050000000170000005f0000007c000000960000003800000097000000d6000000b00000000e0000003800000053000000a600000031000000d70000009a000000ae0000003600000055000000ca00000059000000b7000000d500000066000000ae00000006000000290000007c000000200000000f00000098000000d00000004d000000a2000000e8000000e80000009800000012000000d600000027000000bc00000029000000290000007c00000025000000db00000060000000360000002d00000099b31880a6a2af6a220b5798455934c409b231cabfe15a39d11ee9aa715849bc010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+    // seal : extracted using `encode_seal` function
+    bytes proof =
+    hex"00000000c931f89898189486e66b74613e2412690df4d6193bacda376fb3ccd686a4f97c";
+
     function setUp() public {
         erc20 = new ERC20Token("Avail", "Avail");
-        proofManager = new NexusProofManager();
+        risc0Verifier = deployRiscZeroVerifier();
+        risc0Router = new RiscZeroVerifierRouter(msg.sender);
+        vm.prank(msg.sender);
+        risc0Router.addVerifier(bytes4(0), risc0Verifier);
+        proofManager = new NexusProofManager(address(risc0Router));
         verifier = new EthereumVerifier(
             INexusProofManager(address(proofManager))
         );
@@ -34,7 +50,9 @@ contract EthereumVerifierTest is Test {
 
         proofManager.updateNexusBlock(
             blockNumber,
-            NexusProofManager.NexusBlock(stateRoot, blockHash)
+            NexusProofManager.NexusBlock(stateRoot, blockHash),
+            proof,
+            journal
         );
         bytes32[] memory siblings;
         NexusProofManager.AccountState memory state = NexusProofManager
@@ -57,7 +75,9 @@ contract EthereumVerifierTest is Test {
 
         proofManager.updateNexusBlock(
             blockNumber,
-            NexusProofManager.NexusBlock(stateRoot, blockHash)
+            NexusProofManager.NexusBlock(stateRoot, blockHash),
+            proof,
+            journal
         );
         bytes32[] memory siblings = new bytes32[](1);
         siblings[
