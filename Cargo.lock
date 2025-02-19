@@ -1222,15 +1222,20 @@ dependencies = [
 name = "bench-nexus"
 version = "1.0.0"
 dependencies = [
+ "adapter_sdk",
+ "anyhow",
  "bincode",
  "env_logger",
+ "geth-methods",
  "host",
  "log",
  "nexus-core",
  "primitive-types 0.12.2",
  "prover",
  "risc0-zkvm",
+ "risc0-zkvm-platform",
  "rocksdb",
+ "serde",
  "serde_json",
  "sp1-sdk",
  "sparse-merkle-tree",
@@ -6298,6 +6303,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "nexus_bench_setup"
+version = "1.0.0"
+dependencies = [
+ "actix-web",
+ "adapter_sdk",
+ "anyhow",
+ "geth-adapter-core",
+ "geth-methods",
+ "host",
+ "nexus-core",
+ "parity-scale-codec",
+ "prover",
+ "relayer",
+ "risc0-zkvm",
+ "rocksdb",
+ "serde",
+ "serde_json",
+ "sp-runtime 33.0.0",
+ "tokio",
+ "tracing-subscriber 0.3.19",
+ "warp",
+ "web3",
+]
+
+[[package]]
 name = "nexus_cli"
 version = "1.0.0"
 dependencies = [
@@ -6310,6 +6340,7 @@ version = "1.0.0"
 dependencies = [
  "nexus-core",
  "risc0-zkvm",
+ "risc0-zkvm-platform",
 ]
 
 [[package]]
