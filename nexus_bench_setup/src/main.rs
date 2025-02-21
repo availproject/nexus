@@ -5,9 +5,8 @@ use nexus_core::db::NodeDB;
 use nexus_core::state::vm_state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
-    AccountWithProof, AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount,
-    NexusHeader, NexusRollupPI, StatementDigest, SubmitProof, Transaction, TxParams,
-    TxSignature, H256,
+    AccountWithProof, AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader,
+    NexusRollupPI, StatementDigest, SubmitProof, Transaction, TxParams, TxSignature, H256,
 };
 use nexus_core::zkvm::ProverMode;
 use nexus_host::execute_batch;
@@ -21,9 +20,9 @@ use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::BufReader;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use std::path::{Path, PathBuf};
 
 #[cfg(feature = "risc0")]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
@@ -98,7 +97,7 @@ async fn generate_init_account_transactions(
     }
 
     let json = serde_json::to_string_pretty(&init_account_transactions).unwrap();
-    fs::write("mock_data/init_account_txns.json", json).unwrap();  
+    fs::write("mock_data/init_account_txns.json", json).unwrap();
 
     let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
         &init_account_transactions,
@@ -113,10 +112,7 @@ async fn generate_init_account_transactions(
     header
 }
 
-async fn generate_submit_proof_transactions(
-    prover_mode: ProverMode,
-    header: NexusHeader,
-) {
+async fn generate_submit_proof_transactions(prover_mode: ProverMode, header: NexusHeader) {
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
     let mut submit_proof_transactions = Vec::<Transaction>::new();
     for txn_index in 0..100 {
@@ -216,7 +212,7 @@ fn move_mock_data(src_dir: &Path, dst_dir: &Path) -> io::Result<()> {
     if !src_absolute.exists() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("Source directory not found: {:?}", src_absolute)
+            format!("Source directory not found: {:?}", src_absolute),
         ));
     }
 
@@ -232,21 +228,21 @@ fn move_mock_data(src_dir: &Path, dst_dir: &Path) -> io::Result<()> {
     for entry in fs::read_dir(&src_absolute)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         // Check if it's a JSON file
         if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
             let file_name = entry.file_name();
             let dst_path = dst_absolute.join(&file_name);
-            
+
             // Get file size before copying
             let file_size = entry.metadata()?.len();
-            
+
             // Copy the file
             match fs::copy(&path, &dst_path) {
                 Ok(_) => {
                     files_copied += 1;
                     total_size += file_size;
-                },
+                }
                 Err(e) => eprintln!("Error copying {:?}: {}", file_name, e),
             }
         }
@@ -302,12 +298,10 @@ async fn main() -> Result<(), Error> {
         &mut state_machine,
         avail_headers.clone(),
         &mut header_store,
-    ).await;
+    )
+    .await;
 
-    generate_submit_proof_transactions(
-        prover_mode.clone(),
-        header
-    ).await;
+    generate_submit_proof_transactions(prover_mode.clone(), header).await;
 
     let src_dir = Path::new("mock_data");
     let dst_dir = Path::new("../nexus/bench/mock_data");
