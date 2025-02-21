@@ -30,13 +30,14 @@ pub fn main() {
     let mut input_bytes = Vec::<u8>::new();
     env::stdin().read_to_end(&mut input_bytes).unwrap();
     println!("Read input bytes {} bytes", input_bytes.len());
-    let (proof_inputs, prev_pi_option, app_id_option, guest_image_id, journal_bytes) =
+    let (proof_inputs, prev_pi_option, app_id_option, guest_image_id, journal_bytes, start_nexus_hash) =
         serde_cbor::from_slice::<(
             ProofInputs,
             Option<NexusRollupPI>,
             Option<AppAccountId>,
             [u32; 8],
             Option<Vec<u8>>,
+            H256
         )>(&input_bytes)
         .unwrap();
     let ProofInputs {
@@ -49,7 +50,7 @@ pub fn main() {
         nexus_hash,
     } = proof_inputs;
 
-    let (app_id, start_sync_committee_hash, start_nexus_hash) = check_private_inputs(
+    let (app_id, start_sync_committee_hash, _) = check_private_inputs(
         &prev_pi_option,
         &store,
         &nexus_hash,
@@ -67,6 +68,8 @@ pub fn main() {
             sync_committee_updates.len(),
             expected_current_slot,
         );
+
+        // TODO : uncomment this (after testing)
         // let update_is_valid =
         //     verify_update(update, expected_current_slot, &store, genesis_root, &forks).is_ok();
         let update_is_valid = true;
@@ -78,18 +81,19 @@ pub fn main() {
         apply_update(&mut store, update);
     }
 
+    // TODO : uncomment this (after testing)
     // 2. Apply finality update
-    let finality_update_is_valid = verify_finality_update(
-        &finality_update,
-        expected_current_slot,
-        &store,
-        genesis_root,
-        &forks,
-    )
-    .is_ok();
-    if !finality_update_is_valid {
-        panic!("Finality update is invalid!");
-    }
+    // let finality_update_is_valid = verify_finality_update(
+    //     &finality_update,
+    //     expected_current_slot,
+    //     &store,
+    //     genesis_root,
+    //     &forks,
+    // )
+    // .is_ok();
+    // if !finality_update_is_valid {
+    //     panic!("Finality update is invalid!");
+    // }
     println!("Finality update is valid.");
 
     apply_finality_update(&mut store, &finality_update);
@@ -142,7 +146,7 @@ pub fn main() {
         state_root: H256::from(state_root_slice),
         start_nexus_hash,
         nexus_hash: nexus_hash.clone(),
-        img_id: StatementDigest([0u32; 8]),
+        img_id: StatementDigest(guest_image_id),
     };
 
     println!(

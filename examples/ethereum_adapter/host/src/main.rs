@@ -75,15 +75,15 @@ async fn run(loop_delay_mins: u64) -> Result<(), anyhow::Error> {
         //Get the client from the checkpoint.
         let client = get_client(checkpoint).await;
 
-        let range = init_account(adapter_state_data.clone(), nexus_api.clone()).await?;
+        let start_nexus_hash = init_account(adapter_state_data.clone(), nexus_api.clone()).await?;
 
         match request_update(
             client,
             last_head,
             &previous_pi_and_proof,
-            AppAccountId::from(AppId(100)),
-            range,
+            AppAccountId::from(AppId(1)),
             &nexus_api,
+            start_nexus_hash
         )
         .await
         {
@@ -104,7 +104,7 @@ async fn run(loop_delay_mins: u64) -> Result<(), anyhow::Error> {
 async fn init_account(
     adapter_state_data: AdapterStateData,
     nexus_api: NexusAPI,
-) -> Result<Vec<H256>, anyhow::Error> {
+) -> Result<H256, anyhow::Error> {
     let range = match nexus_api.get_range().await {
         Ok(i) => i,
         Err(e) => {
@@ -144,9 +144,11 @@ async fn init_account(
                 return Err(anyhow!(e));
             }
         }
+        
+        Ok(range[0])
+    } else {
+        Ok(H256::from(account_with_proof.account.start_nexus_hash))
     }
-
-    Ok(range)
 }
 
 async fn request_update(
@@ -154,8 +156,8 @@ async fn request_update(
     head: u64,
     prev_pi_and_proof: &Option<(NexusRollupPI, Receipt)>,
     app_id: AppAccountId,
-    range: Vec<H256>,
     nexus_api: &NexusAPI,
+    start_nexus_hash: H256
 ) -> Result<Option<Receipt>, anyhow::Error> {
     // Setup client.
     let mut sync_committee_updates = get_updates(&client).await;
@@ -192,7 +194,7 @@ async fn request_update(
             store: client.store.clone(),
             genesis_root: client.config.chain.genesis_root,
             forks: client.config.forks.clone(),
-            nexus_hash: nexus_hash.clone(),
+            nexus_hash,
         };
 
         let (prev_pi, prev_proof) = match prev_pi_and_proof {
@@ -212,6 +214,7 @@ async fn request_update(
             Some(app_id.clone()),
             ETHEREUM_ADAPTER_GUEST_ID,
             journal,
+            start_nexus_hash
         ))
         .expect("Failed to serialize inputs");
         println!("Serialized inputs: {}", inputs_vec.len());
@@ -251,15 +254,16 @@ async fn request_update(
 
         // extract the receipt.
         let receipt = prove_info.receipt;
+        let journal: NexusRollupPI = receipt.journal.decode()?;
 
         // Send proof to avail nexus
         let recursive_proof = RiscZeroProof(receipt.clone());
         let tx = nexus_core::types::Transaction {
             signature: TxSignature([0u8; 64]),
             params: TxParams::SubmitProof(SubmitProof {
-                app_id: app_id.clone(),
-                nexus_hash: range[0],
-                state_root: H256::zero(), // TODO : need to ask what to put here
+                app_id: journal.app_id,
+                nexus_hash,
+                state_root: journal.state_root,
                 proof: match recursive_proof.clone().try_into() {
                     Ok(i) => i,
                     Err(e) => {
@@ -267,8 +271,8 @@ async fn request_update(
                         return Err(anyhow!("Unable to serialise proof"));
                     }
                 },
-                height: 0,
-                data: None,
+                height: journal.height,
+                data: journal.rollup_hash,
             }),
         };
 
