@@ -6,7 +6,7 @@ use crate::{
 use anyhow::anyhow;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, error, event, info, instrument, Level, span, warn};
+use tracing::{debug, error, event, info, instrument, span, warn, Level};
 
 #[derive(Clone)]
 pub struct Mempool {
