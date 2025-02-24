@@ -6,7 +6,7 @@ use helios_consensus_core::{
 use nexus_core::types::{AppAccountId, NexusRollupPI, StatementDigest, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
 use nexus_core::zkvm::traits::ZKVMEnv;
-use sp1_helios_primitives::types::ProofInputs;
+use crate::types::ProofInputs;
 use tree_hash::TreeHash;
 
 pub fn run<Z: ZKVMEnv>() {

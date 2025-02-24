@@ -11,10 +11,11 @@ use nexus_core::zkvm::traits::{ZKVMEnv};
 use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 
 use nexus_core::zkvm::ProverMode;
-use sp1_helios_primitives::types::ProofInputs;
+use crate::types::ProofInputs;
 use tree_hash::TreeHash;
 
 pub mod prover;
+pub mod types;
 
 #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
 pub fn create_proof<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>>(

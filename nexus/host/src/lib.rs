@@ -133,7 +133,7 @@ where
     let (proof, result) = {
         #[cfg(any(feature = "sp1"))]
         let NEXUS_RUNTIME_ELF: &[u8] =
-            include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+            include_bytes!("../../../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/nexus_runtime_sp1");
 
         let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode);
 

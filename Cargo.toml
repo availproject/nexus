@@ -22,7 +22,6 @@ members = [
     "examples/zksync_adapter/core",
     "examples/ethereum_adapter/methods",
     "examples/ethereum_adapter/host",
-    "examples/ethereum_adapter/primitives",
     "adapter_sdk",
     "nexus_cli",
     "examples/zksync_adapter/bench",
@@ -41,7 +40,6 @@ version = "1.0.0"
 helios = { git = "https://github.com/a16z/helios", version = "0.7.0", rev = "8bf5b52feaccafc21cbd8b6a785b28815377fe41" }
 helios-consensus-core = { git = "https://github.com/a16z/helios", version = "0.7.0", rev = "8bf5b52feaccafc21cbd8b6a785b28815377fe41" }
 helios-ethereum = { git = "https://github.com/a16z/helios", version = "0.7.0", rev = "8bf5b52feaccafc21cbd8b6a785b28815377fe41" }
-sp1-helios-primitives = { path = "examples/ethereum_adapter/primitives" }
 tree_hash = "0.7.0"
 alloy-primitives = "0.7.7"
 alloy = { version = "0.1.1", features = ["full"] }

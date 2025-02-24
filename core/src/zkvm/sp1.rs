@@ -111,7 +111,7 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
 
 #[cfg(any(feature = "native-sp1"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Sp1Proof(SP1ProofWithPublicValues);
+pub struct Sp1Proof(pub SP1ProofWithPublicValues);
 
 #[cfg(any(feature = "native-sp1"))]
 impl ZKVMProof for Sp1Proof {

@@ -11,5 +11,5 @@ nexus-core = { path = "../../../../core", default-features = false, features = [
 zksync-core = { path = "../../core", default-features = false, features = [
   "zkvm-sp1",
 ] }
-sp1-zkvm = { version = "3.4.0" }
-sp1-derive = { version = "3.4.0" }
+sp1-zkvm = { version = "4.0.0" , features = ["verify"] }
+sp1-derive = { version = "4.0.0" }
