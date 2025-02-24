@@ -1,35 +1,17 @@
-use helios_consensus_core::consensus_spec::MainnetConsensusSpec;
-use helios_consensus_core::types::{FinalityUpdate, LightClientStore, Update};
-use risc0_zkvm::guest::env;
-
-use alloy_primitives::{B256, U256};
-use alloy_sol_types::SolValue;
+use crate::check_private_inputs;
+use alloy_primitives::B256;
 use helios_consensus_core::{
     apply_finality_update, apply_update, verify_finality_update, verify_update,
 };
-use nexus_core::types::{AppAccountId, NexusHeader, NexusRollupPI, StatementDigest, H256};
+use nexus_core::types::{AppAccountId, NexusRollupPI, StatementDigest, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
-use serde_cbor::to_vec;
-use sp1_helios_primitives::types::{ProofInputs, ProofOutputs};
-use std::{collections::BTreeMap, io::Read};
+use nexus_core::zkvm::traits::ZKVMEnv;
+use sp1_helios_primitives::types::ProofInputs;
 use tree_hash::TreeHash;
-/// Program flow:
-/// 1. Apply sync committee updates, if any
-/// 2. Apply finality update
-/// 3. Verify execution state root proof
-/// 4. Asset all updates are valid
-/// 5. Commit new state root, header, and sync committee for usage in the on-chain contract
-pub fn main() {
-    println!("Starting execution");
-    //let sync_committee_updates: Vec<Update<MainnetConsensusSpec>> = env::read();
-    // println!("Read sync committee updates");
-    // let finality_update: FinalityUpdate<MainnetConsensusSpec> = env::read();
-    // println!("Read finality updates");
-    // let expected_current_slot: u64 = env::read();
-    //
-    let mut input_bytes = Vec::<u8>::new();
-    env::stdin().read_to_end(&mut input_bytes).unwrap();
-    println!("Read input bytes {} bytes", input_bytes.len());
+
+pub fn run<Z: ZKVMEnv>() {
+    let inputs: Vec<u8> = Z::read_input::<Vec<u8>>().unwrap();
+
     let (proof_inputs, prev_pi_option, app_id_option, guest_image_id, journal_bytes, start_nexus_hash) =
         serde_cbor::from_slice::<(
             ProofInputs,
@@ -38,8 +20,9 @@ pub fn main() {
             [u32; 8],
             Option<Vec<u8>>,
             H256
-        )>(&input_bytes)
-        .unwrap();
+        )>(&inputs)
+            .unwrap();
+    
     let ProofInputs {
         sync_committee_updates,
         finality_update,
@@ -50,7 +33,7 @@ pub fn main() {
         nexus_hash,
     } = proof_inputs;
 
-    let (app_id, start_sync_committee_hash, _) = check_private_inputs(
+    let (app_id, start_sync_committee_hash, _) = check_private_inputs::<Z>(
         &prev_pi_option,
         &store,
         &nexus_hash,
@@ -81,8 +64,8 @@ pub fn main() {
         apply_update(&mut store, update);
     }
 
-    // TODO : uncomment this (after testing)
     // 2. Apply finality update
+    // TODO : uncomment after testing
     // let finality_update_is_valid = verify_finality_update(
     //     &finality_update,
     //     expected_current_slot,
@@ -171,69 +154,5 @@ pub fn main() {
     //     sync_committee_hash: sync_committee_hash,
     // };
 
-    env::commit(&public_inputs);
-}
-
-fn check_private_inputs(
-    prev_pi_option: &Option<NexusRollupPI>,
-    store: &LightClientStore<MainnetConsensusSpec>,
-    nexus_hash: &H256,
-    app_id_option: &Option<AppAccountId>,
-    first_update: &Update<MainnetConsensusSpec>,
-    guest_image_id: [u32; 8],
-    journal_bytes: Option<Vec<u8>>,
-) -> (AppAccountId, B256, H256) {
-    let prev_header: B256 = store.finalized_header.beacon().tree_hash_root();
-    let prev_head = store.finalized_header.beacon().slot;
-
-    if let Some(prev_pi) = prev_pi_option {
-        let previous_rollup_hash = prev_pi.rollup_hash.expect("Rollup hash to be stored");
-        //TODO: Check if this update verification is necessary, as proof already has this next_sync_committee hash, which means this update should have been applied.
-        let start_sync_committee_hash = first_update.next_sync_committee.tree_hash_root();
-        if <u32 as Into<u64>>::into(prev_pi.height) != prev_head {
-            panic!("Height mismatch!");
-        }
-
-        println!(
-            "previous header {:?}, sync_committee_hash {:?}",
-            prev_header, start_sync_committee_hash
-        );
-        let calculated_rollup_hash = {
-            let mut hasher = ShaHasher::new();
-            hasher.0.update(start_sync_committee_hash);
-            hasher.0.update(prev_header.as_slice());
-
-            hasher.finish()
-        };
-
-        if calculated_rollup_hash != previous_rollup_hash {
-            panic!("Rollup hash mismatch!")
-        }
-
-        // Verifying the assumption added in the host code
-        match env::verify(guest_image_id, &journal_bytes.unwrap()) {
-            Ok(()) => {
-                println!("Assumption verification successful");
-            }
-            Err(e) => {
-                panic!("Verification failed: {:?}", e);
-            }
-        }
-
-        //let calculated
-        (
-            prev_pi.app_id.clone(),
-            start_sync_committee_hash,
-            prev_pi.start_nexus_hash,
-        )
-    } else {
-        (
-            app_id_option
-                .as_ref()
-                .expect("Cannot initialize ethereum adapter without an app id")
-                .clone(),
-            store.current_sync_committee.tree_hash_root(),
-            nexus_hash.clone(),
-        )
-    }
+    Z::commit(&public_inputs);
 }

@@ -1,0 +1,11 @@
+[package]
+name = "ethereum-adapter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+risc0-zkvm = { version = "1.2.0", default-features = false, features = ['std'] }
+nexus-core = { path = "../../../../core", default-features = false, features = [
+    "zkvm-risc0",
+] }
+ethereum-adapter-core = { path = "../../ethereum_adapter_core", default-features = false, features = ["zkvm-risc0"] }

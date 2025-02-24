@@ -1,0 +1,22 @@
+[package]
+name = "ethereum-adapter-core"
+edition = "2021"
+version.workspace = true
+
+[dependencies]
+adapter_sdk = { path = "../../../adapter_sdk", default-features = false, optional = true }
+nexus-core = { path = "../../../core", default-features = false, optional = true }
+sp1-helios-primitives = { workspace = true }
+alloy-primitives = { workspace = true }
+helios-consensus-core = { workspace = true }
+anyhow = { workspace = true }
+tree_hash = { workspace = true }
+serde_cbor = "0.11.2"
+
+[features]
+default = ["risc0"]
+zkvm-risc0 = ["nexus-core/zkvm-risc0", "adapter_sdk/zkvm-risc0"]
+zkvm-sp1 = ["nexus-core/zkvm-sp1", "adapter_sdk/zkvm-sp1"]
+risc0 = ["nexus-core/native-risc0", "adapter_sdk/native-risc0", "native"]
+sp1 = ["nexus-core/native-sp1", "adapter_sdk/native-sp1", "native"]
+native = ["nexus-core/native"]
