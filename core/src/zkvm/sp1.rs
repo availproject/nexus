@@ -67,7 +67,7 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         };
 
         self.sp1_standard_input
-            .write_proof(*p.clone(), p.vk.clone());
+            .write_proof(*p.clone(), self.vk.vk.clone());
         Ok(())
     }
 

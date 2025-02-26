@@ -5,13 +5,13 @@ use helios_consensus_core::types::{LightClientStore, Update};
 use nexus_core::types::Proof as NexusProof;
 use nexus_core::types::{AppAccountId, NexusRollupPI, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
-use nexus_core::zkvm::traits::{ZKVMEnv};
+use nexus_core::zkvm::traits::ZKVMEnv;
 
 #[cfg(any(feature = "native"))]
 use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 
-use nexus_core::zkvm::ProverMode;
 use crate::types::ProofInputs;
+use nexus_core::zkvm::ProverMode;
 use tree_hash::TreeHash;
 
 pub mod prover;
@@ -32,7 +32,6 @@ pub fn create_proof<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + TryFrom
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
-    println!(">>> Prover init >>>");
     let mut prover = Z::new(elf.clone(), prover_mode.clone());
 
     // If previous proof available, add it in assumption
@@ -47,13 +46,12 @@ where
         app_id_option,
         guest_image_id,
         journal_bytes,
-        start_nexus_hash
+        start_nexus_hash,
     ))
-        .expect("Failed to serialize inputs");
+    .expect("Failed to serialize inputs");
     println!("Serialized inputs: {}", inputs_vec.len());
 
     prover.add_input(&inputs_vec)?;
-    println!(">>> Inputs Added >>>");
 
     // Run the prover
     prover.prove()
@@ -96,7 +94,7 @@ pub fn check_private_inputs<Z: ZKVMEnv>(
         }
 
         // Verifying the assumption added in the host code
-        match Z::verify(guest_image_id, &journal_bytes.unwrap()) {
+        match Z::verify(guest_image_id, prev_pi) {
             Ok(()) => {
                 println!("Assumption verification successful");
             }

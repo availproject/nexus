@@ -1,6 +1,6 @@
 #![no_main]
-use nexus_core::zkvm::sp1::SP1ZKVM;
 use ethereum_adapter_core::prover::run;
+use nexus_core::zkvm::sp1::SP1ZKVM;
 sp1_zkvm::entrypoint!(main);
 
 fn main() {

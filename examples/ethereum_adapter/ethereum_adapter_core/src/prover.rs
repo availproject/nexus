@@ -1,4 +1,5 @@
 use crate::check_private_inputs;
+use crate::types::ProofInputs;
 use alloy_primitives::B256;
 use helios_consensus_core::{
     apply_finality_update, apply_update, verify_finality_update, verify_update,
@@ -6,23 +7,28 @@ use helios_consensus_core::{
 use nexus_core::types::{AppAccountId, NexusRollupPI, StatementDigest, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
 use nexus_core::zkvm::traits::ZKVMEnv;
-use crate::types::ProofInputs;
 use tree_hash::TreeHash;
 
 pub fn run<Z: ZKVMEnv>() {
     let inputs: Vec<u8> = Z::read_input::<Vec<u8>>().unwrap();
 
-    let (proof_inputs, prev_pi_option, app_id_option, guest_image_id, journal_bytes, start_nexus_hash) =
-        serde_cbor::from_slice::<(
-            ProofInputs,
-            Option<NexusRollupPI>,
-            Option<AppAccountId>,
-            [u32; 8],
-            Option<Vec<u8>>,
-            H256
-        )>(&inputs)
-            .unwrap();
-    
+    let (
+        proof_inputs,
+        prev_pi_option,
+        app_id_option,
+        guest_image_id,
+        journal_bytes,
+        start_nexus_hash,
+    ) = serde_cbor::from_slice::<(
+        ProofInputs,
+        Option<NexusRollupPI>,
+        Option<AppAccountId>,
+        [u32; 8],
+        Option<Vec<u8>>,
+        H256,
+    )>(&inputs)
+    .unwrap();
+
     let ProofInputs {
         sync_committee_updates,
         finality_update,

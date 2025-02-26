@@ -1,6 +1,6 @@
+use ethereum_adapter_core::prover::run;
 use nexus_core::zkvm::risczero::ZKVM;
 use risc0_zkvm::guest::env;
-use ethereum_adapter_core::prover::run;
 
 fn main() {
     let before_cycle = env::cycle_count();

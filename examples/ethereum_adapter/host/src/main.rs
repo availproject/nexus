@@ -20,15 +20,15 @@ use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prove
 #[cfg(feature = "sp1")]
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
 
+use ethereum_adapter_core::types::ProofInputs;
+use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 use nexus_core::zkvm::ProverMode;
 use nexus_core::{
     db::NodeDB,
     types::{AppAccountId, AppId, NexusRollupPI},
 };
 use serde::{Deserialize, Serialize};
-use ethereum_adapter_core::types::ProofInputs;
 use tree_hash::TreeHash;
-use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
 
 #[cfg(feature = "risc0")]
 use ethereum_adapter_methods::{ETHEREUM_ADAPTER_ELF, ETHEREUM_ADAPTER_ID};
@@ -70,8 +70,9 @@ async fn run(loop_delay_mins: u64) -> Result<(), anyhow::Error> {
         include_bytes!("../../../../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/ethereum-adapter-sp1");
 
     #[cfg(feature = "sp1")]
-    let ETHEREUM_ADAPTER_ID =
-        Prover::new(ETHEREUM_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(); // since sp1 doesn't implements verify method on proof object
+    let ETHEREUM_ADAPTER_ID = Prover::new(ETHEREUM_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(); // since sp1 doesn't implements verify method on proof object
+
+    println!(">>> ETHEREUM_ADAPTER_ID : verification key : {:?}", ETHEREUM_ADAPTER_ID);
 
     let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state")? {
         data
@@ -248,9 +249,7 @@ async fn request_update(
             {
                 match prev_proof {
                     Some(ref i) => Some(i.0.journal.bytes.clone()),
-                    None => {
-                        None
-                    }
+                    None => None,
                 }
             }
 
@@ -258,9 +257,7 @@ async fn request_update(
             {
                 match prev_proof {
                     Some(ref i) => Some(i.0.public_values.to_vec()),
-                    None => {
-                        None
-                    }
+                    None => None,
                 }
             }
         };
