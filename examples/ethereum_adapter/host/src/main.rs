@@ -72,8 +72,6 @@ async fn run(loop_delay_mins: u64) -> Result<(), anyhow::Error> {
     #[cfg(feature = "sp1")]
     let ETHEREUM_ADAPTER_ID = Prover::new(ETHEREUM_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(); // since sp1 doesn't implements verify method on proof object
 
-    println!(">>> ETHEREUM_ADAPTER_ID : verification key : {:?}", ETHEREUM_ADAPTER_ID);
-
     let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state")? {
         data
     } else {

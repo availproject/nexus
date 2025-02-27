@@ -6,7 +6,6 @@ use crate::types::Proof;
 use anyhow::anyhow;
 use anyhow::Error;
 use bincode;
-use jmt::proof;
 use serde::Deserializer;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{from_slice, to_vec};
@@ -14,15 +13,15 @@ use sha2::Digest;
 use sha2::Sha256;
 #[cfg(any(feature = "native-sp1"))]
 use sp1_sdk::{
-    utils, HashableKey, ProverClient, SP1Proof, SP1ProofWithPublicValues, SP1Prover, SP1ProvingKey,
-    SP1PublicValues, SP1Stdin, SP1VerifyingKey,
+    utils, CpuProver, EnvProver, HashableKey, Prover, ProverClient, SP1Proof, SP1ProofMode,
+    SP1ProofWithPublicValues, SP1Prover, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use std::borrow::Cow;
 
 #[cfg(any(feature = "native-sp1"))]
 pub struct Sp1Prover {
     sp1_standard_input: SP1Stdin,
-    sp1_client: ProverClient,
+    sp1_client: CpuProver,
     elf: Vec<u8>,
     prover_mode: ProverMode,
     pk: SP1ProvingKey,
@@ -39,10 +38,11 @@ impl Sp1Prover {
 #[cfg(any(feature = "native-sp1"))]
 impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn new(elf: Vec<u8>, prover_mode: ProverMode) -> Self {
-        let mut sp1_standard_input = SP1Stdin::new();
+        let sp1_standard_input = SP1Stdin::new();
         let sp1_client = match prover_mode {
-            ProverMode::MockProof => ProverClient::mock(),
-            _ => ProverClient::local(),
+            ProverMode::MockProof => ProverClient::builder().mock().build(),
+            // TODO : change this to use the prover client from the env
+            _ => ProverClient::builder().cpu().build(),
         };
         let (pk, vk) = sp1_client.setup(&elf);
         Self {
@@ -82,21 +82,22 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
             // }
             ProverMode::Compressed => Sp1Proof(
                 self.sp1_client
-                    .prove(&self.pk, sp1_input)
+                    .prove(&self.pk, &sp1_input)
                     .compressed()
                     .run()
                     .expect("proof generation failed"),
             ),
             ProverMode::MockProof => Sp1Proof(
                 self.sp1_client
-                    .prove(&self.pk, sp1_input)
-                    .compressed()
+                    .prove(&self.pk, &sp1_input)
+                    .mode(SP1ProofMode::Compressed)
+                    .deferred_proof_verification(false)
                     .run()
                     .expect("proof generation failed"),
             ),
             _ => Sp1Proof(
                 self.sp1_client
-                    .prove(&self.pk, sp1_input)
+                    .prove(&self.pk, &sp1_input)
                     .run()
                     .expect("proof generation failed"),
             ),
@@ -129,16 +130,14 @@ impl ZKVMProof for Sp1Proof {
         &self,
         img_id: Option<[u8; 32]>,
         elf: Option<Vec<u8>>,
-        proof_mode: ProverMode,
+        // TODO : remove this param. No longer needed in sp1 v4.0.0
+        _proof_mode: ProverMode,
     ) -> Result<(), anyhow::Error> {
         let elf = match elf {
             Some(elf) => elf,
             None => return Err(anyhow!("ELF is required")),
         };
-        let sp1_client = match proof_mode {
-            ProverMode::MockProof => ProverClient::mock(),
-            _ => ProverClient::local(),
-        };
+        let sp1_client = ProverClient::from_env();
         //TODO: Change this to also accept vk instead of the elf file.
         let (_, vk) = sp1_client.setup(&elf);
         sp1_client.verify(&self.0, &vk)?;
