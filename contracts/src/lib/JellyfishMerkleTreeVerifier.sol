@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.21;
 
+import "forge-std/console.sol";
+
 library JellyfishMerkleTreeVerifier {
     struct Leaf {
         bytes32 addr;

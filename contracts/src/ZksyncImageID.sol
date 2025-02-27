@@ -20,5 +20,5 @@ pragma solidity ^0.8.20;
 
 library ImageID {
     bytes32 public constant ZKSYNC_ADAPTER_ID =
-        bytes32(0xb5a9ab432ef7aaa39f50b37c47b909e8c8c27a72443688b006bd5887e761b9bb);
+        bytes32(0xe803280b51361e5f6bba0fe6df61a1fcffc425e146999466617a14e98f889e63);
 }

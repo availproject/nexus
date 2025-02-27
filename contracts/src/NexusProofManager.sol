@@ -4,6 +4,7 @@ pragma solidity ^0.8.21;
 import {JellyfishMerkleTreeVerifier} from "./lib/JellyfishMerkleTreeVerifier.sol";
 import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
 import {ImageID} from "./GethImageID.sol"; // auto-generated from cargo-build
+import {JournalExtractor} from "./lib/JournalExtractor.sol";
 
 contract NexusProofManager {
     uint256 public latestNexusBlockNumber = 0;
@@ -38,19 +39,19 @@ contract NexusProofManager {
     // updated when we verify the zk proof and then st block updated
     function updateNexusBlock(
         uint256 blockNumber,
-        NexusBlock calldata nexusBlockInfo,
         bytes calldata proof,
         bytes calldata journal
     ) external {
         if (nexusBlock[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
         }
-        nexusBlock[blockNumber] = nexusBlockInfo;
-        // TODO: Verify the journal inputs and the updated code.
 
-        // add risc0 verification here
-        // ethereum mainnet => 0x8EaB2D97Dfce405A1692a21b3ff3A172d593D319
-        // ethereum Holesky => 0xf70aBAb028Eb6F4100A24B203E113D94E87DE93C
+        JournalExtractor.Journal memory journalStruct = JournalExtractor.extractJournal(journal);
+
+        nexusBlock[blockNumber] = NexusBlock({
+            stateRoot: journalStruct.stateRoot,
+            blockHash: journalStruct.nexusHash
+        });
 
         risc0Router.verify(
             proof, // bytes calldata seal
