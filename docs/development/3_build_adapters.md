@@ -37,3 +37,9 @@
    # If running in cuda mode for sp1
    RUST_LOG=info SP1_PROVER=cuda cargo run --no-default-features --features "sp1"
    ```
+
+3. To run in cuda for risc0 :
+
+   ```shell
+    RUST_LOG=info RUSTFLAGS="-C target-cpu=native" cargo run --no-default-features --features "risc0 cuda"
+   ```

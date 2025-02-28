@@ -7,7 +7,7 @@ edition = "2021"
 geth-methods = { path = "../examples/mock_geth_adapter/methods" }
 nexus-host = {package = "host", path = "../nexus/host", default-features = false , optional = true} 
 prover = { path = "../nexus/prover", optional = true }
-risc0-zkvm = { version = "1.1.1", features = ["default"] }
+risc0-zkvm = { version = "1.2.0", features = ["default"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rocksdb = {version = "0.22.0"}
 serde = "1.0"
