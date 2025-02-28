@@ -13,15 +13,15 @@ use sha2::Digest;
 use sha2::Sha256;
 #[cfg(any(feature = "native-sp1"))]
 use sp1_sdk::{
-    utils, CpuProver, EnvProver, HashableKey, Prover, ProverClient, SP1Proof, SP1ProofMode,
-    SP1ProofWithPublicValues, SP1Prover, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
+    utils, CpuProver, EnvProver, HashableKey, Prover, ProverClient, SP1Proof, SP1ProofMode, SP1ProofWithPublicValues, SP1Prover, SP1ProvingKey,
+    SP1PublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use std::borrow::Cow;
 
 #[cfg(any(feature = "native-sp1"))]
 pub struct Sp1Prover {
     sp1_standard_input: SP1Stdin,
-    sp1_client: CpuProver,
+    sp1_client: EnvProver,
     elf: Vec<u8>,
     prover_mode: ProverMode,
     pk: SP1ProvingKey,
@@ -39,11 +39,7 @@ impl Sp1Prover {
 impl ZKVMProver<Sp1Proof> for Sp1Prover {
     fn new(elf: Vec<u8>, prover_mode: ProverMode) -> Self {
         let sp1_standard_input = SP1Stdin::new();
-        let sp1_client = match prover_mode {
-            ProverMode::MockProof => ProverClient::builder().mock().build(),
-            // TODO : change this to use the prover client from the env
-            _ => ProverClient::builder().cpu().build(),
-        };
+        let sp1_client = ProverClient::from_env();
         let (pk, vk) = sp1_client.setup(&elf);
         Self {
             sp1_standard_input,
@@ -66,8 +62,7 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
             return Err(Error::msg("Compressed proof not provided"));
         };
 
-        self.sp1_standard_input
-            .write_proof(*p.clone(), self.vk.vk.clone());
+        self.sp1_standard_input.write_proof(*p.clone(), self.vk.vk.clone());
         Ok(())
     }
 
@@ -83,24 +78,22 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
             ProverMode::Compressed => Sp1Proof(
                 self.sp1_client
                     .prove(&self.pk, &sp1_input)
-                    .compressed()
-                    .run()
-                    .expect("proof generation failed"),
-            ),
-            ProverMode::MockProof => Sp1Proof(
-                self.sp1_client
-                    .prove(&self.pk, &sp1_input)
                     .mode(SP1ProofMode::Compressed)
-                    .deferred_proof_verification(false)
                     .run()
                     .expect("proof generation failed"),
             ),
-            _ => Sp1Proof(
-                self.sp1_client
-                    .prove(&self.pk, &sp1_input)
-                    .run()
-                    .expect("proof generation failed"),
-            ),
+            ProverMode::MockProof => {
+                let prover = ProverClient::builder().mock().build();
+                Sp1Proof(
+                    prover
+                        .prove(&self.pk, &sp1_input)
+                        .mode(SP1ProofMode::Compressed)
+                        .deferred_proof_verification(false)
+                        .run()
+                        .expect("proof generation failed"),
+                )
+            }
+            _ => Sp1Proof(self.sp1_client.prove(&self.pk, &sp1_input).run().expect("proof generation failed")),
         };
 
         Ok(proof)
@@ -116,9 +109,7 @@ pub struct Sp1Proof(pub SP1ProofWithPublicValues);
 
 #[cfg(any(feature = "native-sp1"))]
 impl ZKVMProof for Sp1Proof {
-    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(
-        &mut self,
-    ) -> Result<V, anyhow::Error> {
+    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error> {
         Ok(self.0.public_values.clone().read::<V>())
     }
 
@@ -126,13 +117,7 @@ impl ZKVMProof for Sp1Proof {
     //     unimplemented!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
     // }
 
-    fn verify(
-        &self,
-        img_id: Option<[u8; 32]>,
-        elf: Option<Vec<u8>>,
-        // TODO : remove this param. No longer needed in sp1 v4.0.0
-        _proof_mode: ProverMode,
-    ) -> Result<(), anyhow::Error> {
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>, _proof_mode: ProverMode) -> Result<(), anyhow::Error> {
         let elf = match elf {
             Some(elf) => elf,
             None => return Err(anyhow!("ELF is required")),
@@ -183,8 +168,7 @@ impl TryInto<Proof> for Sp1Proof {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<Proof, Self::Error> {
-        let encoded_u8: Vec<u8> =
-            to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
+        let encoded_u8: Vec<u8> = to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
         Ok(Proof(encoded_u8))
     }
 }

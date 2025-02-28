@@ -20,7 +20,7 @@ pub mod types;
 #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
 pub fn create_proof<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>>(
     elf: Vec<u8>,
-    prover_mode: ProverMode,
+    prover_mode: &ProverMode,
     prev_proof: Option<P>,
     proof_inputs: ProofInputs,
     prev_pi_option: Option<NexusRollupPI>,

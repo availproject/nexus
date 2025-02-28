@@ -1,9 +1,7 @@
 use crate::check_private_inputs;
 use crate::types::ProofInputs;
 use alloy_primitives::B256;
-use helios_consensus_core::{
-    apply_finality_update, apply_update, verify_finality_update, verify_update,
-};
+use helios_consensus_core::{apply_finality_update, apply_update, verify_finality_update, verify_update};
 use nexus_core::types::{AppAccountId, NexusRollupPI, StatementDigest, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
 use nexus_core::zkvm::traits::ZKVMEnv;
@@ -12,14 +10,7 @@ use tree_hash::TreeHash;
 pub fn run<Z: ZKVMEnv>() {
     let inputs: Vec<u8> = Z::read_input::<Vec<u8>>().unwrap();
 
-    let (
-        proof_inputs,
-        prev_pi_option,
-        app_id_option,
-        guest_image_id,
-        journal_bytes,
-        start_nexus_hash,
-    ) = serde_cbor::from_slice::<(
+    let (proof_inputs, prev_pi_option, app_id_option, guest_image_id, journal_bytes, start_nexus_hash) = serde_cbor::from_slice::<(
         ProofInputs,
         Option<NexusRollupPI>,
         Option<AppAccountId>,
@@ -58,10 +49,7 @@ pub fn run<Z: ZKVMEnv>() {
             expected_current_slot,
         );
 
-        // TODO : uncomment this (after testing)
-        // let update_is_valid =
-        //     verify_update(update, expected_current_slot, &store, genesis_root, &forks).is_ok();
-        let update_is_valid = true;
+        let update_is_valid = verify_update(update, expected_current_slot, &store, genesis_root, &forks).is_ok();
 
         if !update_is_valid {
             panic!("Update {} is invalid!", index + 1);
@@ -71,18 +59,17 @@ pub fn run<Z: ZKVMEnv>() {
     }
 
     // 2. Apply finality update
-    // TODO : uncomment after testing
-    // let finality_update_is_valid = verify_finality_update(
-    //     &finality_update,
-    //     expected_current_slot,
-    //     &store,
-    //     genesis_root,
-    //     &forks,
-    // )
-    // .is_ok();
-    // if !finality_update_is_valid {
-    //     panic!("Finality update is invalid!");
-    // }
+    let finality_update_is_valid = verify_finality_update(
+        &finality_update,
+        expected_current_slot,
+        &store,
+        genesis_root,
+        &forks,
+    )
+    .is_ok();
+    if !finality_update_is_valid {
+        panic!("Finality update is invalid!");
+    }
     println!("Finality update is valid.");
 
     apply_finality_update(&mut store, &finality_update);
@@ -111,9 +98,7 @@ pub fn run<Z: ZKVMEnv>() {
                 .expect("next sync committee hash is to be known")
                 .tree_hash_root(),
         );
-        hasher
-            .0
-            .update(store.finalized_header.beacon().tree_hash_root().as_slice());
+        hasher.0.update(store.finalized_header.beacon().tree_hash_root().as_slice());
 
         hasher.finish()
     };

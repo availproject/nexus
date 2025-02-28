@@ -31,9 +31,7 @@ impl Relayer for SimpleRelayer {
 
     fn get_header_hash(&self, height: u32) -> impl Future<Output = H256> + Send {
         async move {
-            let (subxt_client, _) = avail_subxt::build_client(self.rpc_url.clone(), false)
-                .await
-                .unwrap();
+            let (subxt_client, _) = avail_subxt::build_client(self.rpc_url.clone(), false).await.unwrap();
 
             let hash = match subxt_client.rpc().block_hash(Some(height.into())).await {
                 Ok(i) => i,
@@ -47,10 +45,7 @@ impl Relayer for SimpleRelayer {
     fn start(&self, start_height: u32) -> impl Future<Output = ()> + Send {
         async move {
             println!("Started client.");
-            let (mut subxt_client, mut ws_client) =
-                avail_subxt::build_client(self.rpc_url.clone(), false)
-                    .await
-                    .unwrap();
+            let (mut subxt_client, mut ws_client) = avail_subxt::build_client(self.rpc_url.clone(), false).await.unwrap();
             println!("Built client");
             let mut next_height = start_height;
             let mut stop_rx = self.stop.subscribe();
@@ -61,15 +56,14 @@ impl Relayer for SimpleRelayer {
                 }
 
                 if !ws_client.is_connected() {
-                    (subxt_client, ws_client) =
-                        match avail_subxt::build_client(self.rpc_url.clone(), false).await {
-                            Ok(i) => (i.0, i.1),
-                            Err(e) => {
-                                println!("Error reconnecting to rpc {}", e);
-                                tokio::time::sleep(Duration::from_secs(2)).await;
-                                continue;
-                            }
-                        };
+                    (subxt_client, ws_client) = match avail_subxt::build_client(self.rpc_url.clone(), false).await {
+                        Ok(i) => (i.0, i.1),
+                        Err(e) => {
+                            println!("Error reconnecting to rpc {}", e);
+                            tokio::time::sleep(Duration::from_secs(2)).await;
+                            continue;
+                        }
+                    };
                 }
 
                 let finalized_head = match subxt_client.rpc().finalized_head().await {
@@ -102,11 +96,7 @@ impl Relayer for SimpleRelayer {
                     tokio::time::sleep(Duration::from_secs(2)).await;
                     continue;
                 } else {
-                    let hash = match subxt_client
-                        .rpc()
-                        .block_hash(Some(next_height.into()))
-                        .await
-                    {
+                    let hash = match subxt_client.rpc().block_hash(Some(next_height.into())).await {
                         Ok(i) => i,
                         Err(_) => {
                             println!("Error getting block: {}", next_height);

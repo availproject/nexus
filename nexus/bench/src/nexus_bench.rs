@@ -4,10 +4,7 @@ use nexus_core::{
     db::NodeDB,
     state::vm_state::VmState,
     state_machine::StateMachine,
-    types::{
-        AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader, StatementDigest,
-        Transaction, TxParams, TxSignature,
-    },
+    types::{AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader, StatementDigest, Transaction, TxParams, TxSignature},
     zkvm::ProverMode,
 };
 use nexus_host::execute_batch;
@@ -34,9 +31,7 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
-fn create_mock_data(
-    prover_mode: ProverMode,
-) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
+fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
     let db_path = "./db";
     let prover_mode_string = match prover_mode {
         ProverMode::NoAggregation => "no_aggregation",
@@ -130,9 +125,7 @@ fn get_proof_size(proof: Proof) -> u64 {
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     #[cfg(any(feature = "sp1"))]
-    env_logger::Builder::from_env("RUST_LOG")
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::Builder::from_env("RUST_LOG").filter_level(log::LevelFilter::Info).init();
 
     let prover_mode_param = env::var("PROVER_MODE").unwrap_or_else(|_| "default".to_string());
 
@@ -152,8 +145,7 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     };
 
-    let (mut state_machine, avail_headers, mut header_store) =
-        create_mock_data(prover_mode.clone());
+    let (mut state_machine, avail_headers, mut header_store) = create_mock_data(prover_mode.clone());
     let mock_txs: Vec<Transaction> = Vec::new();
 
     let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(

@@ -21,11 +21,7 @@ impl MerkleStore {
         MerkleStore { db, cache }
     }
 
-    pub fn get<V: DeserializeOwned>(
-        &self,
-        serialized_key: &[u8],
-        committed: bool,
-    ) -> Result<Option<V>, Error> {
+    pub fn get<V: DeserializeOwned>(&self, serialized_key: &[u8], committed: bool) -> Result<Option<V>, Error> {
         if !committed {
             let cache = match self.cache.lock() {
                 Ok(i) => i,
@@ -162,11 +158,7 @@ impl TreeReader for MerkleStore {
         todo!("StateDB does not support [`TreeReader::get_rightmost_leaf`] yet")
     }
 
-    fn get_value_option(
-        &self,
-        max_version: Version,
-        key_hash: KeyHash,
-    ) -> Result<Option<OwnedValue>, anyhow::Error> {
+    fn get_value_option(&self, max_version: Version, key_hash: KeyHash) -> Result<Option<OwnedValue>, anyhow::Error> {
         let values: Vec<(Version, OwnedValue)> = match self.get(&key_hash.0, true) {
             Ok(Some(i)) => i,
             Ok(None) => {
@@ -211,17 +203,13 @@ impl TreeWriter for MerkleStore {
 
         let mut updates: BTreeMap<KeyHash, Vec<(Version, Option<OwnedValue>)>> = BTreeMap::new();
         for ((version, key_hash), value) in node_batch.values() {
-            updates
-                .entry(key_hash.clone())
-                .or_default()
-                .push((*version, value.clone()));
+            updates.entry(key_hash.clone()).or_default().push((*version, value.clone()));
         }
 
         // Process each key_hash
         for (key_hash, changes) in updates {
             // Retrieve existing values from the database
-            let mut existing_values: Vec<(Version, OwnedValue)> = match self.get(&key_hash.0, true)
-            {
+            let mut existing_values: Vec<(Version, OwnedValue)> = match self.get(&key_hash.0, true) {
                 Ok(Some(values)) => values,
                 Ok(None) => Vec::new(),
                 Err(e) => return Err(anyhow!(e)),
@@ -231,8 +219,7 @@ impl TreeWriter for MerkleStore {
             for (version, value) in changes {
                 if let Some(val) = value {
                     // Check if the version already exists
-                    if let Some(existing) = existing_values.iter_mut().find(|(v, _)| v == &version)
-                    {
+                    if let Some(existing) = existing_values.iter_mut().find(|(v, _)| v == &version) {
                         // Replace the existing value with the new value
                         existing.1 = val;
                     } else {
@@ -258,8 +245,7 @@ impl TreeWriter for MerkleStore {
             Err(e) => return Err(anyhow!("No lock obtained.")),
         };
         // Write the batch atomically
-        db.write_opt(batch, &WriteOptions::default())
-            .map_err(|e| anyhow!(e))?;
+        db.write_opt(batch, &WriteOptions::default()).map_err(|e| anyhow!(e))?;
 
         Ok(())
     }

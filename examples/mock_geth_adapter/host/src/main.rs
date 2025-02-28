@@ -3,8 +3,8 @@ use anyhow::{Context, Error};
 use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, Proof,
-    StatementDigest, SubmitProof, Transaction, TxParams, TxSignature, H256,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, Proof, StatementDigest, SubmitProof, Transaction, TxParams,
+    TxSignature, H256,
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
 use nexus_core::zkvm::ProverMode;
@@ -46,11 +46,7 @@ async fn main() -> Result<(), Error> {
     }
     let ethereum_node_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
-    let prover_mode = if dev_flag {
-        ProverMode::MockProof
-    } else {
-        ProverMode::Compressed
-    };
+    let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
     // Create or open the database
@@ -71,10 +67,7 @@ async fn main() -> Result<(), Error> {
             prover_mode,
             avail_url: String::from("wss://turing-rpc.avail.so:443/ws"),
         };
-        AdapterStateData {
-            last_height: 0,
-            adapter_config,
-        }
+        AdapterStateData { last_height: 0, adapter_config }
     };
 
     // Main loop to fetch headers and run adapter
@@ -83,11 +76,7 @@ async fn main() -> Result<(), Error> {
 
     let web3 = Web3::new(Http::new(ethereum_node_url).unwrap());
     loop {
-        match web3
-            .eth()
-            .block(BlockId::Number(web3::types::BlockNumber::Latest))
-            .await
-        {
+        match web3.eth().block(BlockId::Number(web3::types::BlockNumber::Latest)).await {
             Ok(Some(header)) => {
                 let current_height = header.number.unwrap().as_u32();
                 let range = match nexus_api.get_range().await {
@@ -98,17 +87,15 @@ async fn main() -> Result<(), Error> {
                     }
                 };
 
-                let app_account_id =
-                    AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-                let account_with_proof: AccountWithProof =
-                    match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-                        Ok(i) => i,
-                        Err(e) => {
-                            println!("{:?}", e);
+                let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+                let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+                    Ok(i) => i,
+                    Err(e) => {
+                        println!("{:?}", e);
 
-                            continue;
-                        }
-                    };
+                        continue;
+                    }
+                };
 
                 last_height = account_with_proof.account.height;
 
@@ -181,9 +168,7 @@ async fn main() -> Result<(), Error> {
                         state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
                         //TODO: remove unwrap
                         height,
-                        start_nexus_hash: start_nexus_hash.unwrap_or_else(|| {
-                            H256::from(account_with_proof.account.start_nexus_hash)
-                        }),
+                        start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ADAPTER_ID),
                         rollup_hash: Some(H256::zero()),
@@ -191,11 +176,7 @@ async fn main() -> Result<(), Error> {
 
                     let public_input_vec = match to_vec(&public_inputs) {
                         Ok(i) => i,
-                        Err(e) => {
-                            return Err(anyhow::anyhow!(
-                                "Could not encode public inputs of rollup."
-                            ))
-                        }
+                        Err(e) => return Err(anyhow::anyhow!("Could not encode public inputs of rollup.")),
                     };
 
                     let mut env_builder = ExecutorEnv::builder();
@@ -247,7 +228,10 @@ async fn main() -> Result<(), Error> {
 
                     last_height = current_height;
                 } else {
-                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, last_height);
+                    println!(
+                        "Current height is lesser than height on nexus. current height: {} nexus height: {}",
+                        current_height, last_height
+                    );
                 }
             }
             Ok(None) => {

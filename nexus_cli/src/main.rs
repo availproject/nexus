@@ -76,8 +76,7 @@ fn main() {
     let args = Args::parse();
 
     // Read the project root from the environment variable
-    let project_root =
-        env::var("PROJECT_ROOT").expect("PROJECT_ROOT environment variable is not set");
+    let project_root = env::var("PROJECT_ROOT").expect("PROJECT_ROOT environment variable is not set");
     let nexus_dir = Path::new(&project_root).join("nexus/host");
     let zksync_dir = Path::new(&project_root).join("examples/zksync_adapter/host");
 
@@ -107,12 +106,7 @@ fn main() {
                 }
             }
         }
-        Commands::Zksync {
-            url,
-            dev,
-            app_id,
-            zkvm,
-        } => run_zksync(&url, &zksync_dir, dev, app_id, zkvm),
+        Commands::Zksync { url, dev, app_id, zkvm } => run_zksync(&url, &zksync_dir, dev, app_id, zkvm),
         Commands::Nexus { dev, zkvm } => run_nexus(&nexus_dir, dev, zkvm),
         Commands::Init { env } => init_env(env),
     }

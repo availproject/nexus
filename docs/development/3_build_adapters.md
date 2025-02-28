@@ -14,6 +14,9 @@
    
    # If running in mock mode for sp1
    RUST_LOG=info SP1_PROVER=mock cargo run --no-default-features --features "sp1" -- --dev
+   
+   # If running in cuda mode for sp1
+   RUST_LOG=info SP1_PROVER=cuda cargo run --no-default-features --features "sp1"
     ```
 
 2. To build adapters :
@@ -30,4 +33,7 @@
    
    # If running in mock mode for sp1
    RUST_LOG=info SP1_PROVER=mock cargo run --no-default-features --features "sp1" -- --dev
+   
+   # If running in cuda mode for sp1
+   RUST_LOG=info SP1_PROVER=cuda cargo run --no-default-features --features "sp1"
    ```

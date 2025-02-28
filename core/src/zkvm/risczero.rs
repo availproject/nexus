@@ -26,11 +26,7 @@ pub struct RiscZeroProver<'a> {
 impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
     fn new(elf: Vec<u8>, prover_mode: ProverMode) -> Self {
         let env_builder = ExecutorEnv::builder();
-        Self {
-            env_builder,
-            elf,
-            prover_mode,
-        }
+        Self { env_builder, elf, prover_mode }
     }
 
     fn add_input<T: serde::Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error> {
@@ -61,9 +57,7 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
         };
 
         let receipt = match &self.prover_mode {
-            ProverMode::MockProof => prover
-                .prove(env, &self.elf)
-                .map_err(|e| anyhow!("Error when proving: {:?}", e))?,
+            ProverMode::MockProof => prover.prove(env, &self.elf).map_err(|e| anyhow!("Error when proving: {:?}", e))?,
             _ => prover
                 .prove_with_opts(env, &self.elf, &prover_opts)
                 .map_err(|e| anyhow!("Error when proving: {:?}", e))?,
@@ -83,18 +77,11 @@ pub struct RiscZeroProof(pub Receipt);
 
 #[cfg(any(feature = "native-risc0"))]
 impl ZKVMProof for RiscZeroProof {
-    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(
-        &mut self,
-    ) -> Result<V, anyhow::Error> {
+    fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error> {
         from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
     }
 
-    fn verify(
-        &self,
-        img_id: Option<[u8; 32]>,
-        elf: Option<Vec<u8>>,
-        _: ProverMode,
-    ) -> Result<(), anyhow::Error> {
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>, _: ProverMode) -> Result<(), anyhow::Error> {
         let img_id = match img_id {
             Some(id) => id,
             None => return Err(anyhow!("ELF is required")),
@@ -115,14 +102,10 @@ impl TryInto<Proof> for RiscZeroProof {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<Proof, Self::Error> {
-        let encoded_u32: Vec<u32> =
-            to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
+        let encoded_u32: Vec<u32> = to_vec(&self).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))?;
 
         // Convert Vec<u32> to Vec<u8>
-        let encoded_u8: Vec<u8> = encoded_u32
-            .into_iter()
-            .flat_map(|x| x.to_ne_bytes().to_vec())
-            .collect();
+        let encoded_u8: Vec<u8> = encoded_u32.into_iter().flat_map(|x| x.to_ne_bytes().to_vec()).collect();
         Ok(Proof(encoded_u8))
     }
 }
@@ -145,10 +128,7 @@ impl ZKVMEnv for ZKVM {
         Ok(env::read())
     }
 
-    fn verify<T: serde::Serialize>(
-        img_id: [u32; 8],
-        public_inputs: &T,
-    ) -> Result<(), anyhow::Error> {
+    fn verify<T: serde::Serialize>(img_id: [u32; 8], public_inputs: &T) -> Result<(), anyhow::Error> {
         let public_input_vec = match to_vec(public_inputs) {
             Ok(i) => i,
             Err(_) => return Err(anyhow::anyhow!("Could not encode public inputs")),

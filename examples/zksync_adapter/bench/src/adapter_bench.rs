@@ -63,23 +63,12 @@ fn create_mock_data() -> (
 
 fn main() {
     #[cfg(any(feature = "sp1"))]
-    env_logger::Builder::from_env("RUST_LOG")
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::Builder::from_env("RUST_LOG").filter_level(log::LevelFilter::Info).init();
 
-    let (
-        prev_adapter_proof,
-        init_account,
-        new_rollup_proof,
-        new_rollup_pi,
-        pubdata_commitments,
-        versioned_hashes,
-        nexus_hash,
-    ) = create_mock_data();
+    let (prev_adapter_proof, init_account, new_rollup_proof, new_rollup_pi, pubdata_commitments, versioned_hashes, nexus_hash) = create_mock_data();
 
     #[cfg(feature = "sp1")]
-    let ZKSYNC_ADAPTER_ELF: &[u8] =
-        include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+    let ZKSYNC_ADAPTER_ELF: &[u8] = include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
     #[cfg(feature = "sp1")]
     let ZKSYNC_ADAPTER_ID = [0u32; 8];
 
