@@ -13,7 +13,7 @@ use helios_ethereum::rpc::http_rpc::HttpRpc;
 use helios_ethereum::rpc::ConsensusRpc;
 use nexus_core::types::{AccountState, AccountWithProof, InitAccount, StatementDigest, SubmitProof, TxParams, TxSignature, H256};
 
-#[cfg(feature = "risc0")]
+#[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
 #[cfg(feature = "sp1")]
@@ -29,13 +29,13 @@ use nexus_core::{
 use serde::{Deserialize, Serialize};
 use tree_hash::TreeHash;
 
-#[cfg(feature = "risc0")]
+#[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
 use ethereum_adapter_methods::{ETHEREUM_ADAPTER_ELF, ETHEREUM_ADAPTER_ID};
-#[cfg(feature = "risc0")]
+#[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
 use risc0_zkvm::guest::env;
-#[cfg(feature = "risc0")]
+#[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
 use risc0_zkvm::serde::to_vec;
-#[cfg(feature = "risc0")]
+#[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, ReceiptKind};
 
 #[cfg(any(feature = "sp1"))]
@@ -184,7 +184,7 @@ async fn init_account(adapter_state_data: AdapterStateData, nexus_api: NexusAPI,
     }
 }
 
-async fn request_update(
+async fn request_update<'a>(
     mut client: Inner<MainnetConsensusSpec, HttpRpc>,
     head: u64,
     prev_pi_and_proof: &Option<(NexusRollupPI, Proof)>,
@@ -192,7 +192,7 @@ async fn request_update(
     nexus_api: &NexusAPI,
     start_nexus_hash: H256,
     guest_id: [u32; 8],
-    prover: Arc<Mutex<Prover>>
+    prover: Arc<Mutex<Prover<'a>>>
 ) -> Result<Option<(NexusRollupPI, Proof)>, anyhow::Error> {
     // Setup client.
     let mut sync_committee_updates = get_updates(&client).await;
@@ -233,7 +233,7 @@ async fn request_update(
         };
 
         let public_input_bytes: Option<Vec<u8>> = {
-            #[cfg(any(feature = "risc0"))]
+            #[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
             {
                 match prev_proof {
                     Some(ref i) => Some(i.0.journal.bytes.clone()),

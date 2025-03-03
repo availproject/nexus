@@ -15,7 +15,7 @@ serde = "1.0.203"
 serde_json = "1.0.113"
 anyhow = "1.0.81"
 warp = { version = "0.3", optional = true }
-risc0-zkvm = {version = "1.2.0", default-features = false, features = ["std"], optional = true}
+risc0-zkvm = {version = "1.2.0", default-features = false, optional = true}
 relayer = { path = "../relayer", optional = true}
 sp1-sdk = { version = "4.1.0", optional = true }
 sp1-zkvm = { version = "4.1.0", optional = true }
@@ -28,3 +28,5 @@ zkvm-sp1 = ["nexus-core/zkvm-sp1", "sp1-zkvm"]
 zkvm-risc0 = ["nexus-core/zkvm-risc0", "risc0-zkvm/std"]
 native-risc0 = ["risc0-zkvm/default", "nexus-core/native-risc0", "native"]
 native-sp1 = ["sp1-sdk", "nexus-core/native-sp1", "native"]
+zkvm-risc0-cuda = ["risc0-zkvm/cuda", "nexus-core/native-risc0-cuda"]
+native-risc0-cuda = ["risc0-zkvm/cuda", "nexus-core/native-risc0-cuda", "native"]
