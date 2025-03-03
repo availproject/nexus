@@ -33,4 +33,4 @@ derive_more = { git = "https://github.com/JelteF/derive_more", tag = "v1.0.0", f
 default = ["risc0"]
 sp1 = ["sp1-sdk", "nexus-core/native-sp1" , "ethereum-adapter-methods/sp1" , "ethereum-core/sp1" , "adapter_sdk/zkvm-sp1"]
 risc0 = ["risc0-zkvm/std", "nexus-core/native-risc0" , "ethereum-adapter-methods/risc0" , "ethereum-core/risc0" , "adapter_sdk/zkvm-risc0"]
-cuda = ["risc0-zkvm/cuda"]
+risc0-cuda = ["risc0-zkvm/cuda", "nexus-core/native-risc0-cuda", "ethereum-adapter-methods/risc0" , "ethereum-core/risc0" , "adapter_sdk/zkvm-risc0"]
