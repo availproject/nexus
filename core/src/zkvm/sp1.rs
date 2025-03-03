@@ -41,6 +41,9 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         let sp1_standard_input = SP1Stdin::new();
         let sp1_client = ProverClient::from_env();
         let (pk, vk) = sp1_client.setup(&elf);
+        
+        println!(">>>> Prover Init >>>>");
+        
         Self {
             sp1_standard_input,
             sp1_client,

@@ -27,7 +27,7 @@ members = [
     "examples/zksync_adapter/bench",
     "nexus/bench", 
     "nexus_bench_setup",
-    "examples/ethereum_adapter/ethereum_adapter_core",
+    "examples/ethereum_adapter/core",
     "examples/ethereum_adapter/methods/risc0-guest",
     "examples/ethereum_adapter/methods/sp1-guest"
 ]

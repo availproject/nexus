@@ -1,4 +1,4 @@
-use ethereum_adapter_core::prover::run;
+use ethereum_core::prover::run;
 use nexus_core::zkvm::risczero::ZKVM;
 use risc0_zkvm::guest::env;
 

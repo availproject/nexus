@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use alloy_primitives::private::serde::Serialize;
 use alloy_primitives::B256;
 use helios_consensus_core::consensus_spec::MainnetConsensusSpec;
@@ -19,8 +20,6 @@ pub mod types;
 
 #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
 pub fn create_proof<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>>(
-    elf: Vec<u8>,
-    prover_mode: &ProverMode,
     prev_proof: Option<P>,
     proof_inputs: ProofInputs,
     prev_pi_option: Option<NexusRollupPI>,
@@ -28,11 +27,13 @@ pub fn create_proof<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + TryFrom
     guest_image_id: [u32; 8],
     journal_bytes: Option<Vec<u8>>,
     start_nexus_hash: H256,
+    prover: Arc<Mutex<Z>>
 ) -> Result<P, anyhow::Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
-    let mut prover = Z::new(elf.clone(), prover_mode.clone());
+    // TODO : replace with prover.lock()?
+    let mut prover = prover.lock().expect("Unable to lock prover");
 
     // If previous proof available, add it in assumption
     if let Some(proof) = prev_proof {

@@ -1,5 +1,5 @@
 [package]
-name = "ethereum-adapter-core"
+name = "ethereum-core"
 edition = "2021"
 version.workspace = true
 
