@@ -69,7 +69,8 @@ async fn main() -> Result<(), Error> {
         AdapterStateData { last_height: 0, adapter_config }
     };
 
-    let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+    let app_account_id =
+        AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
     let account_with_proof: AccountWithProof = nexus_api.get_account_state(&app_account_id.as_h256()).await?;
 
     // Main loop to fetch headers and run adapter
@@ -136,41 +137,34 @@ async fn main() -> Result<(), Error> {
                 let height: u32 = header.number.unwrap().as_u32();
 
                 if current_height > last_height {
-                    // let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-                    // let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-                    //     Ok(i) => i,
-                    //     Err(e) => {
-                    //         println!("{:?}", e);
-                    //
-                    //         continue;
-                    //     }
-                    // };
+                    // let app_account_id =
+                    //     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+                    // let account_with_proof: AccountWithProof =
+                    //     match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+                    //         Ok(i) => i,
+                    //         Err(e) => {
+                    //             println!("{:?}", e);
+                    // 
+                    //             continue;
+                    //         }
+                    //     };
                     // println!("\n\n\n>>> account with proof : {:?}", account_with_proof);
                     // println!(">>> statement digest : {:?}", hex::encode(account_with_proof.account.statement.0.encode()));
-                    // println!(
-                    //     ">>> state root : {:?}",
-                    //     hex::encode(account_with_proof.account.state_root)
-                    // );
-                    // println!(
-                    //     ">>> start nexus hash : {:?}",
-                    //     hex::encode(account_with_proof.account.start_nexus_hash)
-                    // );
-                    // println!(
-                    //     ">>> last proof height : {:?}",
-                    //     account_with_proof.account.last_proof_height
-                    // );
+                    // println!(">>> state root : {:?}", hex::encode(account_with_proof.account.state_root));
+                    // println!(">>> start nexus hash : {:?}", hex::encode(account_with_proof.account.start_nexus_hash));
+                    // println!(">>> last proof height : {:?}", account_with_proof.account.last_proof_height);
                     // println!(">>> height : {:?}", account_with_proof.account.height);
                     // println!(">>> key : {:?}", hex::encode(app_account_id.0));
 
                     let public_inputs = NexusRollupPI {
                         nexus_hash: range[0],
-                        state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
+                        state_root: account_with_proof.nexus_header.state_root,
                         //TODO: remove unwrap
                         height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ADAPTER_ID),
-                        rollup_hash: Some(H256::from([1u8; 32])),
+                        rollup_hash: Some(H256::from(header.state_root.as_fixed_bytes().clone())),
                     };
 
                     // println!(">>> public inputs: {:?}", public_inputs);
@@ -223,7 +217,7 @@ async fn main() -> Result<(), Error> {
                                 }
                             },
                             height: public_inputs.height,
-                            data: Some(H256::from([1u8; 32])),
+                            data: public_inputs.rollup_hash,
                         }),
                     };
 
@@ -281,6 +275,8 @@ async fn main() -> Result<(), Error> {
             }
         }
 
+        println!("Sleeping for 10 seconds\n\n\n");
+        tokio::time::sleep(Duration::from_secs(10)).await;
         // Persist adapter state data to the database
         db.put(
             b"adapter_state_data",
