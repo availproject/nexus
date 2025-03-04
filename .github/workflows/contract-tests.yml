@@ -31,9 +31,9 @@ jobs:
 
       - name: Build Contract Artifacts
         run: |
-          cd examples/mock_geth_adapter
+          cd examples/mock_geth_adapter/host
           cargo build --release
-          cd ../examples/zksync_adapter
+          cd ../../examples/zksync_adapter/host
           cargo build --release
 
       - name: Install Foundry
