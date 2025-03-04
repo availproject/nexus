@@ -1,5 +1,5 @@
 use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
-use anyhow::{Context, Error};
+use anyhow::Error;
 use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
 use nexus_core::types::{
@@ -8,14 +8,11 @@ use nexus_core::types::{
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
 use nexus_core::zkvm::ProverMode;
-use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::env::args;
-use std::fs;
 use std::time::Duration;
-use std::time::{SystemTime, UNIX_EPOCH};
 use web3::transports::Http;
 use web3::types::BlockId;
 use web3::Web3;
@@ -77,6 +74,10 @@ async fn main() -> Result<(), Error> {
         }
     };
 
+    let app_account_id =
+        AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+    let account_with_proof: AccountWithProof = nexus_api.get_account_state(&app_account_id.as_h256()).await?;
+
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash = None;
@@ -97,18 +98,6 @@ async fn main() -> Result<(), Error> {
                         continue;
                     }
                 };
-
-                let app_account_id =
-                    AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-                let account_with_proof: AccountWithProof =
-                    match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-                        Ok(i) => i,
-                        Err(e) => {
-                            println!("{:?}", e);
-
-                            continue;
-                        }
-                    };
 
                 last_height = account_with_proof.account.height;
 
@@ -176,9 +165,28 @@ async fn main() -> Result<(), Error> {
                 let height: u32 = header.number.unwrap().as_u32();
 
                 if current_height > last_height {
+                    // let app_account_id =
+                    //     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+                    // let account_with_proof: AccountWithProof =
+                    //     match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+                    //         Ok(i) => i,
+                    //         Err(e) => {
+                    //             println!("{:?}", e);
+                    // 
+                    //             continue;
+                    //         }
+                    //     };
+                    // println!("\n\n\n>>> account with proof : {:?}", account_with_proof);
+                    // println!(">>> statement digest : {:?}", hex::encode(account_with_proof.account.statement.0.encode()));
+                    // println!(">>> state root : {:?}", hex::encode(account_with_proof.account.state_root));
+                    // println!(">>> start nexus hash : {:?}", hex::encode(account_with_proof.account.start_nexus_hash));
+                    // println!(">>> last proof height : {:?}", account_with_proof.account.last_proof_height);
+                    // println!(">>> height : {:?}", account_with_proof.account.height);
+                    // println!(">>> key : {:?}", hex::encode(app_account_id.0));
+
                     let public_inputs = NexusRollupPI {
                         nexus_hash: range[0],
-                        state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
+                        state_root: account_with_proof.nexus_header.state_root,
                         //TODO: remove unwrap
                         height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| {
@@ -186,8 +194,10 @@ async fn main() -> Result<(), Error> {
                         }),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ADAPTER_ID),
-                        rollup_hash: Some(H256::zero()),
+                        rollup_hash: Some(H256::from(header.state_root.as_fixed_bytes().clone())),
                     };
+
+                    // println!(">>> public inputs: {:?}", public_inputs);
 
                     let public_input_vec = match to_vec(&public_inputs) {
                         Ok(i) => i,
@@ -210,6 +220,9 @@ async fn main() -> Result<(), Error> {
                         }
                     };
 
+                    // println!(">>> public inputs : {:?}", hex::encode(prove_info.receipt.clone().journal.bytes));
+                    // println!(">>> proof : {:?}", hex::encode(encode_seal(&prove_info.receipt).unwrap()));
+
                     let recursive_proof = RiscZeroProof(prove_info.receipt);
 
                     let tx = Transaction {
@@ -227,7 +240,7 @@ async fn main() -> Result<(), Error> {
                                 }
                             },
                             height: public_inputs.height,
-                            data: None,
+                            data: public_inputs.rollup_hash,
                         }),
                     };
 
@@ -258,7 +271,7 @@ async fn main() -> Result<(), Error> {
             }
         }
 
-        println!("Sleeping for 10 seconds");
+        println!("Sleeping for 10 seconds\n\n\n");
         tokio::time::sleep(Duration::from_secs(10)).await;
         // Persist adapter state data to the database
         db.put(
