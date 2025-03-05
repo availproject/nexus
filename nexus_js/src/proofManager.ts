@@ -5,6 +5,7 @@ const proofManagerAbi = require("./abi/proofManager.json");
 
 import { Provider } from "zksync-ethers";
 import { AccountState } from "./types/index.js";
+import { NexusHeader} from "./types/index.js";
 import { hexlify } from "ethers";
 
 class ProofManagerClient {
@@ -27,11 +28,14 @@ class ProofManagerClient {
     blockNumber: number,
     stateHash: string,
     blockHash: string,
-    proof: string
+    proof: string,
+    nexus_header: NexusHeader
   ) {
     const response = await this.proofManager.updateNexusBlock(blockNumber, {
       stateRoot: stateHash,
       blockHash,
+      proof,
+      nexusHeader: nexus_header,
     });
   }
 

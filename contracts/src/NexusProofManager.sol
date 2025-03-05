@@ -2,9 +2,14 @@
 pragma solidity ^0.8.21;
 
 import {JellyfishMerkleTreeVerifier} from "./lib/JellyfishMerkleTreeVerifier.sol";
+import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
+import {ImageID} from "./GethImageID.sol"; // auto-generated from cargo-build
+import {JournalExtractor} from "./lib/JournalExtractor.sol";
 
 contract NexusProofManager {
     uint256 public latestNexusBlockNumber = 0;
+    RiscZeroVerifierRouter public immutable risc0Router;
+    bytes32 public constant imageId = ImageID.ADAPTER_ID; // added for the auto-generated contract
 
     struct NexusBlock {
         bytes32 stateRoot;
@@ -27,17 +32,26 @@ contract NexusProofManager {
         uint128 height;
     }
 
+    constructor(address _risc0Router) {
+        risc0Router = RiscZeroVerifierRouter(_risc0Router);
+    }
+
     // nexus state root
     // updated when we verify the zk proof and then st block updated
-    function updateNexusBlock(
-        uint256 blockNumber,
-        NexusBlock calldata nexusBlockInfo
-    ) external {
+    function updateNexusBlock(uint256 blockNumber, bytes calldata proof, bytes calldata journal) external {
         if (nexusBlock[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
         }
-        nexusBlock[blockNumber] = nexusBlockInfo;
-        // TODO: verify a zk proof from nexus
+
+        JournalExtractor.Journal memory journalStruct = JournalExtractor.extractJournal(journal);
+
+        nexusBlock[blockNumber] = NexusBlock({stateRoot: journalStruct.stateRoot, blockHash: journalStruct.nexusHash});
+
+        risc0Router.verify(
+            proof, // bytes calldata seal
+            imageId, // bytes32 ImageID
+            sha256(journal) // bytes32 JournalDigest
+        );
 
         if (blockNumber > latestNexusBlockNumber) {
             latestNexusBlockNumber = blockNumber;
@@ -59,17 +73,11 @@ contract NexusProofManager {
                 accountState.height
             )
         );
-        JellyfishMerkleTreeVerifier.Leaf
-            memory leaf = JellyfishMerkleTreeVerifier.Leaf({
-                addr: key,
-                valueHash: valueHash
-            });
+        JellyfishMerkleTreeVerifier.Leaf memory leaf =
+            JellyfishMerkleTreeVerifier.Leaf({addr: key, valueHash: valueHash});
 
-        JellyfishMerkleTreeVerifier.Proof
-            memory proof = JellyfishMerkleTreeVerifier.Proof({
-                leaf: leaf,
-                siblings: siblings
-            });
+        JellyfishMerkleTreeVerifier.Proof memory proof =
+            JellyfishMerkleTreeVerifier.Proof({leaf: leaf, siblings: siblings});
 
         verifyRollupState(nexusBlock[nexusBlockNumber].stateRoot, proof, leaf);
 
@@ -90,10 +98,7 @@ contract NexusProofManager {
         }
     }
 
-    function getChainState(
-        uint256 blockNumber,
-        bytes32 nexusAppID
-    ) external view returns (bytes32) {
+    function getChainState(uint256 blockNumber, bytes32 nexusAppID) external view returns (bytes32) {
         uint256 latestBlockNumber = nexusAppIDToLatestBlockNumber[nexusAppID];
         if (blockNumber == 0) {
             return nexusAppIDToState[nexusAppID][latestBlockNumber];

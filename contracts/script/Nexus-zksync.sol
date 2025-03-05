@@ -12,6 +12,7 @@ import {IZKSyncNexusManagerRouter} from "../src/verification/zksync/StorageProof
 import {INexusProofManager} from "../src/interfaces/INexusProofManager.sol";
 import {VerifierInfo} from "../src/interfaces/INexusMailbox.sol";
 import {INexusVerifierWrapper} from "../src/interfaces/INexusVerifierWrapper.sol";
+import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
 
 contract NexusDeployment is Script {
     struct NetworkConfig {
@@ -34,32 +35,27 @@ contract NexusDeployment is Script {
 
         // Parse privateKey
         string memory privateKeyPath = string.concat(basePath, ".privateKey");
-        config.deployerPrivateKey = abi.decode(
-            vm.parseJson(jsonConfig, privateKeyPath),
-            (uint256)
-        );
+        config.deployerPrivateKey = abi.decode(vm.parseJson(jsonConfig, privateKeyPath), (uint256));
 
         // Parse appId
         string memory appIdPath = string.concat(basePath, ".appId");
-        bytes32 appIdUint = abi.decode(
-            vm.parseJson(jsonConfig, appIdPath),
-            (bytes32)
-        );
+        bytes32 appIdUint = abi.decode(vm.parseJson(jsonConfig, appIdPath), (bytes32));
         config.appId = appIdUint;
 
         string memory appId2Path = string.concat(basePath, ".appId2");
-        bytes32 appId2Uint = abi.decode(
-            vm.parseJson(jsonConfig, appId2Path),
-            (bytes32)
-        );
+        bytes32 appId2Uint = abi.decode(vm.parseJson(jsonConfig, appId2Path), (bytes32));
         config.appId2 = appId2Uint;
     }
 
     function run() public {
         vm.startBroadcast(config.deployerPrivateKey);
 
+        // Deploy Verifier
+        RiscZeroVerifierRouter risc0Router = new RiscZeroVerifierRouter(msg.sender);
+        // TODO : add logic for adding the verifier to the router.
+
         // Deploy NexusProofManager
-        NexusProofManager nexusManager = new NexusProofManager();
+        NexusProofManager nexusManager = new NexusProofManager(address(risc0Router));
         console.log("NexusProofManager deployed to: ", address(nexusManager));
 
         // Deploy and initialize NexusMailbox
@@ -68,19 +64,15 @@ contract NexusDeployment is Script {
         console.log("Mailbox deployed to: ", address(mailbox));
 
         // Deploy ZKSyncNexusManagerRouter
-        ZKSyncNexusManagerRouter zksyncdiamond = new ZKSyncNexusManagerRouter(
-            INexusProofManager(address(nexusManager)),
-            config.appId2
-        );
+        ZKSyncNexusManagerRouter zksyncdiamond =
+            new ZKSyncNexusManagerRouter(INexusProofManager(address(nexusManager)), config.appId2);
 
         // Deploy SparseMerkleTree
         SparseMerkleTree sparseMerkleTree = new SparseMerkleTree();
 
         // Deploy VerifierWrapper
-        VerifierWrapper verifierWrapper = new VerifierWrapper(
-            IZKSyncNexusManagerRouter(address(zksyncdiamond)),
-            sparseMerkleTree
-        );
+        VerifierWrapper verifierWrapper =
+            new VerifierWrapper(IZKSyncNexusManagerRouter(address(zksyncdiamond)), sparseMerkleTree);
 
         console.log("Verifer deployed to : ", address(verifierWrapper));
         // Add or update wrapper in mailbox
