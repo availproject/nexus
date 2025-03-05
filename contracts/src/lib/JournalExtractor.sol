@@ -2,7 +2,6 @@
 pragma solidity ^0.8.21;
 
 library JournalExtractor {
-
     // Taken from (NexusRollupPI) :
     // https://github.com/availproject/nexus/blob/441dad65a4d617f4d262159aca2b4c6873dd7f5c/core/src/types.rs#L110
     struct Journal {
@@ -15,7 +14,7 @@ library JournalExtractor {
         bytes32 rollupHash;
     }
 
-    function extractJournal(bytes calldata journal) public pure returns(Journal memory) {
+    function extractJournal(bytes calldata journal) public pure returns (Journal memory) {
         // For nexusHash (first 256 bytes, extracting first byte from each 4-byte chunk)
         bytes32 nexusHash = 0;
         for (uint256 i = 0; i < 32; i++) {

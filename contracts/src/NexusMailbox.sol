@@ -43,14 +43,8 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @param chainblockNumber The block number from the source chain
     /// @param receipt The message receipt containing all message details
     /// @param proof The proof verifying the authenticity of the message
-    function receiveMessage(
-        uint256 chainblockNumber,
-        MailboxMessage calldata receipt,
-        bytes calldata proof
-    ) public {
-        VerifierInfo memory verifierInfo = verifierWrappers[
-            receipt.nexusAppIDFrom
-        ];
+    function receiveMessage(uint256 chainblockNumber, MailboxMessage calldata receipt, bytes calldata proof) public {
+        VerifierInfo memory verifierInfo = verifierWrappers[receipt.nexusAppIDFrom];
         if (address(verifierInfo.verifier) == address(0)) {
             revert WrapperNotAvailable();
         }
@@ -62,18 +56,13 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             revert StateAlreadyUpdated();
         }
 
-        verifierInfo.verifier.parseAndVerify(
-            chainblockNumber,
-            receiptHash,
-            proof,
-            verifierInfo.mailboxAddress
-        );
+        verifierInfo.verifier.parseAndVerify(chainblockNumber, receiptHash, proof, verifierInfo.mailboxAddress);
         verifiedMessages[receiptHash] = receipt;
 
         address to = search(receipt.nexusAppIDTo, receipt.to);
 
         if (to != address(0)) {
-            (bool success, ) = to.call(
+            (bool success,) = to.call(
                 abi.encodeWithSignature(
                     "onNexusMessage(bytes32,address,bytes,uint256)",
                     receipt.nexusAppIDFrom,
@@ -94,12 +83,9 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @param to Array of destination addresses
     /// @param nonce The message nonce
     /// @param data The message payload
-    function sendMessage(
-        bytes32[] memory nexusAppIDTo,
-        address[] memory to,
-        uint256 nonce,
-        bytes calldata data
-    ) public {
+    function sendMessage(bytes32[] memory nexusAppIDTo, address[] memory to, uint256 nonce, bytes calldata data)
+        public
+    {
         //TODO: Check why the address and appId length should match.
         if (nexusAppIDTo.length != to.length) {
             revert InvalidParameters();
@@ -126,32 +112,20 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         messages[receiptHash] = true;
         sendMessages[receiptHash] = receipt;
 
-        emit MailboxEvent(
-            nexusAppID,
-            nexusAppIDTo,
-            data,
-            msg.sender,
-            to,
-            nonce,
-            receiptHash
-        );
+        emit MailboxEvent(nexusAppID, nexusAppIDTo, data, msg.sender, to, nonce, receiptHash);
     }
 
     /// @notice Retrieves the details of a sent message
     /// @param receiptHash The hash of the message receipt
     /// @return The full message details
-    function getSendMessage(
-        bytes32 receiptHash
-    ) public view returns (MailboxMessage memory) {
+    function getSendMessage(bytes32 receiptHash) public view returns (MailboxMessage memory) {
         return sendMessages[receiptHash];
     }
 
     /// @notice Retrieves a verified message receipt
     /// @param receiptHash The hash of the message receipt
     /// @return The verified message details
-    function getVerifiedMessage(
-        bytes32 receiptHash
-    ) public view returns (MailboxMessage memory) {
+    function getVerifiedMessage(bytes32 receiptHash) public view returns (MailboxMessage memory) {
         return verifiedMessages[receiptHash];
     }
 
@@ -161,12 +135,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @param to Array of addresses to sort in parallel
     /// @param left The leftmost index of the sort range
     /// @param right The rightmost index of the sort range
-    function quickSort(
-        bytes32[] memory nexusAppIDTo,
-        address[] memory to,
-        int256 left,
-        int256 right
-    ) internal pure {
+    function quickSort(bytes32[] memory nexusAppIDTo, address[] memory to, int256 left, int256 right) internal pure {
         int256 i = left;
         int256 j = right;
         if (i == j) return;
@@ -175,14 +144,9 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
             while (nexusAppIDTo[uint256(i)] < pivot) i++;
             while (pivot < nexusAppIDTo[uint256(j)]) j--;
             if (i <= j) {
-                (nexusAppIDTo[uint256(i)], nexusAppIDTo[uint256(j)]) = (
-                    nexusAppIDTo[uint256(j)],
-                    nexusAppIDTo[uint256(i)]
-                );
-                (to[uint256(i)], to[uint256(j)]) = (
-                    to[uint256(j)],
-                    to[uint256(i)]
-                );
+                (nexusAppIDTo[uint256(i)], nexusAppIDTo[uint256(j)]) =
+                    (nexusAppIDTo[uint256(j)], nexusAppIDTo[uint256(i)]);
+                (to[uint256(i)], to[uint256(j)]) = (to[uint256(j)], to[uint256(i)]);
                 i++;
                 j--;
             }
@@ -200,10 +164,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @param nexusAppIDTo Array of Nexus application IDs to search
     /// @param to Array of addresses corresponding to the application IDs
     /// @return The matching address or address(0) if not found
-    function search(
-        bytes32[] memory nexusAppIDTo,
-        address[] memory to
-    ) internal view returns (address) {
+    function search(bytes32[] memory nexusAppIDTo, address[] memory to) internal view returns (address) {
         if (nexusAppIDTo.length == 0) {
             return (address(0));
         }
@@ -232,10 +193,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @dev This function can reset a verifier wrapper back to address(0)
     /// @param nexusAppIDFrom The chain ID to set the wrapper for
     /// @param verifierInfo The verifier wrapper contract address
-    function addOrUpdateWrapper(
-        bytes32 nexusAppIDFrom,
-        VerifierInfo memory verifierInfo
-    ) public onlyOwner {
+    function addOrUpdateWrapper(bytes32 nexusAppIDFrom, VerifierInfo memory verifierInfo) public onlyOwner {
         verifierWrappers[nexusAppIDFrom] = verifierInfo;
     }
 }

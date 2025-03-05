@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.21;
+
 import {INexusVerifierWrapper} from "./INexusVerifierWrapper.sol";
 
 struct MailboxMessage {
@@ -27,16 +28,8 @@ interface INexusMailbox {
         bytes32 receiptHash
     );
 
-    function receiveMessage(
-        uint256 chainblockNumber,
-        MailboxMessage calldata,
-        bytes calldata proof
-    ) external;
+    function receiveMessage(uint256 chainblockNumber, MailboxMessage calldata, bytes calldata proof) external;
 
-    function sendMessage(
-        bytes32[] memory nexusAppIdTo,
-        address[] memory to,
-        uint256 nonce,
-        bytes calldata data
-    ) external;
+    function sendMessage(bytes32[] memory nexusAppIdTo, address[] memory to, uint256 nonce, bytes calldata data)
+        external;
 }
