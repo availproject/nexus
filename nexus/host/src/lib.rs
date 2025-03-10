@@ -1,4 +1,7 @@
 use anyhow::{anyhow, Context, Error};
+use avail_rust::prelude::SDK;
+use avail_rust::Keypair;
+use avail_rust::{da_commitments::DaCommitmentBuilder, error::ClientError, prelude::*};
 pub use avail_subxt::Header;
 use jmt::storage::TreeUpdateBatch;
 use nexus_core::{
@@ -18,6 +21,7 @@ use nexus_core::{
     },
 };
 use serde_json;
+use sp_runtime::MultiSigner;
 use std::{collections::HashMap, mem, thread};
 use tokio::fs;
 use tracing::{debug, error, info, instrument};
@@ -39,8 +43,12 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::{env::args, fmt::Debug as DebugTrait};
 use tokio::sync::{mpsc::UnboundedReceiver, watch, Mutex};
+//use avail_rust::
 use tokio::time::{sleep, Duration};
 use warp::Filter;
+
+type DataSubmissionWithCommitmentsCall =
+    avail::data_availability::calls::types::SubmitDataWithCommitments;
 
 pub mod rpc;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -59,6 +67,105 @@ pub fn setup_components(db_path: &str) -> (Arc<Mutex<NodeDB>>, Arc<Mutex<VmState
     let state = Arc::new(Mutex::new(VmState::new(&runtime_db_path)));
 
     (Arc::new(Mutex::new(node_db)), state)
+}
+
+pub async fn submit_data(
+    data: Vec<u8>,
+    sdk: &SDK,
+    signer: Keypair,
+    app_id: u32,
+) -> Result<(), anyhow::Error> {
+    //let account = account::bob();
+    let commitments = DaCommitmentBuilder::new(data.clone())
+        .build()
+        .map_err(|e| anyhow!("Failed to build DA commitments: {:?}", e))?;
+
+    let options = Options::new().app_id(app_id);
+    let tx = sdk
+        .tx
+        .data_availability
+        .submit_data_with_commitments(data, commitments);
+    let res = tx
+        .execute_and_watch_inclusion(&signer, options)
+        .await
+        .map_err(|e| anyhow!("Failed to execute and watch transaction: {:?}", e))?;
+    assert_eq!(
+        res.is_successful(),
+        Some(true),
+        "Transactions must be successful"
+    );
+
+    println!(
+        "Block Hash: {:?}, Block Number: {}, Tx Hash: {:?}, Tx Index: {}",
+        res.block_hash, res.block_number, res.tx_hash, res.tx_index
+    );
+
+    // Events
+    let events = res
+        .events
+        .as_ref()
+        .ok_or_else(|| anyhow!("No events found in response"))?;
+    for event in events.iter() {
+        let tx_index = match event.phase() {
+            subxt::events::Phase::ApplyExtrinsic(x) => Some(x),
+            _ => None,
+        };
+
+        println!(
+            "Pallet Name: {}, Pallet Index: {}, Event Name: {}, Event Index: {}, Event Position: {}, Tx Index: {:?}",
+            event.pallet_name(),
+            event.pallet_index(),
+            event.variant_name(),
+            event.variant_index(),
+            event.index(),
+            tx_index,
+        );
+    }
+
+    // Decoding
+    let decoded = res
+        .decode_as::<DataSubmissionWithCommitmentsCall>()
+        .await
+        .map_err(|e| anyhow!("Failed to decode transaction response: {:?}", e))?;
+    let Some(decoded) = decoded else {
+        return Err(anyhow!("Failed to get Data Submission Call data"));
+    };
+
+    let data = to_ascii(decoded.data.0).expect("Failed to convert data to ASCII:");
+    println!("Call data: {:?}", data);
+
+    println!("Data Submission with commitments completed correctly");
+
+    Ok(())
+}
+
+pub async fn start_sequencer(
+    mempool: Mempool,
+    mut shutdown_rx: watch::Receiver<bool>,
+    ws_url: &str,
+) -> () {
+    loop {
+        if *shutdown_rx.borrow() {
+            info!("Shutdown signal received. Stopping sequencer...");
+            break;
+        }
+
+        let account = account::alice();
+        let app_id = 1;
+
+        let sdk = SDK::new(ws_url).await.unwrap();
+
+        let (txs, index) = mempool.get_current_txs().await;
+
+        let blob: &[u8] = &bincode::serialize(&txs).unwrap();
+
+        let result = submit_data(blob.to_vec(), &sdk, account, app_id).await;
+
+        match result {
+            Ok(_) => info!("Data submitted successfully"),
+            Err(e) => error!(error = ?e, "Data submission failed"),
+        };
+    }
 }
 
 pub async fn relayer_handle(
