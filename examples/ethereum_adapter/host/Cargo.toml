@@ -10,26 +10,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenv = "0.15.0"
 clap = "4.5.9"
 env_logger = "0.11.3"
-tokio = "1.36.0"
+tokio = "1.38.0"
 serde = { workspace = true }
 serde_cbor = "0.11.2"
 log = "0.4.22"
-#helios = { git = "https://github.com/a16z/helios", version = "0.8.3" }
-helios-consensus-core = { git = "https://github.com/a16z/helios", version = "0.8.1" }
-helios-ethereum = { git = "https://github.com/a16z/helios", version = "0.8.1" }
-tree_hash = "0.9.0"
-alloy = { version = "0.9.1", features = [
-    "rpc-types",
-    "consensus",
-    "rlp",
-    "k256",
-    "provider-http",
-    "sol-types",
-    "network",
-    "ssz",
-    "json-rpc",
-    "signers",
-] }
+helios-consensus-core = { workspace = true }
+helios-ethereum = { workspace = true }
+tree_hash = { workspace = true }
+alloy-primitives = "0.8.15"
 anyhow = { workspace = true }
 cargo_metadata = "0.18"
 reqwest = { workspace = true }

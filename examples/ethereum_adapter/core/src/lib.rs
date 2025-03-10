@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use alloy::primitives::B256;
+use alloy_primitives::B256;
 use helios_consensus_core::consensus_spec::MainnetConsensusSpec;
 use helios_consensus_core::types::{LightClientStore, Update};
 use serde::Serialize;

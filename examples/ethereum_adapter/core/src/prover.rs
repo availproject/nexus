@@ -1,3 +1,4 @@
+use alloy_primitives::B256;
 use crate::check_private_inputs;
 use crate::types::ProofInputs;
 use helios_consensus_core::{apply_finality_update, apply_update, verify_finality_update, verify_update};
@@ -5,7 +6,6 @@ use nexus_core::types::{AppAccountId, NexusRollupPI, StatementDigest, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
 use nexus_core::zkvm::traits::ZKVMEnv;
 use tree_hash::TreeHash;
-use alloy::primitives::B256;
 
 pub fn run<Z: ZKVMEnv>() {
     let inputs: Vec<u8> = Z::read_input::<Vec<u8>>().unwrap();
@@ -49,8 +49,7 @@ pub fn run<Z: ZKVMEnv>() {
             expected_current_slot,
         );
 
-        // let update_is_valid = verify_update(update, expected_current_slot, &store, genesis_root, &forks).is_ok();
-        let update_is_valid = true;
+        let update_is_valid = verify_update(update, expected_current_slot, &store, genesis_root, &forks).is_ok();
         
         if !update_is_valid {
             println!("⚠️Update {} is invalid!", index + 1);
