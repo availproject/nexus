@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="EMPTY_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/adapter_sdk/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/demo_rollup/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/demo_rollup/host/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/demo_rollup/methods/guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/demo_rollup/methods/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/ethereum_adapter/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/ethereum_adapter/host/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/ethereum_adapter/methods/risc0-guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/ethereum_adapter/methods/sp1-guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/ethereum_adapter/methods/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/mock_geth_adapter/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/mock_geth_adapter/host/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/mock_geth_adapter/methods/guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/mock_geth_adapter/methods/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/zksync_adapter/bench/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/zksync_adapter/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/zksync_adapter/host/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/zksync_adapter/host/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/zksync_adapter/methods/risc0-guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/zksync_adapter/methods/sp1-guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/zksync_adapter/methods/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus/bench/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus/host/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus/host/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus/prover/risc0-guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus/prover/sp1-guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus/prover/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus_bench_setup/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/nexus_cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/relayer/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

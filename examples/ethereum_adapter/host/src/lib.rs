@@ -1,4 +1,3 @@
-use alloy_primitives::B256;
 use helios_consensus_core::{
     calc_sync_period,
     consensus_spec::MainnetConsensusSpec,
@@ -10,11 +9,10 @@ use helios_ethereum::{
     consensus::Inner,
     rpc::http_rpc::HttpRpc,
 };
-
 use alloy::hex;
 use std::sync::Arc;
+use alloy::primitives::B256;
 use tokio::sync::{mpsc::channel, watch};
-use tree_hash::TreeHash;
 
 pub const MAX_REQUEST_LIGHT_CLIENT_UPDATES: u8 = 128;
 
@@ -34,7 +32,8 @@ pub async fn get_latest_checkpoint() -> B256 {
     let chain_id = std::env::var("SOURCE_CHAIN_ID").expect("SOURCE_CHAIN_ID not set");
     let network = Network::from_chain_id(chain_id.parse().unwrap()).unwrap();
 
-    cf.fetch_latest_checkpoint(&network).await.unwrap()
+    let checkpoint = cf.fetch_latest_checkpoint(&network).await.unwrap();
+    checkpoint
 }
 
 /// Fetch checkpoint from a slot number.
@@ -47,7 +46,7 @@ pub async fn get_checkpoint(slot: u64) -> B256 {
 
     let config = Config {
         consensus_rpc: consensus_rpc.to_string(),
-        execution_rpc: String::new(),
+        execution_rpc: None,
         chain: base_config.chain,
         forks: base_config.forks,
         strict_checkpoint_age: false,
@@ -69,7 +68,7 @@ pub async fn get_checkpoint(slot: u64) -> B256 {
     let block: BeaconBlock<MainnetConsensusSpec> = client.rpc.get_block(slot).await.unwrap();
 
     println!("Got block");
-    B256::from_slice(block.tree_hash_root().as_ref())
+    B256::from_slice(block.state_root.as_slice())
 }
 
 /// Setup a client from a checkpoint.
@@ -81,7 +80,7 @@ pub async fn get_client(checkpoint: B256) -> Inner<MainnetConsensusSpec, HttpRpc
 
     let config = Config {
         consensus_rpc: consensus_rpc.to_string(),
-        execution_rpc: String::new(),
+        execution_rpc: None,
         chain: base_config.chain,
         forks: base_config.forks,
         strict_checkpoint_age: false,
