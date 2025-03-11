@@ -101,26 +101,26 @@ pub async fn submit_data(
     );
 
     // Events
-    let events = res
-        .events
-        .as_ref()
-        .ok_or_else(|| anyhow!("No events found in response"))?;
-    for event in events.iter() {
-        let tx_index = match event.phase() {
-            subxt::events::Phase::ApplyExtrinsic(x) => Some(x),
-            _ => None,
-        };
+    // let events = res
+    //     .events
+    //     .as_ref()
+    //     .ok_or_else(|| anyhow!("No events found in response"))?;
+    // for event in events.iter() {
+    //     let tx_index = match event.phase() {
+    //         subxt::events::Phase::ApplyExtrinsic(x) => Some(x),
+    //         _ => None,
+    //     };
 
-        println!(
-            "Pallet Name: {}, Pallet Index: {}, Event Name: {}, Event Index: {}, Event Position: {}, Tx Index: {:?}",
-            event.pallet_name(),
-            event.pallet_index(),
-            event.variant_name(),
-            event.variant_index(),
-            event.index(),
-            tx_index,
-        );
-    }
+    //     println!(
+    //         "Pallet Name: {}, Pallet Index: {}, Event Name: {}, Event Index: {}, Event Position: {}, Tx Index: {:?}",
+    //         event.pallet_name(),
+    //         event.pallet_index(),
+    //         event.variant_name(),
+    //         event.variant_index(),
+    //         event.index(),
+    //         tx_index,
+    //     );
+    // }
 
     // Decoding
     let decoded = res
@@ -131,7 +131,10 @@ pub async fn submit_data(
         return Err(anyhow!("Failed to get Data Submission Call data"));
     };
 
-    let data = to_ascii(decoded.data.0).expect("Failed to convert data to ASCII:");
+    let data = match to_ascii(decoded.data.0) {
+        Some(i) => Ok(i),
+        None => Err(anyhow!("Failed to convert data to ASCII:")),
+    }?;
     println!("Call data: {:?}", data);
 
     println!("Data Submission with commitments completed correctly");
@@ -163,7 +166,15 @@ pub async fn start_sequencer(
 
         match result {
             Ok(_) => info!("Data submitted successfully"),
-            Err(e) => error!(error = ?e, "Data submission failed"),
+            Err(e) => {
+                error!(error = ?e, "Data submission failed");
+
+                break;
+            }
+        };
+
+        if let Some(i) = index {
+            mempool.clear_upto_tx(i.clone()).await;
         };
     }
 }
