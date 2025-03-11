@@ -192,7 +192,10 @@ async fn request_update<'a>(
     nexus_api: &NexusAPI,
     start_nexus_hash: H256,
     guest_id: [u32; 8],
-    prover: Arc<Mutex<Prover>>
+    #[cfg(feature = "sp1")]
+    prover: Arc<Mutex<Prover>>,
+    #[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
+    prover: Arc<Mutex<Prover<'a>>>,
 ) -> Result<Option<(NexusRollupPI, Proof)>, anyhow::Error> {
     // Setup client.
     let mut sync_committee_updates = get_updates(&client).await;
