@@ -40,7 +40,9 @@ use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts, Receipt, ReceiptKind};
 
 #[cfg(any(feature = "sp1"))]
 use sp1_sdk::utils;
-
+use tracing::{debug, error, info, instrument, span, Level};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::{fmt, EnvFilter};
 use ethereum_core::create_proof;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -54,31 +56,75 @@ async fn main() {
     #[cfg(any(feature = "sp1"))]
     utils::setup_logger();
 
+    #[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
+    {
+        // Setting up tracing
+        fmt()
+            .with_env_filter(
+                EnvFilter::from_default_env()
+                    .add_directive("ethereum_adapter=info".parse().unwrap_or_else(|e| {
+                        eprintln!("Error parsing directive 'ethereum_adapter=info': {:?}", e);
+                        LevelFilter::INFO.into()
+                    }))
+                    .add_directive("info".parse().unwrap_or_else(|e| {
+                        eprintln!("Error parsing directive 'info': {:?}", e);
+                        LevelFilter::INFO.into()
+                    }))
+            )
+            .with_thread_names(false)
+            .with_target(false)
+            .with_file(false)
+            .with_line_number(false)
+            .with_level(true)
+            .with_ansi(true)
+            .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
+            .init();
+        info!("Tracing initialized");
+    }
+
+
     dotenv::dotenv().ok();
-    run(1).await.unwrap();
+
+    info!("Starting Ethereum adapter");
+
+    if let Err(e) = run(1).await {
+        error!("Application error: {}", e);
+    }
 }
 
+#[instrument(skip(loop_delay_mins), err)]
 async fn run(loop_delay_mins: u64) -> Result<(), anyhow::Error> {
     let db = NodeDB::from_path("./db");
+    info!("Database initialized");
 
     let args: Vec<String> = args().collect();
     let dev_flag = args.iter().any(|arg| arg == "--dev");
+    info!(dev_mode = dev_flag, "Runtime configuration");
 
     let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
+    info!(mode = ?prover_mode, "Prover mode set");
 
     #[cfg(feature = "sp1")]
     let ETHEREUM_ADAPTER_ELF: &[u8] = include_bytes!("../../../../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/ethereum-adapter-sp1");
 
     let prover = Prover::new(ETHEREUM_ADAPTER_ELF.to_vec(), prover_mode.clone());
+    info!("Prover initialized");
 
     #[cfg(feature = "sp1")]
-    let ETHEREUM_ADAPTER_ID = prover.vk(); // since sp1 doesn't implements verify method on proof object
+    let ETHEREUM_ADAPTER_ID = prover.vk();
+    debug!(adapter_id = ?ETHEREUM_ADAPTER_ID, "Adapter ID");
 
     let mutable_prover = Arc::new(Mutex::new(prover));
 
+    // Trace adapter state retrieval
+    let span = span!(Level::INFO, "adapter_state_retrieval");
+    let _enter = span.enter();
+
     let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state")? {
+        info!(last_height = data.last_height, "Loaded existing adapter state");
         data
     } else {
+        info!("No existing state found, initializing with defaults");
         // Initialize with default values if no data found in the database
         let adapter_config = AdapterConfig {
             app_id: AppId(1),
@@ -91,29 +137,60 @@ async fn run(loop_delay_mins: u64) -> Result<(), anyhow::Error> {
         };
         AdapterStateData { last_height: 0, adapter_config }
     };
+    drop(_enter);
 
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
+    info!("Nexus API initialized");
 
     loop {
+        let span = span!(Level::INFO, "consensus_update_loop");
+        let _enter = span.enter();
+
+        info!("Starting new update cycle");
+
         let (previous_pi_and_proof) = db.get::<(NexusRollupPI, Proof)>(b"last_proof")?;
 
         let last_head: u64 = match previous_pi_and_proof.as_ref() {
-            Some(i) => i.0.height.into(),
-            None => 7158336,
+            Some(i) => {
+                info!(head = i.0.height, "Using previous proof head");
+                i.0.height.into()
+            }
+            None => {
+                info!(head = 7158336, "No previous proof, using genesis head");
+                7158336
+            }
         };
 
         //Get checkpoint at the last head we have proof for.
+        debug!(head = last_head, "Fetching checkpoint");
         let checkpoint = get_checkpoint(last_head).await;
+        debug!("Checkpoint fetched");
 
         //Get the client from the checkpoint.
+        debug!("Initializing client from checkpoint");
         let client = get_client(checkpoint).await;
+        debug!("Client initialized");
 
-        let start_nexus_hash = init_account(
+        debug!("Initializing account");
+        let start_nexus_hash = match init_account(
             adapter_state_data.clone(),
             nexus_api.clone(),
             ETHEREUM_ADAPTER_ID,
-        )
-        .await?;
+        ).await {
+            Ok(hash) => {
+                info!(hash = ?hash, "Account initialized");
+                hash
+            },
+            Err(e) => {
+                error!(error = %e, "Failed to initialize account");
+                return Err(e);
+            }
+        };
+
+        info!(
+            last_head = last_head,
+            "Requesting update"
+        );
 
         match request_update(
             client,
@@ -125,38 +202,64 @@ async fn run(loop_delay_mins: u64) -> Result<(), anyhow::Error> {
             ETHEREUM_ADAPTER_ID,
             mutable_prover.clone()
         )
-        .await
+            .await
         {
             Ok(Some((journal, receipt))) => {
+                info!(
+                    height = journal.height,
+                    state_root = ?journal.state_root,
+                    "Successfully generated proof"
+                );
                 db.put(b"last_proof", &(journal, receipt)).unwrap();
+                info!("Stored proof in database");
             }
-            Ok(None) => {}
+            Ok(None) => {
+                info!("No updates required");
+            }
             Err(e) => {
-                println!("Error: {}", e);
+                error!(error = %e, "Failed to request update");
             }
         }
+
+        drop(_enter);
+
+        // Sleep between cycles
+        let sleep_duration = std::time::Duration::from_secs(loop_delay_mins * 60);
+        info!(sleep_mins = loop_delay_mins, "Sleeping until next cycle");
+        tokio::time::sleep(sleep_duration).await;
     }
 }
 
+#[instrument(skip(adapter_state_data, nexus_api), fields(app_id = %adapter_state_data.adapter_config.app_id.0), err)]
 async fn init_account(adapter_state_data: AdapterStateData, nexus_api: NexusAPI, guest_id: [u32; 8]) -> Result<H256, anyhow::Error> {
+    debug!("Getting nexus range");
     let range = match nexus_api.get_range().await {
-        Ok(i) => i,
+        Ok(i) => {
+            debug!(start = ?i[0], end = ?i[1], "Range received");
+            i
+        }
         Err(e) => {
-            println!("{:?}", e);
+            error!(error = %e, "Failed to get range");
             return Err(anyhow!(e));
         }
     };
 
     let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+    debug!(app_account_id = ?app_account_id.as_h256(), "Getting account state");
+
     let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-        Ok(i) => i,
+        Ok(i) => {
+            debug!("Account state received");
+            i
+        }
         Err(e) => {
-            println!("Error: {}", e);
+            error!(error = %e, "Failed to get account state");
             return Err(anyhow!(e));
         }
     };
 
     if account_with_proof.account == AccountState::zero() {
+        info!("Account not initialized, sending init transaction");
         let tx = nexus_core::types::Transaction {
             signature: TxSignature([0u8; 64]),
             params: TxParams::InitAccount(InitAccount {
@@ -165,25 +268,38 @@ async fn init_account(adapter_state_data: AdapterStateData, nexus_api: NexusAPI,
                 start_nexus_hash: range[0],
             }),
         };
+
         match nexus_api.send_tx(tx).await {
             Ok(i) => {
-                println!(
-                    "Initiated account on nexus. AppAccountId: {:?} Response: {:?}",
-                    &app_account_id, i,
+                info!(
+                    response = ?i,
+                    "Account initialized successfully"
                 )
             }
             Err(e) => {
-                println!("Error when initiating account: {:?}", e);
+                error!(error = %e, "Failed to initialize account");
                 return Err(anyhow!(e));
             }
         }
 
         Ok(range[0])
     } else {
+        info!(
+            start_hash = ?account_with_proof.account.start_nexus_hash,
+            "Account already initialized"
+        );
         Ok(H256::from(account_with_proof.account.start_nexus_hash))
     }
 }
 
+#[instrument(
+    skip(client, prev_pi_and_proof, nexus_api, prover, guest_id, start_nexus_hash),
+    fields(
+        head = head,
+        app_id = ?app_id.as_h256(),
+    ),
+    err
+)]
 async fn request_update<'a>(
     mut client: Inner<MainnetConsensusSpec, HttpRpc>,
     head: u64,
@@ -197,29 +313,53 @@ async fn request_update<'a>(
     #[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
     prover: Arc<Mutex<Prover<'a>>>,
 ) -> Result<Option<(NexusRollupPI, Proof)>, anyhow::Error> {
+    debug!("Getting sync committee updates");
     // Setup client.
     let mut sync_committee_updates = get_updates(&client).await;
+    debug!(update_count = sync_committee_updates.len(), "Retrieved sync committee updates");
+
+    debug!("Getting finality update");
     let finality_update = client.rpc.get_finality_update().await.unwrap();
+
     // Check if contract is up to date
     let latest_block = finality_update.finalized_header().beacon().slot;
+    info!(
+        current_head = head,
+        latest_block = latest_block,
+        delta = latest_block as i64 - head as i64,
+        "Checking if update needed"
+    );
+
     if latest_block <= head {
-        println!("We already have proofs till here. Nothing to process.");
+        info!("Already up to date, no proof needed");
         return Ok(None);
     }
 
     if !sync_committee_updates.is_empty() {
-        let nexus_api = NexusAPI::new("http://127.0.0.1:7000");
-
-        let nexus_hash = nexus_api.get_range().await?[0];
-        let next_sync_committee = B256::from_slice(sync_committee_updates[0].next_sync_committee().tree_hash_root().as_ref());
-        println!(
-            "Next sync committee according to host {:?}",
-            next_sync_committee
+        info!(
+            update_count = sync_committee_updates.len(),
+            "Processing sync committee updates"
         );
 
-        //TODO: Check if next_sync_committee matches the PI of previous proof.
+        let nexus_api = NexusAPI::new("http://127.0.0.1:7000");
+
+        debug!("Getting nexus hash");
+        let nexus_hash = nexus_api.get_range().await?[0];
+        debug!(nexus_hash = ?nexus_hash, "Retrieved nexus hash");
+
+        let next_sync_committee = B256::from_slice(sync_committee_updates[0].next_sync_committee().tree_hash_root().as_ref());
+        debug!(
+            next_sync_committee = ?next_sync_committee,
+            "Next sync committee from host"
+        );
+
+        // Trace the proof generation process
+        let span = span!(Level::INFO, "proof_generation");
+        let _enter = span.enter();
 
         let expected_current_slot = client.expected_current_slot();
+        debug!(expected_slot = expected_current_slot, "Current expected slot");
+
         let inputs = ProofInputs {
             sync_committee_updates,
             finality_update,
@@ -229,10 +369,17 @@ async fn request_update<'a>(
             forks: client.config.forks.clone(),
             nexus_hash,
         };
+        debug!("Proof inputs prepared");
 
         let (prev_pi, prev_proof): (Option<NexusRollupPI>, Option<Proof>) = match prev_pi_and_proof {
-            Some(i) => (Some(i.0.clone()), Some(i.1.clone())),
-            None => (None, None),
+            Some(i) => {
+                debug!(prev_height = i.0.height, "Using previous proof");
+                (Some(i.0.clone()), Some(i.1.clone()))
+            },
+            None => {
+                debug!("No previous proof");
+                (None, None)
+            },
         };
 
         let public_input_bytes: Option<Vec<u8>> = {
@@ -253,7 +400,10 @@ async fn request_update<'a>(
             }
         };
 
-        let mut recursive_proof = create_proof::<Prover, Proof>(
+        info!("Creating proof");
+        let proof_start = std::time::Instant::now();
+
+        let mut recursive_proof = match create_proof::<Prover, Proof>(
             prev_proof,
             inputs,
             prev_pi,
@@ -262,12 +412,50 @@ async fn request_update<'a>(
             public_input_bytes,
             start_nexus_hash,
             prover
-        )?;
+        ) {
+            Ok(proof) => {
+                let duration = proof_start.elapsed();
+                info!(
+                    duration_ms = duration.as_millis(),
+                    "Proof created successfully"
+                );
+                proof
+            },
+            Err(e) => {
+                error!(error = %e, "Failed to create proof");
+                return Err(e);
+            }
+        };
 
-        // extract the receipt.
-        let prover_public_input: NexusRollupPI = recursive_proof.public_inputs()?;
+        // extract the receipt
+        let prover_public_input: NexusRollupPI = match recursive_proof.public_inputs::<NexusRollupPI>() {
+            Ok(pi) => {
+                debug!(
+                    height = pi.height,
+                    state_root = ?pi.state_root,
+                    rollup_hash = ?pi.rollup_hash,
+                    "Extracted public inputs"
+                );
+                pi
+            },
+            Err(e) => {
+                error!(error = %e, "Failed to extract public inputs");
+                return Err(anyhow!(e));
+            }
+        };
 
-        // Send proof to avail nexus
+        drop(_enter);
+
+        // Submit proof to nexus
+        let span = span!(Level::INFO, "proof_submission");
+        let _enter = span.enter();
+
+        info!(
+            height = prover_public_input.height,
+            state_root = ?prover_public_input.state_root,
+            "Submitting proof to nexus"
+        );
+
         let tx = nexus_core::types::Transaction {
             signature: TxSignature([0u8; 64]),
             params: TxParams::SubmitProof(SubmitProof {
@@ -277,7 +465,7 @@ async fn request_update<'a>(
                 proof: match recursive_proof.clone().try_into() {
                     Ok(i) => i,
                     Err(e) => {
-                        println!("Unable to serialise proof: {:?}", e);
+                        error!(error = ?e, "Failed to serialize proof");
                         return Err(anyhow!("Unable to serialise proof"));
                     }
                 },
@@ -288,18 +476,27 @@ async fn request_update<'a>(
 
         match nexus_api.send_tx(tx).await {
             Ok(i) => {
-                println!(
-                    "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
-                    &app_id, i, prover_public_input.state_root
+                info!(
+                    response = ?i,
+                    state_root = ?prover_public_input.state_root,
+                    "Proof submitted successfully"
                 )
             }
             Err(e) => {
-                println!("Error when submitting proof: {:?}", e);
+                error!(error = %e, "Failed to submit proof");
                 return Err(anyhow!(e));
             }
         }
 
+        drop(_enter);
+
+        info!(
+            height = prover_public_input.height,
+            "Update cycle completed successfully"
+        );
         return Ok(Some((prover_public_input, recursive_proof)));
+    } else {
+        info!("No sync committee updates available");
     }
 
     Ok(None)

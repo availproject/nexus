@@ -52,11 +52,11 @@ pub fn run<Z: ZKVMEnv>() {
         let update_is_valid = verify_update(update, expected_current_slot, &store, genesis_root, &forks).is_ok();
         
         if !update_is_valid {
-            println!("⚠️Update {} is invalid!", index + 1);
-        } else {
-            let checkpoint = apply_update(&mut store, update);
-            println!("Update {} is valid. checkpoint : {:?}", index + 1, checkpoint);
+            panic!("⚠️Update {} is invalid!", index + 1);
         }
+
+        let checkpoint = apply_update(&mut store, update);
+        println!("Update {} is valid. checkpoint : {:?}", index + 1, checkpoint);
     }
 
     // 2. Apply finality update
@@ -69,11 +69,11 @@ pub fn run<Z: ZKVMEnv>() {
     )
     .is_ok();
     if !finality_update_is_valid {
-        println!("🚨 Finality update is invalid! Skipping finality update.");
-    } else {
-        println!("✅ Finality update is valid.");
-        apply_finality_update(&mut store, &finality_update);
+        panic!("🚨 Finality update is invalid! Skipping finality update.");
     }
+
+    println!("✅ Finality update is valid.");
+    apply_finality_update(&mut store, &finality_update);
 
     // 3. Commit new state root, header, and sync committee for usage in the on-chain contract
     let header: B256 = store.finalized_header.beacon().tree_hash_root();
