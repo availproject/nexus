@@ -1,6 +1,6 @@
+use alloy_primitives::B256;
 use crate::check_private_inputs;
 use crate::types::ProofInputs;
-use alloy_primitives::B256;
 use helios_consensus_core::{apply_finality_update, apply_update, verify_finality_update, verify_update};
 use nexus_core::types::{AppAccountId, NexusRollupPI, StatementDigest, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
@@ -50,12 +50,13 @@ pub fn run<Z: ZKVMEnv>() {
         );
 
         let update_is_valid = verify_update(update, expected_current_slot, &store, genesis_root, &forks).is_ok();
-
+        
         if !update_is_valid {
-            panic!("Update {} is invalid!", index + 1);
+            panic!("⚠️Update {} is invalid!", index + 1);
         }
-        println!("Update {} is valid.", index + 1);
-        apply_update(&mut store, update);
+
+        let checkpoint = apply_update(&mut store, update);
+        println!("Update {} is valid. checkpoint : {:?}", index + 1, checkpoint);
     }
 
     // 2. Apply finality update
@@ -68,10 +69,10 @@ pub fn run<Z: ZKVMEnv>() {
     )
     .is_ok();
     if !finality_update_is_valid {
-        panic!("Finality update is invalid!");
+        panic!("🚨 Finality update is invalid! Skipping finality update.");
     }
-    println!("Finality update is valid.");
 
+    println!("✅ Finality update is valid.");
     apply_finality_update(&mut store, &finality_update);
 
     // 3. Commit new state root, header, and sync committee for usage in the on-chain contract

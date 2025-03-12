@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
-use alloy_primitives::private::serde::Serialize;
 use alloy_primitives::B256;
 use helios_consensus_core::consensus_spec::MainnetConsensusSpec;
 use helios_consensus_core::types::{LightClientStore, Update};
+use serde::Serialize;
 use nexus_core::types::Proof as NexusProof;
 use nexus_core::types::{AppAccountId, NexusRollupPI, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
@@ -73,7 +73,7 @@ pub fn check_private_inputs<Z: ZKVMEnv>(
     if let Some(prev_pi) = prev_pi_option {
         let previous_rollup_hash = prev_pi.rollup_hash.expect("Rollup hash to be stored");
         //TODO: Check if this update verification is necessary, as proof already has this next_sync_committee hash, which means this update should have been applied.
-        let start_sync_committee_hash = first_update.next_sync_committee.tree_hash_root();
+        let start_sync_committee_hash = first_update.next_sync_committee().tree_hash_root();
         if <u32 as Into<u64>>::into(prev_pi.height) != prev_head {
             panic!("Height mismatch!");
         }

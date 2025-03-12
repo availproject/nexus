@@ -1,5 +1,4 @@
 use alloy_primitives::B256;
-use alloy_sol_types::sol;
 use helios_consensus_core::consensus_spec::MainnetConsensusSpec;
 use helios_consensus_core::types::Forks;
 use helios_consensus_core::types::{FinalityUpdate, LightClientStore, Update};

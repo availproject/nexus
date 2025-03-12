@@ -6,13 +6,12 @@ version.workspace = true
 [dependencies]
 adapter_sdk = { path = "../../../adapter_sdk", default-features = false, optional = true }
 nexus-core = { path = "../../../core", default-features = false, optional = true }
-alloy-primitives = { workspace = true }
-helios-consensus-core = { workspace = true }
 anyhow = { workspace = true }
+helios-consensus-core = { workspace = true }
 tree_hash = { workspace = true }
+alloy-primitives = "0.8.15"
 serde_cbor = "0.11.2"
 serde = { workspace = true, features = ["derive"] }
-alloy-sol-types = { workspace = true }
 
 [features]
 default = ["risc0"]
