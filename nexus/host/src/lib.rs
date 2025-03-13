@@ -1,9 +1,15 @@
+use crate::rpc::routes;
 use anyhow::{anyhow, Context, Error};
 use avail_rust::prelude::SDK;
-use avail_rust::Keypair;
+use avail_rust::transactions::DataAvailabilityCalls::SubmitDataWithCommitments;
+use avail_rust::H256 as AvailH256;
 use avail_rust::{da_commitments::DaCommitmentBuilder, error::ClientError, prelude::*};
+use avail_rust::{Filter as AvailFilter, Keypair};
+use avail_subxt::config::Header as HeaderTrait;
 pub use avail_subxt::Header;
 use jmt::storage::TreeUpdateBatch;
+#[cfg(any(feature = "risc0"))]
+use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 use nexus_core::{
     db::{BatchTransaction, NodeDB},
     mempool::Mempool,
@@ -25,11 +31,6 @@ use sp_runtime::MultiSigner;
 use std::{collections::HashMap, mem, thread};
 use tokio::fs;
 use tracing::{debug, error, info, instrument};
-
-use crate::rpc::routes;
-use avail_subxt::config::Header as HeaderTrait;
-#[cfg(any(feature = "risc0"))]
-use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
@@ -95,32 +96,10 @@ pub async fn submit_data(
         "Transactions must be successful"
     );
 
-    println!(
+    info!(
         "Block Hash: {:?}, Block Number: {}, Tx Hash: {:?}, Tx Index: {}",
         res.block_hash, res.block_number, res.tx_hash, res.tx_index
     );
-
-    // Events
-    // let events = res
-    //     .events
-    //     .as_ref()
-    //     .ok_or_else(|| anyhow!("No events found in response"))?;
-    // for event in events.iter() {
-    //     let tx_index = match event.phase() {
-    //         subxt::events::Phase::ApplyExtrinsic(x) => Some(x),
-    //         _ => None,
-    //     };
-
-    //     println!(
-    //         "Pallet Name: {}, Pallet Index: {}, Event Name: {}, Event Index: {}, Event Position: {}, Tx Index: {:?}",
-    //         event.pallet_name(),
-    //         event.pallet_index(),
-    //         event.variant_name(),
-    //         event.variant_index(),
-    //         event.index(),
-    //         tx_index,
-    //     );
-    // }
 
     // Decoding
     let decoded = res
@@ -131,35 +110,42 @@ pub async fn submit_data(
         return Err(anyhow!("Failed to get Data Submission Call data"));
     };
 
-    let data = match to_ascii(decoded.data.0) {
-        Some(i) => Ok(i),
-        None => Err(anyhow!("Failed to convert data to ASCII:")),
-    }?;
-    println!("Call data: {:?}", data);
+    // let data = match to_ascii(decoded.data.0) {
+    //     Some(i) => Ok(i),
+    //     None => Err(anyhow!("Failed to convert data to ASCII:")),
+    // }?;
+    // info!("Call data: {:?}", data);
 
-    println!("Data Submission with commitments completed correctly");
+    info!("Data Submission with commitments completed correctly");
 
     Ok(())
 }
 
-pub async fn start_sequencer(
+#[instrument(level = "info", skip(mempool, shutdown_rx, sdk))]
+pub async fn sequencer_handle(
     mempool: Mempool,
     mut shutdown_rx: watch::Receiver<bool>,
-    ws_url: &str,
+    sdk: SDK,
+    app_id: u32,
 ) -> () {
     loop {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        info!("Starting batching process");
+
         if *shutdown_rx.borrow() {
             info!("Shutdown signal received. Stopping sequencer...");
             break;
         }
 
         let account = account::alice();
-        let app_id = 1;
-
-        let sdk = SDK::new(ws_url).await.unwrap();
 
         let (txs, index) = mempool.get_current_txs().await;
 
+        if txs.is_empty() {
+            info!("No txs for this batch, skipping blob submission");
+
+            continue;
+        }
         let blob: &[u8] = &bincode::serialize(&txs).unwrap();
 
         let result = submit_data(blob.to_vec(), &sdk, account, app_id).await;
@@ -179,6 +165,7 @@ pub async fn start_sequencer(
     }
 }
 
+#[instrument(level = "info", skip(relayer_mutex, node_db_mutex, shutdown_rx))]
 pub async fn relayer_handle(
     relayer_mutex: Arc<Mutex<impl Relayer + Send + 'static>>,
     node_db_mutex: Arc<Mutex<NodeDB>>,
@@ -207,7 +194,7 @@ pub async fn relayer_handle(
 
             height
         } else {
-            10000
+            26191
         }
     };
 
@@ -231,7 +218,7 @@ pub async fn execute_batch<
     P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
     E: ZKVMEnv,
 >(
-    txs: &Vec<Transaction>,
+    blobs: &Vec<Vec<u8>>,
     state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
@@ -240,6 +227,15 @@ pub async fn execute_batch<
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
+    //TODO: Check that the blob belongs to this header.
+    let mut txs: Vec<Transaction> = Vec::new();
+
+    for blob in blobs {
+        let blob_txs: Vec<Transaction> = bincode::deserialize(blob)
+            .map_err(|e| anyhow!("blob deserialization error: {:?}", e))?;
+        txs.extend(blob_txs);
+    }
+
     let (tree_update_batch, state_update, tx_result): (
         Option<jmt::storage::TreeUpdateBatch>,
         nexus_core::types::StateUpdate,
@@ -289,26 +285,52 @@ where
     Ok((proof, result, tx_result, tree_update_batch))
 }
 
+pub async fn get_blobs_for_block(
+    sdk: &SDK,
+    avail_block_hash: AvailH256,
+    app_id: u32,
+) -> Result<Vec<Vec<u8>>, anyhow::Error> {
+    info!(
+        "Getting block for app ID: {} and block hash: {:?}",
+        app_id, &avail_block_hash
+    );
+    let block = match Block::new(&sdk.client, avail_block_hash.into())
+        .await
+        .map_err(|e| anyhow!("Error querying block: {:?}", e))
+    {
+        Ok(i) => i,
+        Err(e) => {
+            return Err(e);
+        }
+    };
+
+    let txs = block.transactions(AvailFilter::new().app_id(app_id));
+
+    let blob_txs =
+        block.transactions_static::<SubmitDataWithCommitments>(AvailFilter::new().app_id(app_id));
+
+    let mut checked_blobs: Vec<Vec<u8>> = Vec::new();
+
+    for blob_tx in blob_txs {
+        checked_blobs.push(blob_tx.value.data.0.clone());
+    }
+
+    Ok(checked_blobs)
+}
+
 #[instrument(
     level = "info",
-    skip(
-        node_db,
-        mempool,
-        state_machine,
-        prover_mode,
-        shutdown_rx,
-        state,
-        receiver
-    )
+    skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver)
 )]
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,
-    mempool: Mempool,
     mut state_machine: StateMachine<ZKVM, Proof>,
     prover_mode: ProverMode,
     mut shutdown_rx: watch::Receiver<bool>,
     state: Arc<Mutex<VmState>>,
+    sdk: SDK,
+    app_id: u32,
 ) -> Result<(), anyhow::Error> {
     info!("Starting execution engine in {:?} mode", prover_mode);
     const MAX_HEADERS: usize = 5;
@@ -356,17 +378,31 @@ pub async fn execution_engine_handle(
                 }
             };
 
-            let (txs, index) = mempool.get_current_txs().await;
+            //let (txs, index) = mempool.get_current_txs().await;
+
+            let blobs = match get_blobs_for_block(
+                &sdk,
+                AvailH256::from(header.hash().as_fixed_bytes()),
+                app_id,
+            )
+            .await
+            {
+                Ok(blobs) => blobs,
+                Err(e) => {
+                    error!(error = ?e, "Failed to get blobs for block");
+
+                    continue;
+                }
+            };
             info!(
                 avail_block = header.number,
-                tx_count = txs.len(),
-                mempool_index = index.unwrap_or(0),
+                blob_count = blobs.len(),
                 "📦 Starting batch processing"
             );
 
             debug!("🔄 Beginning batch execution");
             match execute_batch::<Prover, Proof, ZKVM>(
-                &txs,
+                &blobs,
                 &mut state_machine,
                 &AvailHeader::from(&header),
                 &mut old_headers,
@@ -385,9 +421,17 @@ pub async fn execution_engine_handle(
                     );
 
                     info!("💾 Starting batch commit");
+
+                    let mut txs: Vec<Transaction> = Vec::new();
+
+                    for blob in blobs {
+                        let blob_txs: Vec<Transaction> = bincode::deserialize(&blob)
+                            .map_err(|e| anyhow!("blob deserialization error: {:?}", e))?;
+                        txs.extend(blob_txs);
+                    }
+
                     match save_batch_information(
                         &node_db,
-                        &mempool,
                         &mut state_machine,
                         ProcessedBatchInfo {
                             avail_header: &header,
@@ -395,7 +439,6 @@ pub async fn execution_engine_handle(
                             txs_result: &tx_result,
                             tree_update_batch,
                             txs: &txs,
-                            mempool_index: &index,
                             updated_header_store: &old_headers,
                             jmt_version: match updated_version {
                                 Some(i) => i,
@@ -408,17 +451,22 @@ pub async fn execution_engine_handle(
                         Ok(_) => {
                             let successful_txs =
                                 tx_result.values().filter(|&&success| success).count();
+
+                            let txs_length = tx_result.values().len();
                             info!(
                                 nexus_block = result.number,
                                 batch_hash = %hex::encode(result.hash().as_slice()),
                                 state_root = %hex::encode(result.state_root.as_slice()),
-                                total_txs = txs.len(),
+                                total_txs = txs_length,
                                 successful_txs = successful_txs,
-                                failed_txs = txs.len() - successful_txs,
+                                failed_txs = txs_length - successful_txs,
                                 "✅ Batch processing completed successfully"
                             );
                         }
-                        Err(e) => error!(error = ?e, "❌ Failed to commit batch"),
+                        Err(e) => {
+                            error!(error = ?e, "❌ Failed to commit batch");
+                            return Err(e);
+                        }
                     }
                 }
                 Err(e) => {
@@ -437,13 +485,9 @@ pub async fn execution_engine_handle(
     Ok(())
 }
 
-#[instrument(
-    level = "debug",
-    skip(node_db, mempool, state_machine, processed_batch_info)
-)]
+#[instrument(level = "debug", skip(node_db, state_machine, processed_batch_info))]
 pub async fn save_batch_information<'a>(
     node_db: &Arc<Mutex<NodeDB>>,
-    mempool: &Mempool,
     state_machine: &mut StateMachine<ZKVM, Proof>,
     processed_batch_info: ProcessedBatchInfo<'a>,
 ) -> Result<(), Error> {
@@ -491,7 +535,21 @@ pub async fn save_batch_information<'a>(
         let mut tx: TransactionWithStatus =
             match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice())? {
                 Some(i) => i,
-                None => return Err(anyhow!("Tx not in db to modify.")),
+                None => {
+                    let tx = processed_batch_info
+                        .txs
+                        .iter()
+                        .find(|tx| tx.hash() == tx_hash.clone())
+                        .unwrap()
+                        .clone();
+                    let mut tx_with_status = TransactionWithStatus {
+                        transaction: tx.clone(),
+                        status: TransactionStatus::InPool,
+                        block_hash: None,
+                    };
+
+                    tx_with_status
+                }
             };
 
         tx.block_hash = Some(nexus_hash.clone());
@@ -532,9 +590,6 @@ pub async fn save_batch_information<'a>(
     db_lock
         .set_current_root(&processed_batch_info.header.state_root)
         .unwrap();
-    if let Some(i) = processed_batch_info.mempool_index {
-        mempool.clear_upto_tx(i.clone()).await;
-    };
 
     Ok(())
 }
@@ -545,7 +600,7 @@ pub struct ProcessedBatchInfo<'a> {
     txs_result: &'a HashMap<H256, bool>,
     tree_update_batch: Option<TreeUpdateBatch>,
     txs: &'a Vec<Transaction>,
-    mempool_index: &'a Option<usize>,
+    //mempool_index: &'a Option<usize>,
     updated_header_store: &'a HeaderStore,
     jmt_version: u64,
 }
@@ -566,7 +621,7 @@ pub fn run_server(
 
     tokio::spawn(async move {
         let address =
-            SocketAddr::from_str(format!("{}:{}", String::from("0.0.0.0"), port).as_str())
+            SocketAddr::from_str(format!("{}:{}", String::from("127.0.0.1"), port).as_str())
                 .context("Unable to parse host address from config")
                 .unwrap();
 
@@ -590,9 +645,15 @@ pub async fn run_nexus(
     (prover_mode, server_port): (ProverMode, u32),
     state: Arc<Mutex<VmState>>,
     mut shutdown_rx: watch::Receiver<bool>,
+    ws_url: String,
+    app_id: u32,
 ) -> Result<(), Error> {
     let mut shutdown_rx_1 = shutdown_rx.clone();
     let mut shutdown_rx_2 = shutdown_rx.clone();
+    let mut shutdown_rx_3 = shutdown_rx.clone();
+
+    let ws_url_clone = ws_url.clone();
+
     let db_clone = node_db.clone();
     let db_clone_2 = node_db.clone();
     let state_2 = state.clone();
@@ -604,29 +665,43 @@ pub async fn run_nexus(
     };
     let mempool = Mempool::new(node_db.clone());
     let mempool_clone = mempool.clone();
+
+    let server_handle = run_server(mempool, db_clone, state, shutdown_rx, server_port);
     let relayer_handle = tokio::spawn(async move {
         relayer_handle(relayer_mutex, db_clone_2, shutdown_rx_1.clone()).await
     });
-
     let execution_engine = tokio::spawn(async move {
+        let sdk: SDK = SDK::new(&ws_url.clone())
+            .await
+            .expect("Failed to connect to Avail RPC");
         execution_engine_handle(
             receiver,
             node_db,
-            mempool_clone,
             state_machine,
             prover_mode,
-            shutdown_rx_2.clone(),
-            state_2.clone(),
+            shutdown_rx_2,
+            state_2,
+            sdk,
+            app_id,
         )
         .await
     });
+    let sequencer_handle = tokio::spawn(async move {
+        let sdk: SDK = SDK::new(&ws_url_clone.clone())
+            .await
+            .expect("Failed to connect to Avail RPC");
+        sequencer_handle(mempool_clone, shutdown_rx_3, sdk, app_id).await
+    });
 
-    let server_handle = run_server(mempool, db_clone, state, shutdown_rx, server_port);
-
-    let result = tokio::try_join!(server_handle, execution_engine, relayer_handle);
+    let result = tokio::try_join!(
+        server_handle,
+        execution_engine,
+        relayer_handle,
+        sequencer_handle
+    );
 
     match result {
-        Ok((_, execution_engine_result, _)) => {
+        Ok((_, execution_engine_result, _, _)) => {
             info!("✅ Exited node gracefully");
 
             match execution_engine_result {
