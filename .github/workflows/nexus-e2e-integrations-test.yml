@@ -1,4 +1,4 @@
-name: Integration Tests
+name: E2E Integration Tests
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ jobs:
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable 
+          toolchain: stable
           override: true
 
       - name: Install RISC0 toolchain
@@ -28,7 +28,14 @@ jobs:
           ${HOME}/.risc0/bin/rzup install
           ${HOME}/.risc0/bin/rzup install cargo-risczero 1.2.0
 
+      - name: Build binaries
+        run : |
+            cd nexus/host
+            cargo build --no-default-features --features "risc0"
+            cd ../../examples/mock-geth-adapter/host
+            cargo build
+
       - name: Run integration tests
         run: |
           cd nexus/host/
-          RISC0_DEV_MODE=true cargo test -- host
+          RISC0_DEV_MODE=true cargo test -- integration

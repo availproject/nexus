@@ -172,7 +172,7 @@ async fn main() -> Result<(), Error> {
                     //     Ok(i) => i,
                     //     Err(e) => {
                     //         println!("{:?}", e);
-                    // 
+                    //
                     //         continue;
                     //     }
                     // };
@@ -313,11 +313,11 @@ async fn main() -> Result<(), Error> {
         //     Ok(i) => i,
         //     Err(e) => {
         //         println!("{:?}", e);
-        // 
+        //
         //         continue;
         //     }
         // };
-        // 
+        //
         // println!("\n\n\n>>> account with proof : {:?}", account_with_proof);
         // // println!(">>> statement digest : {:?}", hex::encode(account_with_proof.account.statement.0.encode()));
         // println!(

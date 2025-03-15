@@ -6,25 +6,32 @@ use tokio::time::sleep;
 
 mod utils;
 
-// Ad defined in the mock geth adapter
+// As defined in the mock geth adapter
 const NEXUS_PORT: u32 = 7000;
-const NEXUS_DB_PATH: &str = "../../nexus/host/db";
 
 #[tokio::test]
 async fn test_integration_mock_geth_adapter() {
     let eth_response = include_str!("./data/0_get_block_by_number.json");
     // Creating the mock server for eth client
     let mock_server = get_mock_server();
-    let mock = add_check_body_and_response(&mock_server, "get_Block", eth_response);
+    let mock = add_check_body_and_response(
+        &mock_server,
+        r#"
+                {
+                    "method": "eth_getBlockByNumber"
+                }
+            "#,
+        eth_response,
+    );
     // run nexus
-    run_nexus_client().expect("Failed to run nexus");
+    let _nexus_client = run_nexus_client().await.expect("Failed to run nexus");
     // run mock geth adapter once
-    run_mock_geth_adapter_once(mock_server.base_url()).expect("Failed to run mock geth adapter");
+    let _geth_adapter = run_mock_geth_adapter_once(mock_server.base_url())
+        .await
+        .expect("Failed to run mock geth adapter");
 
     // Get initial state of the registered rollup
-    sleep(Duration::from_secs(2)).await;
-    let nexus_api = NexusAPI::new(&format!("http://127.0.0.1:{}", NEXUS_PORT));
-
+    let nexus_api = NexusAPI::new(&format!("http://0.0.0.0:{}", NEXUS_PORT));
     let app_id = AppId(100);
     let app_account_id = AppAccountId::from(app_id);
     let initial_account_state = nexus_api
