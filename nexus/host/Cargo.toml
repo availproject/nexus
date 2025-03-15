@@ -28,6 +28,8 @@ reqwest = { version = "0.12.9", features = ["json"]}
 utoipa = { version = "5.3", features = ["axum_extras"] }
 utoipa-swagger-ui = "5.0"
 derive_more = { git = "https://github.com/JelteF/derive_more", tag = "v1.0.0", features = ["display"] }
+httpmock = "0.7.0"
+adapter_sdk = { path = "../../adapter_sdk", features = ["native-risc0"] }
 
 [features]
 default = ["risc0"] # need to change this to run with sp1
@@ -37,3 +39,11 @@ cuda = ["risc0-zkvm/cuda"]
 
 [patch.crates-io]
 serde = { version = "1.0.204" }
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+[[test]]
+name = "host"
+path = "tests/host.rs"

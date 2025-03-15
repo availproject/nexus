@@ -1,12 +1,12 @@
-use std::sync::{Arc, Mutex};
 use alloy_primitives::B256;
 use helios_consensus_core::consensus_spec::MainnetConsensusSpec;
 use helios_consensus_core::types::{LightClientStore, Update};
-use serde::Serialize;
 use nexus_core::types::Proof as NexusProof;
 use nexus_core::types::{AppAccountId, NexusRollupPI, H256};
 use nexus_core::utils::hasher::{Digest, ShaHasher};
 use nexus_core::zkvm::traits::ZKVMEnv;
+use serde::Serialize;
+use std::sync::{Arc, Mutex};
 
 #[cfg(any(feature = "native"))]
 use nexus_core::zkvm::traits::{ZKVMProof, ZKVMProver};
@@ -27,7 +27,7 @@ pub fn create_proof<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + TryFrom
     guest_image_id: [u32; 8],
     journal_bytes: Option<Vec<u8>>,
     start_nexus_hash: H256,
-    prover: Arc<Mutex<Z>>
+    prover: Arc<Mutex<Z>>,
 ) -> Result<P, anyhow::Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,

@@ -1,5 +1,5 @@
 use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
-use anyhow::{Context, Error};
+use anyhow::Error;
 use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
 use nexus_core::types::{
@@ -8,14 +8,12 @@ use nexus_core::types::{
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
 use nexus_core::zkvm::ProverMode;
-use risc0_zkvm::guest::env;
 use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::env::args;
-use std::fs;
+use std::thread::sleep;
 use std::time::Duration;
-use std::time::{SystemTime, UNIX_EPOCH};
 use web3::transports::Http;
 use web3::types::BlockId;
 use web3::Web3;
@@ -35,17 +33,18 @@ async fn main() -> Result<(), Error> {
 
     if args.len() <= 2 {
         if args.len() == 2 && args[1] == "--dev" {
-            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev]");
+            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev] [--poll]");
             return Ok(());
         }
 
         if args.len() < 2 {
-            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev]");
+            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev] [--poll]");
             return Ok(());
         }
     }
     let ethereum_node_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
+    let poll_flag = args.iter().any(|arg| arg == "--poll");
     let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
     let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
 
@@ -70,6 +69,9 @@ async fn main() -> Result<(), Error> {
         AdapterStateData { last_height: 0, adapter_config }
     };
 
+    let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+    let account_with_proof: AccountWithProof = nexus_api.get_account_state(&app_account_id.as_h256()).await?;
+
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash = None;
@@ -78,21 +80,15 @@ async fn main() -> Result<(), Error> {
     loop {
         match web3.eth().block(BlockId::Number(web3::types::BlockNumber::Latest)).await {
             Ok(Some(header)) => {
+                println!(">>> Got header: {:?}", header);
                 let current_height = header.number.unwrap().as_u32();
                 let range = match nexus_api.get_range().await {
                     Ok(i) => i,
                     Err(e) => {
                         println!("{:?}", e);
-                        continue;
-                    }
-                };
-
-                let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-                let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-                    Ok(i) => i,
-                    Err(e) => {
-                        println!("{:?}", e);
-
+                        if !poll_flag {
+                            return Err(anyhow::anyhow!("Failed to get range from Nexus API"));
+                        }
                         continue;
                     }
                 };
@@ -101,7 +97,9 @@ async fn main() -> Result<(), Error> {
 
                 if range.is_empty() {
                     println!("Nexus does not have a valid range, retrying.");
-
+                    if !poll_flag {
+                        return Err(anyhow::anyhow!("Nexus does not have a valid range"));
+                    }
                     continue;
                 }
 
@@ -124,7 +122,9 @@ async fn main() -> Result<(), Error> {
                         }
                         Err(e) => {
                             println!("Error when iniating account: {:?}", e);
-
+                            if !poll_flag {
+                                return Err(anyhow::anyhow!("Failed to initiate account: {:?}", e));
+                            }
                             continue;
                         }
                     }
@@ -160,23 +160,62 @@ async fn main() -> Result<(), Error> {
                 //     println!("Account is already initiated.");
                 // }
 
+                // Wait for account to be initialized (time gap used in tests to get the initial account state)
+                println!("Sleeping for 5 seconds\n\n\n");
+                tokio::time::sleep(Duration::from_secs(5)).await;
+
                 let height: u32 = header.number.unwrap().as_u32();
 
                 if current_height > last_height {
+                    // let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+                    // let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+                    //     Ok(i) => i,
+                    //     Err(e) => {
+                    //         println!("{:?}", e);
+                    // 
+                    //         continue;
+                    //     }
+                    // };
+                    // println!("\n\n\n>>> account with proof : {:?}", account_with_proof);
+                    // println!(">>> statement digest : {:?}", hex::encode(account_with_proof.account.statement.0.encode()));
+                    // println!(
+                    //     ">>> state root : {:?}",
+                    //     hex::encode(account_with_proof.account.state_root)
+                    // );
+                    // println!(
+                    //     ">>> start nexus hash : {:?}",
+                    //     hex::encode(account_with_proof.account.start_nexus_hash)
+                    // );
+                    // println!(
+                    //     ">>> last proof height : {:?}",
+                    //     account_with_proof.account.last_proof_height
+                    // );
+                    // println!(">>> height : {:?}", account_with_proof.account.height);
+                    // println!(">>> key : {:?}", hex::encode(app_account_id.0));
+
                     let public_inputs = NexusRollupPI {
                         nexus_hash: range[0],
-                        state_root: H256::from(header.state_root.as_fixed_bytes().clone()),
+                        state_root: account_with_proof.nexus_header.state_root,
                         //TODO: remove unwrap
                         height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ADAPTER_ID),
-                        rollup_hash: Some(H256::zero()),
+                        rollup_hash: Some(H256::from(header.state_root.as_fixed_bytes().clone())),
                     };
+
+                    // println!(">>> public inputs: {:?}", public_inputs);
 
                     let public_input_vec = match to_vec(&public_inputs) {
                         Ok(i) => i,
-                        Err(e) => return Err(anyhow::anyhow!("Could not encode public inputs of rollup.")),
+                        Err(e) => {
+                            let err = anyhow::anyhow!("Could not encode public inputs of rollup.");
+                            if !poll_flag {
+                                return Err(err);
+                            }
+                            println!("{:?}", err);
+                            continue;
+                        }
                     };
 
                     let mut env_builder = ExecutorEnv::builder();
@@ -186,10 +225,15 @@ async fn main() -> Result<(), Error> {
                         Ok(i) => i,
                         Err(e) => {
                             println!("Unable to generate proof due to error: {:?}", e);
-
+                            if !poll_flag {
+                                return Err(anyhow::anyhow!("Failed to generate proof: {:?}", e));
+                            }
                             continue;
                         }
                     };
+
+                    // println!(">>> public inputs : {:?}", hex::encode(prove_info.receipt.clone().journal.bytes));
+                    // println!(">>> proof : {:?}", hex::encode(encode_seal(&prove_info.receipt).unwrap()));
 
                     let recursive_proof = RiscZeroProof(prove_info.receipt);
 
@@ -203,12 +247,14 @@ async fn main() -> Result<(), Error> {
                                 Ok(i) => i,
                                 Err(e) => {
                                     println!("Unable to serialise proof: {:?}", e);
-
+                                    if !poll_flag {
+                                        return Err(anyhow::anyhow!("Failed to serialize proof: {:?}", e));
+                                    }
                                     continue;
                                 }
                             },
                             height: public_inputs.height,
-                            data: None,
+                            data: public_inputs.rollup_hash,
                         }),
                     };
 
@@ -221,7 +267,9 @@ async fn main() -> Result<(), Error> {
                         }
                         Err(e) => {
                             println!("Error when iniating account: {:?}", e);
-
+                            if !poll_flag {
+                                return Err(anyhow::anyhow!("Failed to submit proof: {:?}", e));
+                            }
                             continue;
                         }
                     }
@@ -235,15 +283,19 @@ async fn main() -> Result<(), Error> {
                 }
             }
             Ok(None) => {
-                println!("Got no header.")
+                println!("Got no header.");
+                if !poll_flag {
+                    return Err(anyhow::anyhow!("Got no header from Ethereum node"));
+                }
             }
             Err(err) => {
                 println!("Error fetching latest header: {:?}", err);
+                if !poll_flag {
+                    return Err(anyhow::anyhow!("Error fetching latest header: {:?}", err));
+                }
             }
         }
 
-        println!("Sleeping for 10 seconds");
-        tokio::time::sleep(Duration::from_secs(10)).await;
         // Persist adapter state data to the database
         db.put(
             b"adapter_state_data",
@@ -252,5 +304,47 @@ async fn main() -> Result<(), Error> {
                 adapter_config: adapter_state_data.adapter_config.clone(),
             },
         )?;
+
+        println!("Sleeping for 10 seconds\n\n\n");
+        tokio::time::sleep(Duration::from_secs(10)).await;
+
+        // let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+        // let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+        //     Ok(i) => i,
+        //     Err(e) => {
+        //         println!("{:?}", e);
+        // 
+        //         continue;
+        //     }
+        // };
+        // 
+        // println!("\n\n\n>>> account with proof : {:?}", account_with_proof);
+        // // println!(">>> statement digest : {:?}", hex::encode(account_with_proof.account.statement.0.encode()));
+        // println!(
+        //     ">>> state root : {:?}",
+        //     hex::encode(account_with_proof.account.state_root)
+        // );
+        // println!(
+        //     ">>> start nexus hash : {:?}",
+        //     hex::encode(account_with_proof.account.start_nexus_hash)
+        // );
+        // println!(
+        //     ">>> last proof height : {:?}",
+        //     account_with_proof.account.last_proof_height
+        // );
+        // println!(">>> height : {:?}", account_with_proof.account.height);
+        // println!(">>> key : {:?}", hex::encode(app_account_id.0));
+
+        // Exit if not in polling mode
+        if !poll_flag {
+            println!("Exiting after one execution (--poll flag not provided)");
+            break;
+        }
     }
+
+    Ok(())
 }
+
+// To run :
+// With polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> --dev --poll
+// Without polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> --dev
