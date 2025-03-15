@@ -32,7 +32,7 @@ jobs:
         run : |
             cd nexus/host
             cargo build --no-default-features --features "risc0"
-            cd ../../examples/mock-geth-adapter/host
+            cd ../../examples/mock_geth_adapter/host
             cargo build
 
       - name: Run integration tests
