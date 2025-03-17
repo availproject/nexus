@@ -15,3 +15,4 @@ contracts/out
 contracts/out-*
 *.bin
 .idea/
+**/*/.env

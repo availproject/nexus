@@ -41,9 +41,9 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
         let sp1_standard_input = SP1Stdin::new();
         let sp1_client = ProverClient::from_env();
         let (pk, vk) = sp1_client.setup(&elf);
-        
+
         println!(">>>> Prover Init >>>>");
-        
+
         Self {
             sp1_standard_input,
             sp1_client,
@@ -120,7 +120,7 @@ impl ZKVMProof for Sp1Proof {
     //     unimplemented!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
     // }
 
-    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>, _proof_mode: ProverMode) -> Result<(), anyhow::Error> {
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error> {
         let elf = match elf {
             Some(elf) => elf,
             None => return Err(anyhow!("ELF is required")),

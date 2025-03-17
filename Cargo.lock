@@ -4144,6 +4144,7 @@ dependencies = [
  "nexus-core",
  "serde",
  "serde_cbor",
+ "tracing",
  "tree_hash",
 ]
 
