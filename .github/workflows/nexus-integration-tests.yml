@@ -28,7 +28,11 @@ jobs:
           ${HOME}/.risc0/bin/rzup install
           ${HOME}/.risc0/bin/rzup install cargo-risczero 1.2.0
 
+      - name: Run avail node
+        run: |
+          ./nexus/host/tests/scripts/run_local_avail.sh
+
       - name: Run integration tests
         run: |
           cd nexus/host/
-          RISC0_DEV_MODE=true cargo test -- host
+          RISC0_DEV_MODE=true cargo test --test host

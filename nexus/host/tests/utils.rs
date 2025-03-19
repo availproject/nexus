@@ -6,6 +6,9 @@ use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 use tokio::time::sleep;
 
+// ================================================
+// Managed Process
+// It will be dropped when test run is finished
 pub struct ManagedProcess {
     child: Child,
 }
@@ -29,6 +32,9 @@ impl Drop for ManagedProcess {
         }
     }
 }
+
+// ================================================
+
 
 pub fn get_mock_server() -> MockServer {
     MockServer::start()
@@ -57,7 +63,7 @@ pub async fn run_nexus_client() -> anyhow::Result<ManagedProcess> {
     // Running nexus in dev mode
     command.env("RUST_LOG", "info");
     command.env("RISC0_DEV_MODE", "1");
-    command.args(&["--dev"]);
+    command.args(&["--dev", "--avail-rpc=ws://127.0.0.1:9944", "--nexus-start-block=1"]);
 
     let child = command.spawn()?;
     println!("Client started with PID: {}", child.id());

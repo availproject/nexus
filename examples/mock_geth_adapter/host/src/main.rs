@@ -160,10 +160,6 @@ async fn main() -> Result<(), Error> {
                 //     println!("Account is already initiated.");
                 // }
 
-                // Wait for account to be initialized (time gap used in tests to get the initial account state)
-                println!("Sleeping for 5 seconds\n\n\n");
-                tokio::time::sleep(Duration::from_secs(5)).await;
-
                 let height: u32 = header.number.unwrap().as_u32();
 
                 if current_height > last_height {

@@ -35,7 +35,11 @@ jobs:
             cd ../../examples/mock_geth_adapter/host
             cargo build
 
+      - name: Run avail node
+        run: |
+          ./nexus/host/tests/scripts/run_local_avail.sh
+
       - name: Run integration tests
         run: |
           cd nexus/host/
-          RISC0_DEV_MODE=true cargo test -- integration
+          RISC0_DEV_MODE=true cargo test --test integration
