@@ -51,6 +51,6 @@ risc0-cuda = [
     "risc0-zkvm/cuda",
     "nexus-core/native-risc0-cuda",
     "ethereum-adapter-methods/risc0",
-    "ethereum-core/zkvm-risc0-cuda",
-    "adapter_sdk/zkvm-risc0-cuda",
+    "ethereum-core/zkvm-risc0",
+    "adapter_sdk/zkvm-risc0",
 ]

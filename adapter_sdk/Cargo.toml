@@ -28,7 +28,6 @@ zkvm-sp1 = [ "nexus-core/zkvm-sp1", "sp1-zkvm" ]
 zkvm-risc0 = [ "nexus-core/zkvm-risc0", "risc0-zkvm/std" ]
 native-risc0 = [ "risc0-zkvm/default", "nexus-core/native-risc0", "native" ]
 native-sp1 = [ "sp1-sdk", "nexus-core/native-sp1", "native" ]
-zkvm-risc0-cuda = [ "risc0-zkvm/cuda", "nexus-core/native-risc0-cuda" ]
 native-risc0-cuda = [
     "risc0-zkvm/cuda",
     "nexus-core/native-risc0-cuda",
