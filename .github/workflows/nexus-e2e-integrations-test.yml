@@ -37,7 +37,12 @@ jobs:
 
       - name: Run avail node
         run: |
-          ./nexus/host/tests/scripts/run_local_avail.sh
+          URL="https://github.com/availproject/avail/releases/download/v1.11.0.0/x86_64-ubuntu-2310-data-avail.tar.gz"
+          FILE_NAME="x86_64-ubuntu-2310-data-avail.tar.gz"
+          wget -O "$FILE_NAME" "$URL"
+          tar -xvf x86_64-ubuntu-2310-data-avail.tar.gz
+          chmod +x data-avail
+          ./data-avail --chain=goldberg --name=MyAvailNode -d=/output/data --rpc-methods=unsafe --unsafe-rpc-external --rpc-cors=all
 
       - name: Run integration tests
         run: |
