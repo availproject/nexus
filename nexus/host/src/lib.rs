@@ -1,13 +1,20 @@
 use crate::rpc::routes;
 use anyhow::{anyhow, Context, Error};
+use avail_rust::da_commitments::DaCommitmentBuilder;
+use avail_rust::error::ClientError;
+use avail_rust::kate_recovery::commitments;
 use avail_rust::prelude::SDK;
+use avail_rust::prelude::*;
+use avail_rust::rpc as avail_rpc;
 use avail_rust::transactions::DataAvailabilityCalls::SubmitDataWithCommitments;
 use avail_rust::H256 as AvailH256;
-use avail_rust::{da_commitments::DaCommitmentBuilder, error::ClientError, prelude::*};
 use avail_rust::{Filter as AvailFilter, Keypair};
 use avail_subxt::config::Header as HeaderTrait;
 pub use avail_subxt::Header;
 use jmt::storage::TreeUpdateBatch;
+use kzg::verify_row_kzg;
+use kzg::{compute_kzg_proof, compute_row_proof};
+use nexus_core::types::BlobProof;
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 use nexus_core::{
@@ -48,6 +55,14 @@ use tokio::sync::{mpsc::UnboundedReceiver, watch, Mutex};
 use tokio::time::{sleep, Duration};
 use warp::Filter;
 
+//Kate imports
+use kzg::kate::gridgen::AsBytes;
+use kzg::kate::gridgen::EvaluationGrid;
+use kzg::kate::Seed;
+use kzg::kate_recovery::data::Cell;
+use kzg::kate_recovery::matrix::Position;
+use nexus_core::types::{Blob, DataLookup, Extension};
+
 type DataSubmissionWithCommitmentsCall =
     avail::data_availability::calls::types::SubmitDataWithCommitments;
 
@@ -76,12 +91,17 @@ pub async fn submit_data(
     signer: Keypair,
     app_id: u32,
 ) -> Result<(), anyhow::Error> {
+    let data_clone = data.clone();
     //let account = account::bob();
     let commitments = DaCommitmentBuilder::new(data.clone())
         .build()
         .map_err(|e| anyhow!("Failed to build DA commitments: {:?}", e))?;
 
-    let options = Options::new().app_id(app_id);
+    let commitments_clone = commitments.clone();
+    let alice_address = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
+
+    let nonce = account::nonce(&sdk.client, alice_address).await.unwrap();
+    let options = Options::new().app_id(app_id).nonce(nonce);
     let tx = sdk
         .tx
         .data_availability
@@ -90,6 +110,7 @@ pub async fn submit_data(
         .execute_and_watch_inclusion(&signer, options)
         .await
         .map_err(|e| anyhow!("Failed to execute and watch transaction: {:?}", e))?;
+
     assert_eq!(
         res.is_successful(),
         Some(true),
@@ -110,13 +131,13 @@ pub async fn submit_data(
         return Err(anyhow!("Failed to get Data Submission Call data"));
     };
 
-    // let data = match to_ascii(decoded.data.0) {
-    //     Some(i) => Ok(i),
-    //     None => Err(anyhow!("Failed to convert data to ASCII:")),
-    // }?;
-    // info!("Call data: {:?}", data);
-
     info!("Data Submission with commitments completed correctly");
+
+    assert_eq!(
+        res.is_successful(),
+        Some(true),
+        "Transactions must be successful"
+    );
 
     Ok(())
 }
@@ -194,7 +215,7 @@ pub async fn relayer_handle(
 
             height
         } else {
-            26191
+            51411
         }
     };
 
@@ -218,22 +239,74 @@ pub async fn execute_batch<
     P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
     E: ZKVMEnv,
 >(
-    blobs: &Vec<Vec<u8>>,
+    blobs: &Vec<Blob>,
+    blob_proofs: &Vec<BlobProof>,
     state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     prover_mode: ProverMode,
+    app_id: u32,
 ) -> Result<(P, NexusHeader, HashMap<H256, bool>, Option<TreeUpdateBatch>), Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
-    //TODO: Check that the blob belongs to this header.
     let mut txs: Vec<Transaction> = Vec::new();
 
+    if blobs.len() != blob_proofs.len() {
+        return Err(anyhow!("Blob and blob proof lengths do not match"));
+    }
+
     for blob in blobs {
-        let blob_txs: Vec<Transaction> = bincode::deserialize(blob)
+        let blob_txs: Vec<Transaction> = bincode::deserialize(&blob.get_data())
             .map_err(|e| anyhow!("blob deserialization error: {:?}", e))?;
         txs.extend(blob_txs);
+    }
+
+    let commitments: Vec<[u8; 48]> = {
+        let (app_lookup, commitments): (DataLookup, Vec<[u8; 48]>) = match &header.extension {
+            Extension::V3(extension) => {
+                let commitment_chunks: Vec<[u8; 48]> = extension
+                    .commitment
+                    .commitment
+                    .chunks_exact(48)
+                    .map(|chunk| {
+                        let mut arr = [0u8; 48];
+                        arr.copy_from_slice(chunk);
+                        arr
+                    })
+                    .collect();
+                (extension.app_lookup.clone(), commitment_chunks)
+            }
+            _ => return Err(anyhow!("Header extension not supported")),
+        };
+
+        let mut filtered_commitments: Vec<[u8; 48]> = Vec::new();
+
+        // may not need to sort here by start.
+        let mut sorted_indices: Vec<_> = app_lookup.index.iter().collect();
+        sorted_indices.sort_by_key(|i| i.start);
+
+        for (idx, current) in sorted_indices.iter().enumerate() {
+            if current.app_id.0 == app_id {
+                let start = current.start as usize;
+                let end = if idx + 1 < sorted_indices.len() {
+                    sorted_indices[idx + 1].start as usize
+                } else {
+                    commitments.len()
+                };
+
+                filtered_commitments.extend_from_slice(&commitments[start..end]);
+            }
+        }
+
+        filtered_commitments
+    };
+
+    for (i, blob) in blobs.iter().enumerate() {
+        let verification_result = verify_row_kzg(&blob.0, &commitments[i], &blob_proofs[i].0)?;
+        if !verification_result {
+            return Err(anyhow!("Verification result: {}", verification_result));
+        }
     }
 
     let (tree_update_batch, state_update, tx_result): (
@@ -251,28 +324,20 @@ where
 
         let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode);
 
-        let zkvm_txs: Result<Vec<TransactionZKVM>, anyhow::Error> = txs
-            .iter()
-            .map(|tx| {
-                if let TxParams::SubmitProof(submit_proof_tx) = &tx.params {
-                    //TODO: Remove transactions that error out from mempool
-                    let proof = submit_proof_tx.proof.clone();
-                    let receipt: P = P::try_from(proof).unwrap();
-                    zkvm_prover.add_proof_for_recursion(receipt).unwrap();
-                }
+        for tx in &txs {
+            if let TxParams::SubmitProof(submit_proof_tx) = &tx.params {
+                //TODO: Remove transactions that error out from mempool
+                let proof = submit_proof_tx.proof.clone();
+                let receipt: P = P::try_from(proof).unwrap();
+                zkvm_prover.add_proof_for_recursion(receipt).unwrap();
+            }
+        }
 
-                Ok(TransactionZKVM {
-                    signature: tx.signature.clone(),
-                    params: tx.params.clone(),
-                })
-            })
-            .collect();
-
-        let zkvm_txs = zkvm_txs?;
-
-        zkvm_prover.add_input(&zkvm_txs).unwrap();
+        zkvm_prover.add_input(blobs).unwrap();
+        zkvm_prover.add_input(&blob_proofs).unwrap();
         zkvm_prover.add_input(&state_update).unwrap();
         zkvm_prover.add_input(&header).unwrap();
+        zkvm_prover.add_input(&app_id).unwrap();
         zkvm_prover.add_input(&header_store).unwrap();
         let mut proof = zkvm_prover.prove()?;
 
@@ -289,7 +354,7 @@ pub async fn get_blobs_for_block(
     sdk: &SDK,
     avail_block_hash: AvailH256,
     app_id: u32,
-) -> Result<Vec<Vec<u8>>, anyhow::Error> {
+) -> Result<(Vec<Blob>, Vec<BlobProof>), anyhow::Error> {
     info!(
         "Getting block for app ID: {} and block hash: {:?}",
         app_id, &avail_block_hash
@@ -304,6 +369,10 @@ pub async fn get_blobs_for_block(
         }
     };
 
+    let header = block.block.header();
+
+    info!("app index: {:?}", header.extension);
+
     let txs = block.transactions(AvailFilter::new().app_id(app_id));
 
     let blob_txs =
@@ -315,7 +384,40 @@ pub async fn get_blobs_for_block(
         checked_blobs.push(blob_tx.value.data.0.clone());
     }
 
-    Ok(checked_blobs)
+    let mut blobs: Vec<Blob> = Vec::new();
+
+    for (_, blob_data) in checked_blobs.iter().enumerate() {
+        let grid = EvaluationGrid::from_data(blob_data.clone(), 1024, 1024, 256, Seed::default())
+            .expect("Failed to create evaluation grid");
+
+        let mut rows: Vec<Blob> = Vec::new();
+
+        for row_num in 0..grid.dims().rows().get() {
+            let row = grid
+                .row(row_num.into())
+                .ok_or_else(|| anyhow!("Row {} should exist in grid but was not found", row_num))?
+                .into_iter()
+                .map(|c| {
+                    c.to_bytes()
+                        .map_err(|e| anyhow!("Failed to convert cell to bytes: {:?}", e))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            rows.push(Blob(row));
+        }
+
+        blobs.extend(rows);
+    }
+
+    let proofs = blobs
+        .iter()
+        .map(|blob| -> Result<BlobProof, anyhow::Error> {
+            let proof = compute_row_proof(&blob.0)?;
+            Ok(BlobProof(proof))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok((blobs, proofs))
 }
 
 #[instrument(
@@ -380,14 +482,14 @@ pub async fn execution_engine_handle(
 
             //let (txs, index) = mempool.get_current_txs().await;
 
-            let blobs = match get_blobs_for_block(
+            let (blobs, proofs) = match get_blobs_for_block(
                 &sdk,
                 AvailH256::from(header.hash().as_fixed_bytes()),
                 app_id,
             )
             .await
             {
-                Ok(blobs) => blobs,
+                Ok(i) => i,
                 Err(e) => {
                     error!(error = ?e, "Failed to get blobs for block");
 
@@ -401,12 +503,19 @@ pub async fn execution_engine_handle(
             );
 
             debug!("🔄 Beginning batch execution");
+
+            if header.number > 51412 {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_secs(5)).await;
             match execute_batch::<Prover, Proof, ZKVM>(
                 &blobs,
+                &proofs,
                 &mut state_machine,
                 &AvailHeader::from(&header),
                 &mut old_headers,
                 prover_mode.clone(),
+                app_id,
             )
             .await
             {
@@ -425,7 +534,7 @@ pub async fn execution_engine_handle(
                     let mut txs: Vec<Transaction> = Vec::new();
 
                     for blob in blobs {
-                        let blob_txs: Vec<Transaction> = bincode::deserialize(&blob)
+                        let blob_txs: Vec<Transaction> = bincode::deserialize(&blob.get_data())
                             .map_err(|e| anyhow!("blob deserialization error: {:?}", e))?;
                         txs.extend(blob_txs);
                     }
@@ -534,6 +643,7 @@ pub async fn save_batch_information<'a>(
         let db_lock = node_db.lock().await;
         let mut tx: TransactionWithStatus =
             match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice())? {
+                //Can do unwrap below as an empty store would not be stored.
                 Some(i) => i,
                 None => {
                     let tx = processed_batch_info

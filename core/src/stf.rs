@@ -2,7 +2,7 @@ use crate::traits::NexusTransaction;
 use crate::{
     types::{
         AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusRollupPI,
-        SubmitProof, TransactionZKVM, TxParams, H256,
+        SubmitProof, Transaction, TxParams, H256,
     },
     zkvm::traits::ZKVMEnv,
 };
@@ -27,7 +27,7 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
         &self,
         new_avail_header: &AvailHeader,
         prev_headers: &HeaderStore,
-        txs: &Vec<TransactionZKVM>,
+        txs: &Vec<Transaction>,
         pre_state: &HashMap<[u8; 32], AccountState>,
         mut on_tx_result: F,
     ) -> Result<HashMap<[u8; 32], AccountState>, anyhow::Error>
@@ -77,7 +77,7 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
         &self,
         new_avail_header: &AvailHeader,
         prev_headers: &HeaderStore,
-        txs: &Vec<TransactionZKVM>,
+        txs: &Vec<Transaction>,
         pre_state: &HashMap<[u8; 32], AccountState>,
     ) -> Result<HashMap<[u8; 32], AccountState>, anyhow::Error> {
         self.execute_batch_common(new_avail_header, prev_headers, txs, pre_state, |_, _| {})
@@ -87,7 +87,7 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
         &self,
         new_avail_header: &AvailHeader,
         prev_headers: &HeaderStore,
-        txs: &Vec<TransactionZKVM>,
+        txs: &Vec<Transaction>,
         pre_state: &HashMap<[u8; 32], AccountState>,
     ) -> Result<(HashMap<[u8; 32], AccountState>, HashMap<H256, bool>), anyhow::Error> {
         let mut tx_results = HashMap::new();
@@ -105,14 +105,14 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
 
     pub fn execute_tx(
         &self,
-        tx: &TransactionZKVM,
+        tx: &Transaction,
         pre_state: (&AppAccountId, &AccountState),
         headers: &HeaderStore,
     ) -> Result<(AppAccountId, AccountState), anyhow::Error> {
         //TODO: Signature verification
         let post_state = match &tx.params {
-            TxParams::SubmitProof(params) => self.submit_proof(params, pre_state, headers)?,
-            TxParams::InitAccount(params) => self.init_account(params, pre_state)?,
+            TxParams::SubmitProof(params) => self.submit_proof(&params, pre_state, headers)?,
+            TxParams::InitAccount(params) => self.init_account(&params, pre_state)?,
         };
 
         Ok(post_state)

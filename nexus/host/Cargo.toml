@@ -29,6 +29,7 @@ mockall = "0.13.1"
 reqwest = { version = "0.12.9", features = ["json"] }
 utoipa = { version = "5.3", features = ["axum_extras"] }
 utoipa-swagger-ui = "5.0"
+kzg = { path = "../../kzg" }
 
 [features]
 default = ["risc0"]                                                   # need to change this to run with sp1

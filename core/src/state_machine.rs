@@ -114,19 +114,19 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
 
         let version = prev_version + 1;
         //TODO: Need to simplify this part.
-        let zkvm_txs: Vec<TransactionZKVM> = txs
-            .iter()
-            .map(|tx| {
-                return TransactionZKVM {
-                    params: tx.params.clone(),
-                    signature: tx.signature.clone(),
-                };
-            })
-            .collect();
+        // let zkvm_txs: Vec<TransactionZKVM> = txs
+        //     .iter()
+        //     .map(|tx| {
+        //         return TransactionZKVM {
+        //             params: tx.params.clone(),
+        //             signature: tx.signature.clone(),
+        //         };
+        //     })
+        //     .collect();
         let (stf_state_result, tx_result) = self.stf.execute_batch_with_results(
             avail_header,
             old_nexus_headers,
-            &zkvm_txs,
+            &txs,
             &pre_state,
         )?;
         let mut state_lock = self.state.lock().await;

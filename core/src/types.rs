@@ -13,6 +13,8 @@ use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtens
 pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
 use jmt::proof::{SparseMerkleLeafNode, SparseMerkleNode, SparseMerkleProof, UpdateMerkleProof};
 use jmt::storage::TreeUpdateBatch;
+pub use kzg::kate_recovery::data::Cell;
+use kzg::kate_recovery::matrix::Position;
 use parity_scale_codec::{Decode, Encode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -69,7 +71,7 @@ pub enum TxParams {
     InitAccount(InitAccount),
 }
 
-#[cfg(any(feature = "native"))]
+//#[cfg(any(feature = "native"))]
 #[derive(Clone, Serialize, Eq, PartialEq, Deserialize, Debug, Encode, Decode)]
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct Transaction {
@@ -98,6 +100,9 @@ pub struct SubmitProof {
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct Proof(pub Vec<u8>);
 
+#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+pub struct BlobProof(#[serde(with = "BigArray")] pub [u8; 48]);
+
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct InitAccount {
@@ -123,7 +128,7 @@ pub struct NexusHeader {
     pub parent_hash: H256,
     pub prev_state_root: H256,
     pub state_root: H256,
-    pub tx_root: H256,
+    // pub tx_root: H256,
     pub avail_header_hash: H256,
     pub number: u32,
 }
@@ -268,9 +273,40 @@ pub struct KateCommitment {
     pub data_root: H256,
 }
 
+#[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
+pub struct Blob(pub Vec<[u8; 32]>);
+
 //--------------
 //Implementations
 //--------------
+
+impl Blob {
+    // pub fn get_cells(&self) -> Vec<Cell> {
+    //     let mut cells: Vec<Cell> = self
+    //         .0
+    //         .iter()
+    //         .map(|(pos, data)| {
+    //             let mut content = [0u8; 80];
+    //             content.copy_from_slice(data);
+    //             Cell {
+    //                 position: *pos,
+    //                 content,
+    //             }
+    //         })
+    //         .collect();
+
+    //     cells
+    // }
+
+    pub fn get_data(&self) -> Vec<u8> {
+        let mut data = Vec::new();
+
+        for d in &self.0 {
+            data.extend_from_slice(&d[..31]);
+        }
+        data
+    }
+}
 
 impl Encode for DigestItem {
     fn encode(&self) -> Vec<u8> {
@@ -491,7 +527,7 @@ impl NexusTransaction for TransactionZKVM {
     }
 }
 
-#[cfg(any(feature = "native"))]
+// #[cfg(any(feature = "native"))]
 impl NexusTransaction for Transaction {
     fn hash(&self) -> H256 {
         let serialized = self.params.encode();
