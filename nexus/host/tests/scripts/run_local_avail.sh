@@ -24,7 +24,7 @@ else
     echo "Docker is NOT installed. Please install docker"
 fi
 
-if docker images -q "$IMAGE_NAME:$IMAGE_TAG" > /dev/null; then
+if docker image inspect "$IMAGE_NAME:$IMAGE_TAG" > /dev/null 2>&1; then
     echo "Image $IMAGE_NAME:$IMAGE_TAG exists"
 else
     echo "Image $IMAGE_NAME:$IMAGE_TAG does NOT exist. Building...."
