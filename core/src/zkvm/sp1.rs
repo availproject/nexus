@@ -120,7 +120,7 @@ impl ZKVMProof for Sp1Proof {
     //     unimplemented!("Not implemented since sp1 proof doesn't contain verify method similar to Risczero https://docs.rs/risc0-zkvm/1.0.5/risc0_zkvm/struct.Receipt.html#method.verify");
     // }
 
-    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>, _proof_mode: ProverMode) -> Result<(), anyhow::Error> {
+    fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error> {
         let elf = match elf {
             Some(elf) => elf,
             None => return Err(anyhow!("ELF is required")),

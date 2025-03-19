@@ -17,6 +17,9 @@
 
    # If running in cuda mode for sp1
    RUST_LOG=info SP1_PROVER=cuda cargo run --no-default-features --features "sp1"
+   
+    # if running in cuda mode for risc0
+   RUST_LOG=info RUSTFLAGS="-C target-cpu=native" cargo run --no-default-features --features "risc0-cuda"
     ```
 
 2. To build adapters :
@@ -36,10 +39,10 @@
 
    # If running in cuda mode for sp1
    RUST_LOG=info SP1_PROVER=cuda cargo run --no-default-features --features "sp1"
+   
+   # if running in cuda mode for risc0
+   RUST_LOG=info RUSTFLAGS="-C target-cpu=native" cargo run --no-default-features --features "risc0-cuda"
    ```
 
-3. To run in cuda for adapters in risc0 :
-
-   ```shell
-    RUST_LOG=info RUSTFLAGS="-C target-cpu=native" cargo run --no-default-features --features "risc0-cuda"
-   ```
+> [!IMPORTANT]
+> There can be some changes as there may be different arguments for different adapters

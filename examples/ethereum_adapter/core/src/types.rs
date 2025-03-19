@@ -17,15 +17,6 @@ pub struct ProofInputs {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct ExecutionStateProof {
-    #[serde(rename = "executionStateRoot")]
-    pub execution_state_root: B256,
-    #[serde(rename = "executionStateBranch")]
-    pub execution_state_branch: Vec<B256>,
-    pub gindex: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct ProofOutputs {
     pub execution_state_root: B256,
     pub new_header: B256,
