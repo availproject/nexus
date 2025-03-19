@@ -25,10 +25,7 @@ impl ShaHasher {
 
     pub fn finish(self) -> H256 {
         let bytes = self.0.finalize();
-        let sha2_array: [u8; 32] = bytes
-            .as_slice()
-            .try_into()
-            .expect("Hash should only be 32 bytes");
+        let sha2_array: [u8; 32] = bytes.as_slice().try_into().expect("Hash should only be 32 bytes");
         H256::from(sha2_array)
     }
 }

@@ -5,9 +5,8 @@ use nexus_core::mempool::Mempool;
 use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers,
-    NexusBlockWithTransactions, NexusHeader, StatementDigest, Transaction, TransactionWithStatus,
-    H256,
+    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers, NexusBlockWithTransactions, NexusHeader, StatementDigest,
+    Transaction, TransactionWithStatus, H256,
 };
 use nexus_core::utils::hasher::Sha256;
 use serde::{Deserialize, Serialize};
@@ -17,10 +16,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::reject::custom;
 use warp::reply::WithStatus;
-use warp::{
-    http::StatusCode, http::Uri, hyper::Response, path::FullPath, path::Tail, reply::Reply, Filter,
-    Rejection,
-};
+use warp::{http::StatusCode, http::Uri, hyper::Response, path::FullPath, path::Tail, reply::Reply, Filter, Rejection};
 
 use crate::AvailToNexusPointer;
 
@@ -207,11 +203,7 @@ async fn tx_status(db: Arc<Mutex<NodeDB>>, tx_hash: H256) -> Result<WithStatus<S
         (status = 500, description = "Internal error", body = String)
     )
 )]
-async fn get_block(
-    db: Arc<Mutex<NodeDB>>,
-    block_hash_opt: Option<H256>,
-    block_number_opt: Option<u32>,
-) -> Result<WithStatus<String>, Rejection> {
+async fn get_block(db: Arc<Mutex<NodeDB>>, block_hash_opt: Option<H256>, block_number_opt: Option<u32>) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
 
     let nexus_hash = if block_number_opt.is_some() {
@@ -254,22 +246,21 @@ async fn get_block(
         }
     };
 
-    let block =
-        match db_lock.get::<NexusBlockWithPointers>(&[nexus_hash.as_slice(), b"-block"].concat()) {
-            Ok(Some(b)) => b,
-            Ok(None) => {
-                return Ok(warp::reply::with_status(
-                    "Block not found".to_string(),
-                    warp::http::StatusCode::BAD_REQUEST,
-                ))
-            }
-            Err(_) => {
-                return Ok(warp::reply::with_status(
-                    "Error retrieving block".to_string(),
-                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        };
+    let block = match db_lock.get::<NexusBlockWithPointers>(&[nexus_hash.as_slice(), b"-block"].concat()) {
+        Ok(Some(b)) => b,
+        Ok(None) => {
+            return Ok(warp::reply::with_status(
+                "Block not found".to_string(),
+                warp::http::StatusCode::BAD_REQUEST,
+            ))
+        }
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Error retrieving block".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+    };
 
     let txs = block
         .block
@@ -344,23 +335,21 @@ async fn get_state(
     };
 
     let version: u64 = match block_hash {
-        Some(i) => {
-            match db_lock.get::<NexusBlockWithPointers>(&[i.as_slice(), b"-block"].concat()) {
-                Ok(Some(i)) => i.jmt_version,
-                Ok(None) => {
-                    return Ok(warp::reply::with_status(
-                        "Block hash not found".to_string(),
-                        warp::http::StatusCode::BAD_REQUEST,
-                    ))
-                }
-                Err(_) => {
-                    return Ok(warp::reply::with_status(
-                        "Internal db error".to_string(),
-                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    ))
-                }
+        Some(i) => match db_lock.get::<NexusBlockWithPointers>(&[i.as_slice(), b"-block"].concat()) {
+            Ok(Some(i)) => i.jmt_version,
+            Ok(None) => {
+                return Ok(warp::reply::with_status(
+                    "Block hash not found".to_string(),
+                    warp::http::StatusCode::BAD_REQUEST,
+                ))
             }
-        }
+            Err(_) => {
+                return Ok(warp::reply::with_status(
+                    "Internal db error".to_string(),
+                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
+        },
         None => match state_lock.get_version(true) {
             Ok(Some(i)) => i,
             Ok(None) => 0,
@@ -393,11 +382,7 @@ async fn get_state(
     };
 
     let account = account_option.unwrap_or_else(AccountState::zero);
-    let siblings: Vec<[u8; 32]> = proof
-        .siblings()
-        .iter()
-        .map(|s| s.hash::<Sha256>())
-        .collect();
+    let siblings: Vec<[u8; 32]> = proof.siblings().iter().map(|s| s.hash::<Sha256>()).collect();
     let value_hash = ValueHash::with::<Sha256>(account.encode()).0;
 
     let response = AccountWithProof {
@@ -450,11 +435,7 @@ async fn get_state(
         (status = 500, description = "Internal error", body = String)
     )
 )]
-async fn get_state_hex(
-    db: Arc<Mutex<NodeDB>>,
-    state: Arc<Mutex<VmState>>,
-    app_account_id: &H256,
-) -> Result<WithStatus<String>, Rejection> {
+async fn get_state_hex(db: Arc<Mutex<NodeDB>>, state: Arc<Mutex<VmState>>, app_account_id: &H256) -> Result<WithStatus<String>, Rejection> {
     let state_lock = state.lock().await;
     let db_lock = db.lock().await;
 
@@ -499,11 +480,7 @@ async fn get_state_hex(
     };
 
     let account = account_option.unwrap_or_else(AccountState::zero);
-    let siblings: Vec<[u8; 32]> = proof
-        .siblings()
-        .iter()
-        .map(|s| s.hash::<Sha256>())
-        .collect();
+    let siblings: Vec<[u8; 32]> = proof.siblings().iter().map(|s| s.hash::<Sha256>()).collect();
     let value_hash = ValueHash::with::<Sha256>(account.encode()).0;
 
     let account_with_proof = AccountWithProof {
@@ -558,10 +535,7 @@ async fn get_state_hex(
         (status = 500, description = "Internal error", body = String)
     )
 )]
-async fn get_header(
-    db: Arc<Mutex<NodeDB>>,
-    avail_hash: H256,
-) -> Result<WithStatus<String>, Rejection> {
+async fn get_header(db: Arc<Mutex<NodeDB>>, avail_hash: H256) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
 
     let nexus_hash: H256 = match db_lock.get::<AvailToNexusPointer>(avail_hash.as_slice()) {
@@ -774,9 +748,7 @@ pub fn routes(
         .and(warp::any().map(move || vm_state.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
-            |db: Arc<Mutex<NodeDB>>,
-             vm_state: Arc<Mutex<VmState>>,
-             params: HashMap<String, String>| async move {
+            |db: Arc<Mutex<NodeDB>>, vm_state: Arc<Mutex<VmState>>, params: HashMap<String, String>| async move {
                 match params.get("app_account_id") {
                     Some(hash_str) => {
                         let block_hash = match params.get("block_hash") {
@@ -814,9 +786,7 @@ pub fn routes(
         .and(warp::any().map(move || vm_state_clone.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
-            |db: Arc<Mutex<NodeDB>>,
-             vm_state: Arc<Mutex<VmState>>,
-             params: HashMap<String, String>| async move {
+            |db: Arc<Mutex<NodeDB>>, vm_state: Arc<Mutex<VmState>>, params: HashMap<String, String>| async move {
                 match params.get("app_account_id") {
                     Some(hash_str) => {
                         let app_account_id = H256::try_from(hash_str.as_str());
@@ -837,9 +807,7 @@ pub fn routes(
         );
 
     let config = Arc::new(Config::from("/api-doc.json"));
-    let api_doc = warp::path("api-doc.json")
-        .and(warp::get())
-        .map(|| warp::reply::json(&ApiDoc::openapi()));
+    let api_doc = warp::path("api-doc.json").and(warp::get()).map(|| warp::reply::json(&ApiDoc::openapi()));
 
     let swagger_ui = warp::path("swagger-ui")
         .and(warp::get())
@@ -859,11 +827,7 @@ pub fn routes(
         .or(swagger_ui)
 }
 
-async fn serve_swagger(
-    full_path: FullPath,
-    tail: Tail,
-    config: Arc<Config<'static>>,
-) -> Result<Box<dyn Reply + 'static>, Rejection> {
+async fn serve_swagger(full_path: FullPath, tail: Tail, config: Arc<Config<'static>>) -> Result<Box<dyn Reply + 'static>, Rejection> {
     if full_path.as_str() == "/swagger-ui" {
         return Ok(Box::new(warp::redirect::found(Uri::from_static(
             "/swagger-ui/",
@@ -875,18 +839,14 @@ async fn serve_swagger(
         Ok(file) => {
             if let Some(file) = file {
                 Ok(Box::new(
-                    Response::builder()
-                        .header("Content-Type", file.content_type)
-                        .body(file.bytes),
+                    Response::builder().header("Content-Type", file.content_type).body(file.bytes),
                 ))
             } else {
                 Ok(Box::new(StatusCode::NOT_FOUND))
             }
         }
         Err(error) => Ok(Box::new(
-            Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(error.to_string()),
+            Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body(error.to_string()),
         )),
     }
 }

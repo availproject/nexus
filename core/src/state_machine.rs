@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
-use crate::types::{
-    AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, Transaction,
-    TransactionZKVM, TxParams, H256,
-};
+use crate::types::{AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, Transaction, TransactionZKVM, TxParams, H256};
 use crate::zkvm::traits::{ZKVMEnv, ZKVMProof};
 use anyhow::{anyhow, Error};
 use jmt::storage::{NodeBatch, TreeUpdateBatch};
@@ -36,12 +33,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
     }
 
     #[instrument(level = "debug", skip(self, state_root))]
-    pub async fn commit_state(
-        &mut self,
-        state_root: &H256,
-        node_batch: &NodeBatch,
-        batch_number: u32,
-    ) -> Result<(), Error> {
+    pub async fn commit_state(&mut self, state_root: &H256, node_batch: &NodeBatch, batch_number: u32) -> Result<(), Error> {
         debug!(
             "Committing state in state machine for batch {}",
             batch_number
@@ -88,9 +80,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
             txs.iter().try_for_each(|tx| {
                 let app_account_id: AppAccountId = match &tx.params {
                     TxParams::SubmitProof(submit_proof) => submit_proof.app_id.clone(),
-                    TxParams::InitAccount(init_account) => {
-                        AppAccountId::from(init_account.app_id.clone())
-                    }
+                    TxParams::InitAccount(init_account) => AppAccountId::from(init_account.app_id.clone()),
                 };
 
                 let account_state = match state_lock.get(&app_account_id.as_h256(), prev_version) {
@@ -123,12 +113,9 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                 };
             })
             .collect();
-        let (stf_state_result, tx_result) = self.stf.execute_batch_with_results(
-            avail_header,
-            old_nexus_headers,
-            &zkvm_txs,
-            &pre_state,
-        )?;
+        let (stf_state_result, tx_result) = self
+            .stf
+            .execute_batch_with_results(avail_header, old_nexus_headers, &zkvm_txs, &pre_state)?;
         let mut state_lock = self.state.lock().await;
 
         if !stf_state_result.is_empty() {

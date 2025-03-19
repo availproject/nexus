@@ -4,16 +4,12 @@ use nexus_core::{
     db::NodeDB,
     state::vm_state::VmState,
     state_machine::StateMachine,
-    types::{
-        AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader, StatementDigest,
-        Transaction, TxParams, TxSignature,
-    },
+    types::{AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader, StatementDigest, Transaction, TxParams, TxSignature},
     zkvm::ProverMode,
 };
 use nexus_host::execute_batch;
 use rocksdb::Options;
 use serde_json::from_reader;
-use std::{any, env};
 use std::env::args;
 use std::fs;
 use std::fs::File;
@@ -21,6 +17,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
+use std::{any, env};
 use tokio::sync::Mutex;
 
 #[cfg(feature = "risc0")]
@@ -34,9 +31,7 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
-fn create_mock_data(
-    prover_mode: ProverMode,
-) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
+fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
     let db_path = "./db";
     let prover_mode_string = match prover_mode {
         ProverMode::NoAggregation => "no_aggregation",
@@ -74,10 +69,8 @@ async fn bench_init_account_transactions(
     avail_headers: Vec<AvailHeader>,
     header_store: &mut HeaderStore,
 ) -> Proof {
-    let file_content =
-        fs::read_to_string("mock_data/init_account_txns.json").unwrap();
-    let init_account_transactions: Vec<Transaction> =
-        serde_json::from_str(&file_content).unwrap();
+    let file_content = fs::read_to_string("mock_data/init_account_txns.json").unwrap();
+    let init_account_transactions: Vec<Transaction> = serde_json::from_str(&file_content).unwrap();
 
     let (proof, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
         &init_account_transactions,
@@ -98,10 +91,8 @@ async fn bench_submit_proof_transactions(
     avail_headers: Vec<AvailHeader>,
     header_store: &mut HeaderStore,
 ) -> Proof {
-    let file_content =
-        fs::read_to_string("mock_data/submit_proof_txns.json").unwrap();
-    let submit_proof_transactions: Vec<Transaction> =
-        serde_json::from_str(&file_content).unwrap();
+    let file_content = fs::read_to_string("mock_data/submit_proof_txns.json").unwrap();
+    let submit_proof_transactions: Vec<Transaction> = serde_json::from_str(&file_content).unwrap();
 
     let (proof, _, _, _) = execute_batch::<Prover, Proof, ZKVM>(
         &submit_proof_transactions,
@@ -134,12 +125,10 @@ fn get_proof_size(proof: Proof) -> u64 {
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     #[cfg(any(feature = "sp1"))]
-    env_logger::Builder::from_env("RUST_LOG")
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::Builder::from_env("RUST_LOG").filter_level(log::LevelFilter::Info).init();
 
     let prover_mode_param = env::var("PROVER_MODE").unwrap_or_else(|_| "default".to_string());
-    
+
     if !["compressed", "no_aggregation", "groth16"].contains(&prover_mode_param.as_str()) {
         eprintln!("Usage: PROVER_MODE=<compressed, no_aggregation> cargo bench");
         return Ok(());
@@ -156,8 +145,7 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     };
 
-    let (mut state_machine, avail_headers, mut header_store) =
-        create_mock_data(prover_mode.clone());
+    let (mut state_machine, avail_headers, mut header_store) = create_mock_data(prover_mode.clone());
     let mock_txs: Vec<Transaction> = Vec::new();
 
     let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
@@ -181,7 +169,10 @@ async fn main() -> Result<(), anyhow::Error> {
     .await;
 
     let init_account_transactions_duration = init_account_time_start.elapsed();
-    println!("Proof generation time for Init account transactions with prover mode {:?} took: {:?}", prover_mode_param, init_account_transactions_duration);
+    println!(
+        "Proof generation time for Init account transactions with prover mode {:?} took: {:?}",
+        prover_mode_param, init_account_transactions_duration
+    );
 
     let mut file_size = get_proof_size(proof);
     println!("Size of the Proof Binary: {} bytes", file_size);
@@ -197,7 +188,10 @@ async fn main() -> Result<(), anyhow::Error> {
     .await;
 
     let submit_account_transactions_duration = submit_account_time_start.elapsed();
-    println!("Proof generation time for Submit account transactions with prover mode {:?} took: {:?}", prover_mode_param, submit_account_transactions_duration);
+    println!(
+        "Proof generation time for Submit account transactions with prover mode {:?} took: {:?}",
+        prover_mode_param, submit_account_transactions_duration
+    );
 
     file_size = get_proof_size(proof);
     println!("Size of the Proof Binary: {} bytes", file_size);

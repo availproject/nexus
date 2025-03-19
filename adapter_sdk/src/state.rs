@@ -5,15 +5,12 @@
 use crate::api::NexusAPI;
 use crate::db::DB;
 use crate::traits::RollupProof;
-use crate::types::{
-    AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProofWithPublicInputs,
-    RollupPublicInputs,
-};
+use crate::types::{AdapterConfig, AdapterPrivateInputs, AdapterPublicInputs, RollupProofWithPublicInputs, RollupPublicInputs};
 use anyhow::{anyhow, Error};
 use nexus_core::types::Proof;
 use nexus_core::types::{
-    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest,
-    SubmitProof, Transaction, TxParams, TxSignature, H256,
+    AppAccountId, AppId, AvailHeader, InitAccount, NexusHeader, Proof as ZKProof, StatementDigest, SubmitProof, Transaction, TxParams, TxSignature,
+    H256,
 };
 #[cfg(feature = "native-risc0")]
 use nexus_core::zkvm::risczero::{ProofConversion, RiscZeroProver};
@@ -58,15 +55,7 @@ pub(crate) struct QueueItem<P: RollupProof + Clone> {
 pub struct AdapterState<
     P: RollupProof + Clone + DeserializeOwned + Serialize + 'static,
     Z: ZKVMEnv + 'static,
-    ZP: ZKVMProof
-        + DebugTrait
-        + Clone
-        + DeserializeOwned
-        + Serialize
-        + Send
-        + TryInto<Proof>
-        + Debug
-        + 'static,
+    ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug + 'static,
 > where
     <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
 {
@@ -88,15 +77,7 @@ pub struct AdapterState<
 impl<
         P: RollupProof + Clone + DeserializeOwned + Serialize + Send,
         Z: ZKVMEnv,
-        ZP: ZKVMProof
-            + DebugTrait
-            + Clone
-            + DeserializeOwned
-            + Serialize
-            + Send
-            + TryInto<Proof>
-            + Debug
-            + ProofConversion,
+        ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug + ProofConversion,
     > AdapterState<P, Z, ZP>
 where
     <ZP as TryInto<Proof>>::Error: Into<anyhow::Error>,
@@ -131,9 +112,7 @@ where
         queue.clear();
 
         //TODO: Optimise below part.
-        stored_queue
-            .iter()
-            .for_each(|item| queue.push_back(item.clone()));
+        stored_queue.iter().for_each(|item| queue.push_back(item.clone()));
 
         drop(queue);
         self.previous_adapter_proof = previous_adapter_proof;
@@ -160,11 +139,7 @@ where
 
             let client = reqwest::Client::new();
 
-            let response = client
-                .post("http://127.0.0.1:7000/tx")
-                .json(&tx)
-                .send()
-                .await?;
+            let response = client.post("http://127.0.0.1:7000/tx").json(&tx).send().await?;
 
             // Check if the request was successful
             if response.status().is_success() {
@@ -198,11 +173,7 @@ where
                 queue.push_back(new_queue_item);
 
                 //Storing the queue in storage.
-                db_clone
-                    .lock()
-                    .await
-                    .store_last_known_queue(&queue)
-                    .unwrap();
+                db_clone.lock().await.store_last_known_queue(&queue).unwrap();
             }
         });
         let nexus_api_clone = self.nexus_api.clone();
@@ -224,10 +195,7 @@ where
         Ok(())
     }
 
-    async fn manage_submissions(
-        db: Arc<Mutex<DB<P, ZP>>>,
-        nexus_api: &NexusAPI,
-    ) -> Result<P, Error> {
+    async fn manage_submissions(db: Arc<Mutex<DB<P, ZP>>>, nexus_api: &NexusAPI) -> Result<P, Error> {
         loop {
             thread::sleep(Duration::from_secs(2));
 
@@ -291,11 +259,7 @@ where
                     }),
                 };
 
-                let response = client
-                    .post("http://127.0.0.1:7000/tx")
-                    .json(&tx)
-                    .send()
-                    .await?;
+                let response = client.post("http://127.0.0.1:7000/tx").json(&tx).send().await?;
 
                 // Check if the request was successful
                 if response.status().is_success() {
@@ -320,14 +284,7 @@ where
 
     async fn process_queue(&mut self) -> Result<ZP, Error>
     where
-        ZP: ZKVMProof
-            + DebugTrait
-            + Clone
-            + DeserializeOwned
-            + Serialize
-            + Send
-            + TryInto<Proof>
-            + Debug,
+        ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug,
     {
         loop {
             let queue_item = {
@@ -405,17 +362,9 @@ where
         // TODO change the return type to ZP
     ) -> Result<(ZP), Error>
     where
-        ZP: ZKVMProof
-            + DebugTrait
-            + Clone
-            + DeserializeOwned
-            + Serialize
-            + Send
-            + TryInto<Proof>
-            + Debug,
+        ZP: ZKVMProof + DebugTrait + Clone + DeserializeOwned + Serialize + Send + TryInto<Proof> + Debug,
     {
-        let nexus_header: NexusHeader =
-            self.nexus_api.get_header(&queue_item.header.hash()).await?;
+        let nexus_header: NexusHeader = self.nexus_api.get_header(&queue_item.header.hash()).await?;
 
         let private_inputs = AdapterPrivateInputs {
             nexus_header,

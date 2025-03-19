@@ -38,11 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("⚠️  Running in dev mode - proofs are not valid");
     }
 
-    let prover_mode = if dev_flag {
-        ProverMode::MockProof
-    } else {
-        ProverMode::Compressed
-    };
+    let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
 
     print_animated_logo(&prover_mode);
 
@@ -100,8 +96,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn print_animated_logo(prover_mode: &ProverMode) {
-    let version_line = format!("                                    ║           Version: {:8}       ║                                    ", env!("CARGO_PKG_VERSION"));
-    let mode_line = format!("                                    ║      Prover Mode: {:12}    ║                                    ", format!("{:?}", prover_mode));
+    let version_line = format!(
+        "                                    ║           Version: {:8}       ║                                    ",
+        env!("CARGO_PKG_VERSION")
+    );
+    let mode_line = format!(
+        "                                    ║      Prover Mode: {:12}    ║                                    ",
+        format!("{:?}", prover_mode)
+    );
 
     let logo = vec![
         "                                    ╔═══════════════════════════════════╗                                    ",

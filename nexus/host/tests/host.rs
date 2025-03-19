@@ -10,9 +10,8 @@ use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as Z
 use nexus_core::{
     state_machine::StateMachine,
     types::{
-        AccountState, AccountWithProof, AppAccountId, AppId, HeaderStore, InitAccount,
-        NexusBlockWithTransactions, StatementDigest, SubmitProof, Transaction, TransactionStatus,
-        TransactionWithStatus, TxParams, TxSignature, H256,
+        AccountState, AccountWithProof, AppAccountId, AppId, HeaderStore, InitAccount, NexusBlockWithTransactions, StatementDigest, SubmitProof,
+        Transaction, TransactionStatus, TransactionWithStatus, TxParams, TxSignature, H256,
     },
     zkvm::ProverMode,
 };
@@ -61,17 +60,12 @@ async fn test_empty_batches() {
         println!("Database folder cleaned up successfully.");
     }
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
     let headers_clone = headers.clone();
     let sender_clone = sender.clone();
 
@@ -88,9 +82,7 @@ async fn test_empty_batches() {
             for header in headers_in_box {
                 println!("Sending header number {}", header.number);
                 // Simulate sending headers
-                sender_in_box
-                    .send(header)
-                    .expect("Failed to send header in mock");
+                sender_in_box.send(header).expect("Failed to send header in mock");
             }
         })
     });
@@ -164,17 +156,12 @@ async fn test_out_of_order_headers() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let mut headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
 
     // Intentionally shuffle the headers to simulate out-of-order delivery
     headers.reverse();
@@ -193,9 +180,7 @@ async fn test_out_of_order_headers() {
         Box::pin(async move {
             for header in headers_in_box {
                 // Simulate sending headers
-                sender_in_box
-                    .send(header)
-                    .expect("Failed to send header in mock");
+                sender_in_box.send(header).expect("Failed to send header in mock");
             }
         })
     });
@@ -271,17 +256,12 @@ async fn test_state_root_for_empty_batches() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let mut headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
 
     let headers_clone = headers.clone();
     let sender_clone = sender.clone();
@@ -300,9 +280,7 @@ async fn test_state_root_for_empty_batches() {
             // Send only the first two headers
             for header in headers_in_box.into_iter().take(2) {
                 // Simulate sending headers
-                sender_in_box
-                    .send(header)
-                    .expect("Failed to send header in mock");
+                sender_in_box.send(header).expect("Failed to send header in mock");
             }
         })
     });
@@ -380,18 +358,13 @@ async fn test_init_account_tx() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
     mock_relayer.expect_stop().returning(move || ());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let mut headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
 
     let headers_clone = headers.clone();
     let sender_clone = sender.clone();
@@ -417,24 +390,14 @@ async fn test_init_account_tx() {
             #[cfg(any(feature = "sp1"))]
             let tx_file_path = "tests/data/init_tx_sp1.json";
 
-            sender_in_box
-                .send(headers_in_box[0].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[0].clone()).expect("Failed to send header in mock");
             //TODO: Keep the tests less complicated than below.
             tokio::time::sleep(Duration::from_secs(1)).await;
             // Read and deserialize the transaction from the JSON file
-            let tx_json = fs::read_to_string(tx_file_path)
-                .await
-                .expect("Failed to read transaction JSON file");
-            let tx: Transaction =
-                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+            let tx_json = fs::read_to_string(tx_file_path).await.expect("Failed to read transaction JSON file");
+            let tx: Transaction = serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
-            let response = Client::new()
-                .post("http://127.0.0.1:7003/tx")
-                .json(&tx)
-                .send()
-                .await
-                .unwrap();
+            let response = Client::new().post("http://127.0.0.1:7003/tx").json(&tx).send().await.unwrap();
 
             // Check if the request was successful
             if response.status().is_success() {
@@ -447,9 +410,7 @@ async fn test_init_account_tx() {
             }
             println!("Sent second header");
             // Simulate sending headers
-            sender_in_box
-                .send(headers_in_box[1].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[1].clone()).expect("Failed to send header in mock");
             //TODO: Keep the tests less complicated than below.
             tokio::time::sleep(Duration::from_secs(5)).await;
             shutdown_tx_clone.send(true).unwrap();
@@ -491,11 +452,10 @@ async fn test_init_account_tx() {
         Err(e) => panic!("Internal db error: {:?}", e),
     };
 
-    let (account_option, _) =
-        match state_lock.get_with_proof(&H256::from(app_account_id.0), current_version) {
-            Ok(i) => i,
-            Err(e) => panic!("State call failed with error: {:?}", e),
-        };
+    let (account_option, _) = match state_lock.get_with_proof(&H256::from(app_account_id.0), current_version) {
+        Ok(i) => i,
+        Err(e) => panic!("State call failed with error: {:?}", e),
+    };
 
     assert_eq!(current_version, 1);
     assert_eq!(
@@ -505,10 +465,7 @@ async fn test_init_account_tx() {
             last_proof_height: 0,
             start_nexus_hash: old_headers.inner().last().unwrap().hash().into(),
             state_root: [0u8; 32],
-            statement: StatementDigest([
-                3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743, 1619524616,
-                2323598105
-            ]),
+            statement: StatementDigest([3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743, 1619524616, 2323598105]),
         })
     )
 }
@@ -537,18 +494,13 @@ async fn test_update_tx() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
     mock_relayer.expect_stop().returning(move || ());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let mut headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
 
     let headers_clone = headers.clone();
     let sender_clone = sender.clone();
@@ -573,19 +525,14 @@ async fn test_update_tx() {
                 format!("tests/data/submitproof_tx_risc0_{}.json", n)
             }
             for n in 0..10 {
-                sender_in_box
-                    .send(headers_in_box[n].clone())
-                    .expect("Failed to send header in mock");
+                sender_in_box.send(headers_in_box[n].clone()).expect("Failed to send header in mock");
                 //TODO: Keep the tests less complicated than below.
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
                 let tx = if n == 0 {
                     // Read and deserialize the transaction from the JSON file
-                    let tx_json = fs::read_to_string(init_tx_path)
-                        .await
-                        .expect("Failed to read transaction JSON file");
-                    let tx: Transaction =
-                        serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+                    let tx_json = fs::read_to_string(init_tx_path).await.expect("Failed to read transaction JSON file");
+                    let tx: Transaction = serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
                     tx
                 } else {
@@ -593,18 +540,12 @@ async fn test_update_tx() {
                     let tx_json = fs::read_to_string(submit_proof_tx_path(n))
                         .await
                         .expect("Failed to read transaction JSON file");
-                    let mut tx: Transaction =
-                        serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+                    let mut tx: Transaction = serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
                     tx
                 };
 
-                let response = Client::new()
-                    .post("http://127.0.0.1:7004/tx")
-                    .json(&tx)
-                    .send()
-                    .await
-                    .unwrap();
+                let response = Client::new().post("http://127.0.0.1:7004/tx").json(&tx).send().await.unwrap();
 
                 // Check if the request was successful
                 if response.status().is_success() {
@@ -620,9 +561,7 @@ async fn test_update_tx() {
             println!("Sent second header");
             // Simulate sending headers
 
-            sender_in_box
-                .send(headers_in_box[10].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[10].clone()).expect("Failed to send header in mock");
 
             //TODO: Keep the tests less complicated than below.
             tokio::time::sleep(Duration::from_secs(5)).await;
@@ -666,11 +605,10 @@ async fn test_update_tx() {
         Err(e) => panic!("Internal db error: {:?}", e),
     };
 
-    let (account_option, _) =
-        match state_lock.get_with_proof(&H256::from(app_account_id.0), current_version) {
-            Ok(i) => i,
-            Err(e) => panic!("State call failed with error: {:?}", e),
-        };
+    let (account_option, _) = match state_lock.get_with_proof(&H256::from(app_account_id.0), current_version) {
+        Ok(i) => i,
+        Err(e) => panic!("State call failed with error: {:?}", e),
+    };
 
     assert_eq!(current_version, 10);
     assert_eq!(
@@ -680,13 +618,10 @@ async fn test_update_tx() {
             last_proof_height: 9,
             start_nexus_hash: old_headers.inner().last().unwrap().hash().into(),
             state_root: [
-                6, 216, 214, 89, 28, 81, 211, 26, 3, 85, 59, 232, 9, 185, 9, 104, 182, 224, 25,
-                245, 45, 166, 90, 253, 133, 157, 64, 140, 201, 186, 98, 21
+                6, 216, 214, 89, 28, 81, 211, 26, 3, 85, 59, 232, 9, 185, 9, 104, 182, 224, 25, 245, 45, 166, 90, 253, 133, 157, 64, 140, 201, 186,
+                98, 21
             ],
-            statement: StatementDigest([
-                3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743, 1619524616,
-                2323598105
-            ]),
+            statement: StatementDigest([3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743, 1619524616, 2323598105]),
         })
     )
 }
@@ -714,18 +649,13 @@ async fn test_transaction_status() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
     mock_relayer.expect_stop().returning(move || ());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let mut headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
 
     let headers_clone = headers.clone();
     let sender_clone = sender.clone();
@@ -751,25 +681,15 @@ async fn test_transaction_status() {
             #[cfg(any(feature = "sp1"))]
             let tx_file_path = "tests/data/init_tx_sp1.json";
 
-            sender_in_box
-                .send(headers_in_box[0].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[0].clone()).expect("Failed to send header in mock");
             //TODO: Keep the tests less complicated than below.
             tokio::time::sleep(Duration::from_secs(1)).await;
 
             // Read and deserialize the transaction from the JSON file
-            let tx_json = fs::read_to_string(tx_file_path)
-                .await
-                .expect("Failed to read transaction JSON file");
-            let tx: Transaction =
-                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+            let tx_json = fs::read_to_string(tx_file_path).await.expect("Failed to read transaction JSON file");
+            let tx: Transaction = serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
-            let response = Client::new()
-                .post("http://127.0.0.1:7005/tx")
-                .json(&tx)
-                .send()
-                .await
-                .unwrap();
+            let response = Client::new().post("http://127.0.0.1:7005/tx").json(&tx).send().await.unwrap();
 
             // Check if the request was successful
             if response.status().is_success() {
@@ -782,9 +702,7 @@ async fn test_transaction_status() {
             }
             println!("Sent second header");
             // Simulate sending headers
-            sender_in_box
-                .send(headers_in_box[1].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[1].clone()).expect("Failed to send header in mock");
             tokio::time::sleep(Duration::from_secs(2)).await;
 
             let latest_block: NexusHeader = node_db_in_box
@@ -861,18 +779,13 @@ async fn test_get_state_api() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
     mock_relayer.expect_stop().returning(move || ());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let mut headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
 
     let headers_clone = headers.clone();
     let sender_clone = sender.clone();
@@ -904,19 +817,14 @@ async fn test_get_state_api() {
             let mut tx_hashes: Vec<String> = vec![];
 
             for n in 0..3 {
-                sender_in_box
-                    .send(headers_in_box[n].clone())
-                    .expect("Failed to send header in mock");
+                sender_in_box.send(headers_in_box[n].clone()).expect("Failed to send header in mock");
                 //TODO: Keep the tests less complicated than below.
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
                 let tx = if n == 0 {
                     // Read and deserialize the transaction from the JSON file
-                    let tx_json = fs::read_to_string(init_tx_path)
-                        .await
-                        .expect("Failed to read transaction JSON file");
-                    let tx: Transaction =
-                        serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+                    let tx_json = fs::read_to_string(init_tx_path).await.expect("Failed to read transaction JSON file");
+                    let tx: Transaction = serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
                     tx
                 } else {
@@ -924,25 +832,17 @@ async fn test_get_state_api() {
                     let tx_json = fs::read_to_string(submit_proof_tx_path(n))
                         .await
                         .expect("Failed to read transaction JSON file");
-                    let mut tx: Transaction =
-                        serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+                    let mut tx: Transaction = serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
                     tx
                 };
 
                 tx_hashes.push(hex::encode(tx.hash().as_slice()));
-                let response = Client::new()
-                    .post("http://127.0.0.1:7006/tx")
-                    .json(&tx)
-                    .send()
-                    .await
-                    .unwrap();
+                let response = Client::new().post("http://127.0.0.1:7006/tx").json(&tx).send().await.unwrap();
             }
 
             // Simulate sending headers
-            sender_in_box
-                .send(headers_in_box[3].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[3].clone()).expect("Failed to send header in mock");
             //TODO: Keep the tests less complicated than below.
             tokio::time::sleep(Duration::from_secs(3)).await;
 
@@ -968,22 +868,18 @@ async fn test_get_state_api() {
                 .await
                 .unwrap();
 
-            let account_with_proof: AccountWithProof =
-                response.json().await.expect("API call to nexus failed");
+            let account_with_proof: AccountWithProof = response.json().await.expect("API call to nexus failed");
             assert_eq!(
                 account_with_proof.account,
                 AccountState {
                     height: 0,
                     last_proof_height: 0,
                     start_nexus_hash: [
-                        124, 155, 177, 24, 187, 203, 222, 53, 134, 69, 91, 202, 176, 57, 205, 125,
-                        6, 190, 127, 189, 221, 197, 246, 121, 254, 142, 231, 94, 10, 210, 115, 246
+                        124, 155, 177, 24, 187, 203, 222, 53, 134, 69, 91, 202, 176, 57, 205, 125, 6, 190, 127, 189, 221, 197, 246, 121, 254, 142,
+                        231, 94, 10, 210, 115, 246
                     ],
                     state_root: [0u8; 32],
-                    statement: StatementDigest([
-                        3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743,
-                        1619524616, 2323598105
-                    ]),
+                    statement: StatementDigest([3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743, 1619524616, 2323598105]),
                 }
             );
 
@@ -1015,8 +911,7 @@ async fn test_get_state_api() {
                 .await
                 .unwrap();
 
-            let account_with_proof: AccountWithProof =
-                response.json().await.expect("API call to nexus failed");
+            let account_with_proof: AccountWithProof = response.json().await.expect("API call to nexus failed");
 
             assert_eq!(
                 account_with_proof.account,
@@ -1024,17 +919,14 @@ async fn test_get_state_api() {
                     height: 1,
                     last_proof_height: 1,
                     start_nexus_hash: [
-                        124, 155, 177, 24, 187, 203, 222, 53, 134, 69, 91, 202, 176, 57, 205, 125,
-                        6, 190, 127, 189, 221, 197, 246, 121, 254, 142, 231, 94, 10, 210, 115, 246
+                        124, 155, 177, 24, 187, 203, 222, 53, 134, 69, 91, 202, 176, 57, 205, 125, 6, 190, 127, 189, 221, 197, 246, 121, 254, 142,
+                        231, 94, 10, 210, 115, 246
                     ],
                     state_root: [
-                        106, 253, 110, 223, 62, 221, 125, 87, 216, 204, 244, 156, 83, 209, 14, 63,
-                        0, 95, 50, 234, 154, 7, 99, 193, 144, 166, 121, 106, 221, 81, 90, 138
+                        106, 253, 110, 223, 62, 221, 125, 87, 216, 204, 244, 156, 83, 209, 14, 63, 0, 95, 50, 234, 154, 7, 99, 193, 144, 166, 121,
+                        106, 221, 81, 90, 138
                     ],
-                    statement: StatementDigest([
-                        3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743,
-                        1619524616, 2323598105
-                    ]),
+                    statement: StatementDigest([3963634887, 3768818894, 2608717727, 685163898, 341397292, 1233383743, 1619524616, 2323598105]),
                 }
             );
             shutdown_tx_clone.send(true).unwrap();
@@ -1082,18 +974,13 @@ async fn test_get_block_api() {
     let receiver_arc: Arc<Mutex<UnboundedReceiver<Header>>> = Arc::new(Mutex::new(receiver));
     let receiver_arc_clone = receiver_arc.clone();
 
-    mock_relayer
-        .expect_receiver()
-        .returning(move || receiver_arc_clone.clone());
+    mock_relayer.expect_receiver().returning(move || receiver_arc_clone.clone());
     mock_relayer.expect_stop().returning(move || ());
 
     // Read headers from the JSON file
     let json_path = "tests/data/avail_headers.json";
-    let file_content = fs::read_to_string(json_path)
-        .await
-        .expect("Failed to read headers JSON file");
-    let mut headers: Vec<Header> =
-        serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
+    let file_content = fs::read_to_string(json_path).await.expect("Failed to read headers JSON file");
+    let mut headers: Vec<Header> = serde_json::from_str(&file_content).expect("Failed to parse headers JSON file");
 
     let headers_clone = headers.clone();
     let sender_clone = sender.clone();
@@ -1117,25 +1004,15 @@ async fn test_get_block_api() {
             #[cfg(any(feature = "sp1"))]
             let tx_file_path = "tests/data/init_tx_sp1.json";
 
-            sender_in_box
-                .send(headers_in_box[0].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[0].clone()).expect("Failed to send header in mock");
             //TODO: Keep the tests less complicated than below.
             tokio::time::sleep(Duration::from_secs(1)).await;
 
             // Read and deserialize the transaction from the JSON file
-            let tx_json = fs::read_to_string(tx_file_path)
-                .await
-                .expect("Failed to read transaction JSON file");
-            let tx: Transaction =
-                serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
+            let tx_json = fs::read_to_string(tx_file_path).await.expect("Failed to read transaction JSON file");
+            let tx: Transaction = serde_json::from_str(&tx_json).expect("Failed to parse transaction JSON");
 
-            let response = Client::new()
-                .post("http://127.0.0.1:7007/tx")
-                .json(&tx)
-                .send()
-                .await
-                .unwrap();
+            let response = Client::new().post("http://127.0.0.1:7007/tx").json(&tx).send().await.unwrap();
 
             // Check if the request was successful
             if response.status().is_success() {
@@ -1148,29 +1025,17 @@ async fn test_get_block_api() {
             }
             println!("Sent second header");
             // Simulate sending headers
-            sender_in_box
-                .send(headers_in_box[1].clone())
-                .expect("Failed to send header in mock");
+            sender_in_box.send(headers_in_box[1].clone()).expect("Failed to send header in mock");
             tokio::time::sleep(Duration::from_secs(2)).await;
 
-            let response = Client::new()
-                .get("http://127.0.0.1:7007/block")
-                .send()
-                .await
-                .unwrap();
+            let response = Client::new().get("http://127.0.0.1:7007/block").send().await.unwrap();
             let status = response.status();
 
-            let block_with_txs: NexusBlockWithTransactions = response
-                .json()
-                .await
-                .expect("Response with Nexus block not encoded as expected.");
+            let block_with_txs: NexusBlockWithTransactions = response.json().await.expect("Response with Nexus block not encoded as expected.");
 
             let json_path = "tests/data/nexus_header_risc0_1.json";
-            let file_content = fs::read_to_string(json_path)
-                .await
-                .expect("Failed to read nexus header json file.");
-            let expected_header: NexusBlockWithTransactions =
-                serde_json::from_str(&file_content).expect("Failed to parse Nexus header file.");
+            let file_content = fs::read_to_string(json_path).await.expect("Failed to read nexus header json file.");
+            let expected_header: NexusBlockWithTransactions = serde_json::from_str(&file_content).expect("Failed to parse Nexus header file.");
 
             assert_eq!(expected_header, block_with_txs);
 

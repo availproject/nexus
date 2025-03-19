@@ -47,8 +47,7 @@ impl VmState {
     }
 
     pub fn get_root(&self, version: u64) -> Result<H256, anyhow::Error> {
-        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
-            JellyfishMerkleTree::new(&self.merkle_store);
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> = JellyfishMerkleTree::new(&self.merkle_store);
         let root = match tree.get_root_hash_option(version)? {
             Some(i) => H256::from(i.0),
             None => H256::zero(),
@@ -56,24 +55,18 @@ impl VmState {
         Ok(root)
     }
 
-    pub fn update_set(
-        &mut self,
-        set: HashMap<H256, Option<AccountState>>,
-        version: Version,
-    ) -> Result<(TreeUpdateBatch, StateUpdate), Error> {
-        let mut pre_state: HashMap<[u8; 32], (Option<AccountState>, SparseMerkleProof<Sha256>)> =
-            HashMap::new();
+    pub fn update_set(&mut self, set: HashMap<H256, Option<AccountState>>, version: Version) -> Result<(TreeUpdateBatch, StateUpdate), Error> {
+        let mut pre_state: HashMap<[u8; 32], (Option<AccountState>, SparseMerkleProof<Sha256>)> = HashMap::new();
         let prev_version: u64 = version - 1;
         let pre_state_root = self.get_root(prev_version)?;
 
-        set.iter()
-            .try_for_each::<_, Result<(), anyhow::Error>>(|(key, account)| {
-                //Note: Do not have to get version minus one, as any version lesser than equal to is supposed to be retrieved, but need to debug why it is not.
-                let result = self.get_with_proof(key, prev_version)?;
+        set.iter().try_for_each::<_, Result<(), anyhow::Error>>(|(key, account)| {
+            //Note: Do not have to get version minus one, as any version lesser than equal to is supposed to be retrieved, but need to debug why it is not.
+            let result = self.get_with_proof(key, prev_version)?;
 
-                pre_state.insert(key.as_fixed_slice().clone(), result);
-                Ok(())
-            })?;
+            pre_state.insert(key.as_fixed_slice().clone(), result);
+            Ok(())
+        })?;
         // Convert AccountState to Vec<u8> before inserting into the set
         let serialized_set: HashMap<KeyHash, Option<Vec<u8>>> = set
             .into_iter()
@@ -82,8 +75,7 @@ impl VmState {
                 (KeyHash(key.as_fixed_slice().clone()), serialized_value)
             })
             .collect();
-        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
-            JellyfishMerkleTree::new(&self.merkle_store);
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> = JellyfishMerkleTree::new(&self.merkle_store);
 
         // Perform the update with the serialized set
         match tree.put_value_set(serialized_set, version) {
@@ -108,8 +100,7 @@ impl VmState {
     }
 
     pub fn get(&self, key: &H256, version: Version) -> Result<Option<AccountState>, Error> {
-        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
-            JellyfishMerkleTree::new(&self.merkle_store);
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> = JellyfishMerkleTree::new(&self.merkle_store);
 
         match tree.get(KeyHash(key.as_fixed_slice().clone()), version) {
             Ok(Some(value)) => match AccountState::decode(&value) {
@@ -122,13 +113,8 @@ impl VmState {
     }
 
     //Gets from state even if not committed.
-    pub fn get_with_proof(
-        &self,
-        key: &H256,
-        version: Version,
-    ) -> Result<(Option<AccountState>, SparseMerkleProof<Sha256>), Error> {
-        let tree: JellyfishMerkleTree<MerkleStore, Sha256> =
-            JellyfishMerkleTree::new(&self.merkle_store);
+    pub fn get_with_proof(&self, key: &H256, version: Version) -> Result<(Option<AccountState>, SparseMerkleProof<Sha256>), Error> {
+        let tree: JellyfishMerkleTree<MerkleStore, Sha256> = JellyfishMerkleTree::new(&self.merkle_store);
         let root = self.get_root(version)?;
 
         //TODO: Add genesis state so there is no empty root.

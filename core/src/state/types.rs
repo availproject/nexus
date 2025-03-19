@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "native"))]
 use utoipa::ToSchema;
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct StatementDigest(pub [u32; 8]);
@@ -72,16 +71,8 @@ impl AccountState {
             .ok_or(ethabi::Error::InvalidData)?
             .try_into()
             .map_err(|_| ethabi::Error::InvalidData)?;
-        let last_proof_height = tokens[3]
-            .clone()
-            .into_uint()
-            .ok_or(ethabi::Error::InvalidData)?
-            .as_u32();
-        let height = tokens[4]
-            .clone()
-            .into_uint()
-            .ok_or(ethabi::Error::InvalidData)?
-            .as_u32();
+        let last_proof_height = tokens[3].clone().into_uint().ok_or(ethabi::Error::InvalidData)?.as_u32();
+        let height = tokens[4].clone().into_uint().ok_or(ethabi::Error::InvalidData)?.as_u32();
 
         Ok(AccountState {
             statement,
@@ -110,8 +101,7 @@ impl StatementDigest {
 
             let mut u32_array = [0u32; 8];
             for (i, chunk) in bytes.chunks(4).enumerate() {
-                u32_array[i] =
-                    u32::from_be_bytes(chunk.try_into().map_err(|_| ethabi::Error::InvalidData)?);
+                u32_array[i] = u32::from_be_bytes(chunk.try_into().map_err(|_| ethabi::Error::InvalidData)?);
             }
 
             Ok(StatementDigest(u32_array))

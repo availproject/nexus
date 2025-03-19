@@ -8,9 +8,8 @@ use nexus_core::{
     state_machine::StateMachine,
     traits::NexusTransaction,
     types::{
-        AvailHeader, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader,
-        Proof as NexusProof, Transaction, TransactionResult, TransactionStatus,
-        TransactionWithStatus, TransactionZKVM, TxParams, H256,
+        AvailHeader, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader, Proof as NexusProof, Transaction, TransactionResult,
+        TransactionStatus, TransactionWithStatus, TransactionZKVM, TxParams, H256,
     },
     zkvm::{
         traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
@@ -79,13 +78,13 @@ pub async fn relayer_handle(
 
         if let Some(hash) = avail_hash {
             let height = match db_lock.get::<AvailToNexusPointer>(hash.as_slice()) {
-              Ok(Some(i)) => i.number,
-              Ok(None) => panic!("Node DB error. Cannot find mapping to avail -> nexus block for already processed block"),
-              Err(e) => {
-                  error!(error = ?e, "Node DB error");
-                  panic!("Node DB error. Cannot find mapping to avail -> nexus block")
-              },
-          } + 1;
+                Ok(Some(i)) => i.number,
+                Ok(None) => panic!("Node DB error. Cannot find mapping to avail -> nexus block for already processed block"),
+                Err(e) => {
+                    error!(error = ?e, "Node DB error");
+                    panic!("Node DB error. Cannot find mapping to avail -> nexus block")
+                }
+            } + 1;
 
             height
         } else {
@@ -108,11 +107,7 @@ pub async fn relayer_handle(
     info!("Exited relayer handle");
 }
 
-pub async fn execute_batch<
-    Z: ZKVMProver<P>,
-    P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
-    E: ZKVMEnv,
->(
+pub async fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>, E: ZKVMEnv>(
     txs: &Vec<Transaction>,
     state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
@@ -126,14 +121,11 @@ where
         Option<jmt::storage::TreeUpdateBatch>,
         nexus_core::types::StateUpdate,
         HashMap<H256, bool>,
-    ) = state_machine
-        .execute_batch(&header, header_store, &txs)
-        .await?;
+    ) = state_machine.execute_batch(&header, header_store, &txs).await?;
 
     let (proof, result) = {
         #[cfg(any(feature = "sp1"))]
-        let NEXUS_RUNTIME_ELF: &[u8] =
-            include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+        let NEXUS_RUNTIME_ELF: &[u8] = include_bytes!("../../../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/nexus_runtime_sp1");
 
         let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode);
 
@@ -171,18 +163,7 @@ where
     Ok((proof, result, tx_result, tree_update_batch))
 }
 
-#[instrument(
-    level = "info",
-    skip(
-        node_db,
-        mempool,
-        state_machine,
-        prover_mode,
-        shutdown_rx,
-        state,
-        receiver
-    )
-)]
+#[instrument(level = "info", skip(node_db, mempool, state_machine, prover_mode, shutdown_rx, state, receiver))]
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,
@@ -288,8 +269,7 @@ pub async fn execution_engine_handle(
                     .await
                     {
                         Ok(_) => {
-                            let successful_txs =
-                                tx_result.values().filter(|&&success| success).count();
+                            let successful_txs = tx_result.values().filter(|&&success| success).count();
                             info!(
                                 nexus_block = result.number,
                                 batch_hash = %hex::encode(result.hash().as_slice()),
@@ -319,10 +299,7 @@ pub async fn execution_engine_handle(
     Ok(())
 }
 
-#[instrument(
-    level = "debug",
-    skip(node_db, mempool, state_machine, processed_batch_info)
-)]
+#[instrument(level = "debug", skip(node_db, mempool, state_machine, processed_batch_info))]
 pub async fn save_batch_information<'a>(
     node_db: &Arc<Mutex<NodeDB>>,
     mempool: &Mempool,
@@ -370,11 +347,10 @@ pub async fn save_batch_information<'a>(
 
     for (tx_hash, success) in processed_batch_info.txs_result.iter() {
         let db_lock = node_db.lock().await;
-        let mut tx: TransactionWithStatus =
-            match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice())? {
-                Some(i) => i,
-                None => return Err(anyhow!("Tx not in db to modify.")),
-            };
+        let mut tx: TransactionWithStatus = match db_lock.get::<TransactionWithStatus>(tx_hash.as_slice())? {
+            Some(i) => i,
+            None => return Err(anyhow!("Tx not in db to modify.")),
+        };
 
         tx.block_hash = Some(nexus_hash.clone());
         tx.status = if success.clone() {
@@ -401,19 +377,13 @@ pub async fn save_batch_information<'a>(
         },
     );
     batch_transaction.put(
-        &[
-            processed_batch_info.header.number.to_be_bytes().as_slice(),
-            b"-block",
-        ]
-        .concat(),
+        &[processed_batch_info.header.number.to_be_bytes().as_slice(), b"-block"].concat(),
         &nexus_hash,
     );
     let db_lock = node_db.lock().await;
     db_lock.put_batch(batch_transaction)?;
 
-    db_lock
-        .set_current_root(&processed_batch_info.header.state_root)
-        .unwrap();
+    db_lock.set_current_root(&processed_batch_info.header.state_root).unwrap();
     if let Some(i) = processed_batch_info.mempool_index {
         mempool.clear_upto_tx(i.clone()).await;
     };
@@ -447,10 +417,9 @@ pub fn run_server(
     let routes = routes.with(cors);
 
     tokio::spawn(async move {
-        let address =
-            SocketAddr::from_str(format!("{}:{}", String::from("0.0.0.0"), port).as_str())
-                .context("Unable to parse host address from config")
-                .unwrap();
+        let address = SocketAddr::from_str(format!("{}:{}", String::from("127.0.0.1"), port).as_str())
+            .context("Unable to parse host address from config")
+            .unwrap();
 
         info!("🌐 RPC Server running on: {:?}", &address);
 
@@ -486,9 +455,7 @@ pub async fn run_nexus(
     };
     let mempool = Mempool::new(node_db.clone());
     let mempool_clone = mempool.clone();
-    let relayer_handle = tokio::spawn(async move {
-        relayer_handle(relayer_mutex, db_clone_2, shutdown_rx_1.clone()).await
-    });
+    let relayer_handle = tokio::spawn(async move { relayer_handle(relayer_mutex, db_clone_2, shutdown_rx_1.clone()).await });
 
     let execution_engine = tokio::spawn(async move {
         execution_engine_handle(
