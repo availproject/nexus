@@ -6,7 +6,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 #[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
-use geth_methods::{ADAPTER_ID};
+use geth_methods::ADAPTER_ID;
 
 mod utils;
 

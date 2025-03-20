@@ -40,10 +40,15 @@ adapter_sdk = { path = "../../adapter_sdk", features = [ "native-risc0" ] }
 geth-methods = { path = "../../examples/mock_geth_adapter/methods", optional = true }
 
 [features]
-default = [ "risc0" ]                                                     # need to change this to run with sp1
-sp1     = [ "sp1-sdk", "nexus-core/native-sp1", "prover/sp1" ]
-risc0   = [ "risc0-zkvm/std", "nexus-core/native-risc0", "prover/risc0", "geth-methods" ]
-cuda    = [ "risc0-zkvm/cuda" ]
+default = [ "risc0" ] # need to change this to run with sp1
+sp1 = [ "sp1-sdk", "nexus-core/native-sp1", "prover/sp1" ]
+risc0 = [
+    "risc0-zkvm/std",
+    "nexus-core/native-risc0",
+    "prover/risc0",
+    "geth-methods",
+]
+cuda = [ "risc0-zkvm/cuda" ]
 
 [patch.crates-io]
 serde = { version = "1.0.204" }
