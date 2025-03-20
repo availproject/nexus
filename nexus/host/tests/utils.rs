@@ -35,7 +35,6 @@ impl Drop for ManagedProcess {
 
 // ================================================
 
-
 pub fn get_mock_server() -> MockServer {
     MockServer::start()
 }
