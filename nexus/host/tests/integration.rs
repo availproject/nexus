@@ -5,6 +5,9 @@ use nexus_core::types::{AccountWithProof, AppAccountId, AppId, InitAccount, Stat
 use std::time::Duration;
 use tokio::time::sleep;
 
+#[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
+use geth_methods::{ADAPTER_ID};
+
 mod utils;
 
 // As defined in the mock geth adapter
@@ -89,10 +92,6 @@ async fn get_account_state(nexus_api: &NexusAPI, account_id: AppAccountId, mut t
 
 /// To register the account before running the mock geth adapter
 async fn register_account(nexus_api: &NexusAPI, app_account_id: AppAccountId) {
-    let adapter_id: [u32; 8] = [
-        629658695, 3066157471, 272264335, 1532806124, 2155508261, 1771388806, 3334681027, 2347946843,
-    ];
-
     let range = match nexus_api.get_range().await {
         Ok(i) => i,
         Err(e) => {
@@ -104,7 +103,7 @@ async fn register_account(nexus_api: &NexusAPI, app_account_id: AppAccountId) {
         signature: TxSignature([0u8; 64]),
         params: TxParams::InitAccount(InitAccount {
             app_id: app_account_id.clone(),
-            statement: StatementDigest(adapter_id),
+            statement: StatementDigest(ADAPTER_ID),
             start_nexus_hash: range[0],
         }),
     };
