@@ -9,9 +9,7 @@ import { AbiCoder, ethers } from "ethers";
 import logger from "../../logger.js";
 import { InterfaceAbi } from "ethers";
 import { TransactionReceipt } from "ethers";
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const MailboxAbi = require("../../abi/mailbox.json");
+import MailboxAbi from "../../abi/mailbox.json";
 
 type Proof = {
   batchNumber: number;

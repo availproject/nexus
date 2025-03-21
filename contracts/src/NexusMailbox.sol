@@ -19,18 +19,19 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
     /// @notice Tracks whether a message hash has been processed
     mapping(bytes32 => bool) public messages;
     /// @notice Maps chain IDs to their verifier wrapper contracts
-    mapping(bytes32 => VerifierInfo) public verifierWrappers;
+    mapping(bytes32 => VerifierInfo) internal verifierWrappers;
     /// @notice Stores verified message receipts by their hash
-    mapping(bytes32 => MailboxMessage) public verifiedMessages;
+    mapping(bytes32 => MailboxMessage) internal verifiedMessages;
     /// @notice Stores sent message details by their hash
-    mapping(bytes32 => MailboxMessage) private sendMessages;
+    mapping(bytes32 => MailboxMessage) internal sendMessages;
     /// @notice The unique identifier for this Nexus application
     bytes32 public nexusAppID;
 
     /// @notice Emitted when a message callback fails
     /// @param to The target address that failed to process the message
     /// @param data The message data that failed to process
-    event CallbackFailed(address indexed to, bytes data);
+    /// @param returnData The return data from the callback
+    event CallbackFailed(address indexed to, bytes data, bytes returnData);
 
     /// @notice Initializes the contract with a Nexus application ID
     /// @param _nexusAppID The unique identifier for this Nexus application
@@ -73,7 +74,7 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         address to = search(receipt.nexusAppIDTo, receipt.to);
 
         if (to != address(0)) {
-            (bool success, ) = to.call(
+            (bool success, bytes memory returnData) = to.call(
                 abi.encodeWithSignature(
                     "onNexusMessage(bytes32,address,bytes,uint256)",
                     receipt.nexusAppIDFrom,
@@ -82,8 +83,10 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
                     receipt.nonce
                 )
             );
+
             if (!success) {
-                emit CallbackFailed(to, receipt.data);
+                revert(string(returnData));
+                emit CallbackFailed(to, receipt.data, returnData);
             }
         }
     }
@@ -153,6 +156,15 @@ contract NexusMailbox is INexusMailbox, Initializable, OwnableUpgradeable {
         bytes32 receiptHash
     ) public view returns (MailboxMessage memory) {
         return verifiedMessages[receiptHash];
+    }
+
+    /// @notice Retrieves the verifier wrapper for a specific Nexus application ID
+    /// @param nexusAppID The Nexus application ID to get the verifier for
+    /// @return The verifier information for the specified application
+    function getVerifierWrapper(
+        bytes32 nexusAppID
+    ) public view returns (VerifierInfo memory) {
+        return verifierWrappers[nexusAppID];
     }
 
     /// @notice Sorts arrays of Nexus application IDs and addresses in parallel

@@ -17,7 +17,7 @@ contract NexusMailboxWrapper is NexusMailbox {
         bytes32 receiptHash,
         bytes calldata proof
     ) public {
-        VerifierInfo memory verifierInfo = verifierWrappers[from];
+        VerifierInfo memory verifierInfo = getVerifierWrapper(from);
         verifierInfo.verifier.parseAndVerify(
             chainblockNumber,
             receiptHash,

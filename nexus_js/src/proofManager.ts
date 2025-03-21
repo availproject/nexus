@@ -1,7 +1,5 @@
 import { assert, Contract, Wallet, Provider as EthersProvider } from "ethers";
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const proofManagerAbi = require("./abi/proofManager.json");
+import proofManagerAbi from "./abi/proofManager.json";
 
 import { Provider } from "zksync-ethers";
 import { AccountState } from "./types/index.js";

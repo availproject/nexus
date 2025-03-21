@@ -88,7 +88,7 @@ contract NexusDeployment is Script {
             config.appId2,
             VerifierInfo(
                 INexusVerifierWrapper(address(verifierWrapper)),
-                address(0) // this needs to be updatated after the from chain mailbox is deployed
+                0x96A52A4dAcf9Cf7c07C6af08Ecf892ec009ea5aa // this needs to be updatated after the from chain mailbox is deployed
             )
         );
 

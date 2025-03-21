@@ -333,4 +333,24 @@ contract MailBoxTest is Test {
         address toAddr = mailbox.searchWrapper(nexusAppIDTo, to);
         assertEq(toAddr, vm.addr(2));
     }
+
+    function testSingleDestinationMessage() public {
+        uint256 length = 1;
+        bytes32[] memory nexusAppIDTo = new bytes32[](length);
+        bytes32 nexusAppID = mailbox.nexusAppID();
+        nexusAppIDTo[0] = nexusAppID;
+
+        address[] memory to = new address[](length);
+        to[0] = vm.addr(2);
+
+        (nexusAppIDTo, to) = mailbox.sortWrapper(
+            nexusAppIDTo,
+            to,
+            0,
+            int256(length - 1)
+        );
+
+        address toAddr = mailbox.searchWrapper(nexusAppIDTo, to);
+        assertEq(toAddr, vm.addr(2));
+    }
 }
