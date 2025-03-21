@@ -2,9 +2,10 @@ use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
 use anyhow::Error;
 use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
+use nexus_core::traits::NexusTransaction;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, Proof, StatementDigest, SubmitProof, Transaction, TxParams,
-    TxSignature, H256,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, Proof, StatementDigest, SubmitProof, Transaction,
+    TransactionStatus, TxParams, TxSignature, H256,
 };
 use nexus_core::zkvm::risczero::RiscZeroProof;
 use nexus_core::zkvm::ProverMode;
@@ -12,12 +13,10 @@ use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::env::args;
-use std::thread::sleep;
 use std::time::Duration;
 use web3::transports::Http;
 use web3::types::BlockId;
 use web3::Web3;
-
 // Your NodeDB struct and methods implementation here
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -254,12 +253,20 @@ async fn main() -> Result<(), Error> {
                         }),
                     };
 
-                    match nexus_api.send_tx(tx).await {
+                    match nexus_api.send_tx(tx.clone()).await {
                         Ok(i) => {
                             println!(
                                 "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
                                 &app_account_id, i, &public_inputs.state_root
-                            )
+                            );
+
+                            tokio::time::sleep(Duration::from_secs(5)).await;
+
+                            // Check txn status :
+                            let txn_hash = tx.hash();
+                            let txn_status = nexus_api.get_transaction_status(&txn_hash).await?;
+                            // Assert txn status to be successful
+                            assert_eq!(txn_status.status, TransactionStatus::Successful);
                         }
                         Err(e) => {
                             println!("Error when iniating account: {:?}", e);

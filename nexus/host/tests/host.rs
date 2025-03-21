@@ -104,7 +104,7 @@ async fn test_empty_batches() {
             (prover_mode, 6999),
             state,
             shutdown_rx,
-            "10000".to_string(),
+            10000,
         )
         .await?;
 
@@ -204,7 +204,7 @@ async fn test_out_of_order_headers() {
             (prover_mode, 7000),
             state,
             shutdown_rx,
-            "10000".to_string(),
+            10000,
         )
         .await
         {
@@ -305,7 +305,7 @@ async fn test_state_root_for_empty_batches() {
             (prover_mode, 7002),
             state,
             shutdown_rx,
-            "10000".to_string(),
+            10000,
         )
         .await
         {
@@ -428,7 +428,7 @@ async fn test_init_account_tx() {
         (prover_mode, 7003),
         state_clone,
         shutdown_rx,
-        "10000".to_string(),
+        10000,
     )
     .await
     {
@@ -582,7 +582,7 @@ async fn test_update_tx() {
         (prover_mode, 7004),
         state_clone,
         shutdown_rx,
-        "10000".to_string(),
+        10000,
     )
     .await
     {
@@ -751,7 +751,7 @@ async fn test_transaction_status() {
         (prover_mode, 7005),
         state_clone,
         shutdown_rx,
-        "10000".to_string(),
+        10000,
     )
     .await
     {
@@ -947,7 +947,7 @@ async fn test_get_state_api() {
         (prover_mode, 7006),
         state_clone,
         shutdown_rx,
-        "10000".to_string(),
+        10000,
     )
     .await
     {
@@ -1058,7 +1058,7 @@ async fn test_get_block_api() {
         (prover_mode, 7007),
         state_clone,
         shutdown_rx,
-        "10000".to_string(),
+        10000,
     )
     .await
     {

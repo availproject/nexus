@@ -1,21 +1,18 @@
 use crate::utils::{add_check_body_and_response, get_mock_server, run_mock_geth_adapter_once, run_nexus_client};
 use adapter_sdk::api::NexusAPI;
 use anyhow::anyhow;
-use nexus_core::types::{AccountWithProof, AppAccountId, AppId, InitAccount, StatementDigest, Transaction, TxParams, TxSignature};
+use geth_methods::ADAPTER_ID;
+use nexus_core::types::{AccountWithProof, AppAccountId, AppId, InitAccount, Sha256, StatementDigest, Transaction, TxParams, TxSignature, H256};
+use nexus_core::utils::hasher::Digest;
 use std::time::Duration;
 use tokio::time::sleep;
-
-#[cfg(any(feature = "risc0", feature = "risc0-cuda"))]
-use geth_methods::ADAPTER_ID;
-
-mod utils;
 
 // As defined in the mock geth adapter
 const NEXUS_PORT: u32 = 7000;
 
 #[tokio::test]
 async fn test_integration_mock_geth_adapter() {
-    let eth_response = include_str!("./data/0_get_block_by_number.json");
+    let eth_response = include_str!("../../integration/data/0_get_block_by_number.json");
     // Creating the mock server for eth client
     let mock_server = get_mock_server();
     let mock = add_check_body_and_response(
@@ -71,6 +68,26 @@ async fn test_integration_mock_geth_adapter() {
         "Rollup last proof height must be updated"
     );
 
+    // Asserting the hash of account state with nexus state root :
+
+    // This value is taken from the JellyfishMerkleTree
+    let hash_hex = "4a4d543a3a4c6561664e6f6465";
+    // app_id is calculated using the following steps :
+    // sha256(u32 AppId)
+    let app_id = "3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d";
+    let value_hash = final_account_state.value_hash_hex;
+
+    let mut hasher = Sha256::new();
+    hasher.update(hex_to_vec(hash_hex));
+    hasher.update(hex_to_vec(app_id));
+    hasher.update(hex_to_vec(&value_hash));
+    let calculated_hash = hasher.finalize().to_vec();
+
+    assert_eq!(
+        final_account_state.nexus_state_root_hex,
+        hex::encode(calculated_hash)
+    );
+
     mock.assert();
 }
 
@@ -118,4 +135,12 @@ async fn register_account(nexus_api: &NexusAPI, app_account_id: AppAccountId) {
             panic!("Error when iniating account: {:?}", e);
         }
     }
+}
+
+fn hex_to_vec(hex: &str) -> Vec<u8> {
+    let hex = hex.trim_start_matches("0x");
+    hex.as_bytes()
+        .chunks(2)
+        .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
+        .collect()
 }

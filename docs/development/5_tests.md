@@ -2,17 +2,17 @@
 
 ```shell
 # Run the Avail node locally in dev mode
-./nexus/host/tests/scripts/run_local_avail.sh
-
-cd nexus/host
+./integration/scripts/run_local_avail.sh
 
 # To run the host tests
-cargo test --test host
+cd nexus/host
+cargo test
 # or (If you have nexus cli installed)
-nexus_cli test all --dev
+nexus_cli test host
 
 # To run e2e integration test with mock geth adapter
-cargo test --test integration
+cd integration
+cargo test
 # or (If you have nexus cli installed)
-nexus_cli test integration --dev
+nexus_cli test integration
 ```

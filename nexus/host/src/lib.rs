@@ -64,7 +64,7 @@ pub async fn relayer_handle(
     relayer_mutex: Arc<Mutex<impl Relayer + Send + 'static>>,
     node_db_mutex: Arc<Mutex<NodeDB>>,
     mut shutdown_rx: watch::Receiver<bool>,
-    nexus_start_block: String,
+    avail_start_block: u32,
 ) -> () {
     let relayer = relayer_mutex.lock().await;
     let start_height: u32 = {
@@ -89,7 +89,7 @@ pub async fn relayer_handle(
 
             height
         } else {
-            nexus_start_block.parse().expect("Could not parse nexus_start_block")
+            avail_start_block
         }
     };
 
@@ -442,7 +442,7 @@ pub async fn run_nexus(
     (prover_mode, server_port): (ProverMode, u32),
     state: Arc<Mutex<VmState>>,
     mut shutdown_rx: watch::Receiver<bool>,
-    nexus_start_block: String,
+    avail_start_block: u32,
 ) -> Result<(), Error> {
     let mut shutdown_rx_1 = shutdown_rx.clone();
     let mut shutdown_rx_2 = shutdown_rx.clone();
@@ -462,7 +462,7 @@ pub async fn run_nexus(
             relayer_mutex,
             db_clone_2,
             shutdown_rx_1.clone(),
-            nexus_start_block,
+            avail_start_block,
         )
         .await
     });

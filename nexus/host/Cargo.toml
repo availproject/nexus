@@ -52,11 +52,3 @@ cuda = [ "risc0-zkvm/cuda" ]
 
 [patch.crates-io]
 serde = { version = "1.0.204" }
-
-[[test]]
-name = "integration"
-path = "tests/integration.rs"
-
-[[test]]
-name = "host"
-path = "tests/host.rs"

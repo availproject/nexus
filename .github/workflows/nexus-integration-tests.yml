@@ -31,4 +31,4 @@ jobs:
       - name: Run integration tests
         run: |
           cd nexus/host/
-          RISC0_DEV_MODE=true cargo test --test host
+          RISC0_DEV_MODE=true cargo test

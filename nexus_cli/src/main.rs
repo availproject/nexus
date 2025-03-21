@@ -1,10 +1,8 @@
 use clap::{Parser, Subcommand};
 use std::env;
 use std::fs;
-use std::net::{SocketAddr, TcpStream};
 use std::path::Path;
 use std::process::{exit, Command as Cmd};
-use std::time::Duration;
 
 /// Simple CLI to manage nexus services
 #[derive(Parser, Debug)]
@@ -59,8 +57,6 @@ enum Commands {
     Test {
         #[command(subcommand)]
         test_option: TestOptions,
-        #[arg(long)]
-        dev: bool, // In dev mode one must run the local avail da client on port 9944.
     },
 }
 
@@ -87,7 +83,7 @@ enum ZKVMOptions {
 
 #[derive(Subcommand, Debug)]
 enum TestOptions {
-    All,
+    Host,
     Integration,
 }
 
@@ -99,6 +95,7 @@ fn main() {
     let nexus_dir = Path::new(&project_root).join("nexus/host");
     let zksync_dir = Path::new(&project_root).join("examples/zksync_adapter/host");
     let mock_geth_adapter_dir = Path::new(&project_root).join("examples/mock_geth_adapter/host");
+    let integration_dir = Path::new(&project_root).join("integration");
 
     match args.command {
         Commands::Clean { clean_cmd } => {
@@ -123,9 +120,10 @@ fn main() {
                     let nexus_result = clean_db(&nexus_dir);
                     let zksync_result = clean_db(&zksync_dir);
                     let mock_geth_adapter_result = clean_db(&mock_geth_adapter_dir);
+                    let integration_result = clean_db(&integration_dir);
 
                     // Check if either of the operations failed
-                    if nexus_result.is_err() || zksync_result.is_err() || mock_geth_adapter_result.is_err() {
+                    if nexus_result.is_err() || zksync_result.is_err() || mock_geth_adapter_result.is_err() || integration_result.is_err() {
                         eprintln!("One or more clean operations failed.");
                         exit(1);
                     }
@@ -135,7 +133,7 @@ fn main() {
         Commands::Zksync { url, dev, app_id, zkvm } => run_zksync(&url, &zksync_dir, dev, app_id, zkvm),
         Commands::Nexus { dev, zkvm } => run_nexus(&nexus_dir, dev, zkvm),
         Commands::Init { env } => init_env(env),
-        Commands::Test { test_option, dev } => run_tests((&project_root).as_ref(), test_option, dev),
+        Commands::Test { test_option } => run_tests((&project_root).as_ref(), test_option),
     }
 }
 
@@ -238,34 +236,18 @@ fn run_nexus(nexus_dir: &Path, dev: bool, zkvm: Option<ZKVMOptions>) {
     }
 }
 
-fn run_tests(nexus_dir: &Path, test_options: TestOptions, dev: bool) {
-    if dev {
-        let connect = match TcpStream::connect_timeout(
-            &SocketAddr::new(
-                "127.0.0.1".parse().expect("Unable to parse socket address"),
-                9944,
-            ),
-            Duration::from_secs(1),
-        ) {
-            Ok(_) => true,
-            Err(_) => false,
-        };
-        if !connect {
-            eprintln!("Local Avail DA node must be running.");
-            exit(1);
-        }
-    }
-
+fn run_tests(nexus_dir: &Path, test_options: TestOptions) {
     let mut command = Cmd::new("cargo");
     command.env("RISC0_DEV_MODE", "true");
-    command.current_dir(nexus_dir.join("nexus/host"));
 
     match test_options {
-        TestOptions::All => {
-            command.args(["test", "--test", "host"]);
+        TestOptions::Host => {
+            command.current_dir(nexus_dir.join("nexus/host"));
+            command.arg("test");
         }
         TestOptions::Integration => {
-            command.args(["test", "--test", "integration"]);
+            command.current_dir(nexus_dir.join("integration"));
+            command.arg("test");
         }
     }
 
