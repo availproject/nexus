@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::state::types::AccountState;
 use crate::stf::StateTransitionFunction;
 use crate::types::{
-    AvailHeader, Blob, BlobProof, DataLookup, Extension, HeaderStore, NexusHeader, Sha256,
-    StateUpdate, Transaction, TransactionZKVM, H256,
+    AvailHeader, Blob, BlobProof, CompactDataLookup, HeaderExtension, HeaderStore, NexusHeader,
+    Sha256, StateUpdate, Transaction, TransactionZKVM, H256,
 };
 use crate::utils::hasher::{Digest, ShaHasher};
 use crate::zkvm::traits::ZKVMEnv;
@@ -47,9 +47,9 @@ impl<Z: ZKVMEnv> ZKVMStateMachine<Z> {
         }
 
         let commitments: Vec<[u8; 48]> = {
-            let (app_lookup, commitments): (DataLookup, Vec<[u8; 48]>) =
+            let (app_lookup, commitments): (CompactDataLookup, Vec<[u8; 48]>) =
                 match &new_avail_header.extension {
-                    Extension::V3(extension) => {
+                    HeaderExtension::V3(extension) => {
                         let commitment_chunks: Vec<[u8; 48]> = extension
                             .commitment
                             .commitment

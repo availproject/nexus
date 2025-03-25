@@ -90,6 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 avail_rpc,
                 //Make nexus app ID configurable
                 10,
+                1,
             )
             .await;
         });

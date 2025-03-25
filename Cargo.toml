@@ -26,6 +26,9 @@ members = [
     "nexus/bench",
     "nexus_bench_setup",
     "kzg",
+    "mock_elf",
+    "mock_elf/risc0-guest",
+    "mock_elf/sp1-guest",
 ]
 
 [workspace.package]

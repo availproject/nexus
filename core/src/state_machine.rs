@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
 use crate::types::{
-    AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, Transaction,
+    AccountState, AppAccountId, AvailHeader, HeaderStore, NexusHeader, StateUpdate, Transaction,
     TransactionZKVM, TxParams, H256,
 };
 use crate::zkvm::traits::{ZKVMEnv, ZKVMProof};
@@ -73,10 +73,23 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
         txs: &Vec<Transaction>,
-    ) -> Result<(Option<TreeUpdateBatch>, StateUpdate, HashMap<H256, bool>), Error> {
+    ) -> Result<
+        (
+            Option<TreeUpdateBatch>,
+            StateUpdate,
+            HashMap<H256, bool>,
+            NexusHeader,
+        ),
+        Error,
+    > {
         debug!("Executing batch in state machine");
         //TODO: Increment version for each update.
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
+        let number: u32 = if let Some(first_header) = old_nexus_headers.first() {
+            first_header.number + 1
+        } else {
+            0
+        };
 
         let result: Result<u64, anyhow::Error> = {
             let state_lock = self.state.lock().await;
@@ -131,7 +144,11 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         )?;
         let mut state_lock = self.state.lock().await;
 
-        if !stf_state_result.is_empty() {
+        let (tree_update_batch, state_update, tx_result): (
+            Option<TreeUpdateBatch>,
+            StateUpdate,
+            HashMap<H256, bool>,
+        ) = if !stf_state_result.is_empty() {
             let num_state_changes = stf_state_result.len();
 
             let result = state_lock.update_set(
@@ -154,7 +171,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                 "Pre execution of batch {} successful. State changes count: {}",
                 avail_header.number, num_state_changes
             );
-            Ok((Some(result.0), result.1, tx_result))
+            (Some(result.0), result.1, tx_result)
         } else {
             //Get root for previous version as new one has no updates.
             let root = state_lock.get_root(version - 1)?;
@@ -164,7 +181,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                 avail_header.number,
                 stf_state_result.len()
             );
-            Ok((
+            (
                 None,
                 StateUpdate {
                     pre_state_root: root,
@@ -172,7 +189,20 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                     pre_state: HashMap::new(),
                 },
                 tx_result,
-            ))
-        }
+            )
+        };
+
+        let new_nexus_header = NexusHeader {
+            parent_hash: match old_nexus_headers.first() {
+                Some(i) => i.hash(),
+                None => H256::zero(),
+            },
+            prev_state_root: state_update.pre_state_root.clone(),
+            state_root: state_update.post_state_root.clone(),
+            avail_header_hash: avail_header.hash(),
+            number,
+        };
+
+        Ok((tree_update_batch, state_update, tx_result, new_nexus_header))
     }
 }

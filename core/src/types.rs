@@ -8,9 +8,12 @@ use crate::utils::hasher::{Digest as RiscZeroDigestTrait, ShaHasher};
 #[cfg(any(feature = "native"))]
 pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
-use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
+use avail_rust::avail::runtime_types::avail_core::header::extension::HeaderExtension as SpHeaderExtension;
 #[cfg(any(feature = "native"))]
-pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
+use avail_rust::subxt::config::substrate::DigestItem as SpDigestItem;
+#[cfg(any(feature = "native"))]
+use avail_rust::AvailHeader as Header; // #[cfg(any(feature = "native"))]
+                                       // use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
 use jmt::proof::{SparseMerkleLeafNode, SparseMerkleNode, SparseMerkleProof, UpdateMerkleProof};
 use jmt::storage::TreeUpdateBatch;
 pub use kzg::kate_recovery::data::Cell;
@@ -172,12 +175,33 @@ pub struct NexusBlock {
 
 #[cfg(any(feature = "native"))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub enum BlockStatus {
+    ExecutionCompleted,
+    ProofGenerationInProgress,
+    ProofGenerationFailed,
+    ProofGenerationSuccessful,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NexusZKVMInputs {
+    pub blobs: Vec<Blob>,
+    pub blob_proofs: Vec<BlobProof>,
+    pub state_update: StateUpdate,
+    pub header: AvailHeader,
+    pub header_store: HeaderStore,
+    pub app_id: u32,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NexusBlockWithPointers {
     pub block: NexusBlock,
     pub jmt_version: u64,
+    pub zkvm_inputs: NexusZKVMInputs,
+    pub block_status: BlockStatus,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StateUpdate {
     pub pre_state_root: H256,
     pub post_state_root: H256,
@@ -199,18 +223,19 @@ pub struct AvailHeader {
     pub state_root: H256,
     pub extrinsics_root: H256,
     pub digest: Digest,
-    pub extension: Extension,
+    pub extension: HeaderExtension,
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum Extension {
-    V3(V3Extension) = 2,
+#[derive(Eq, Decode, Encode, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[codec(dumb_trait_bound)]
+pub enum HeaderExtension {
+    #[codec(index = 2)]
+    V3(V3Extension),
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
 pub struct V3Extension {
-    pub app_lookup: DataLookup,
+    pub app_lookup: CompactDataLookup,
     pub commitment: KateCommitment,
 }
 
@@ -241,10 +266,11 @@ enum DigestItemType {
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
-pub struct DataLookup {
+pub struct CompactDataLookup {
     #[codec(compact)]
     pub size: ::core::primitive::u32,
     pub index: Vec<DataLookupItem>,
+    pub rows_per_tx: Vec<::core::primitive::u16>,
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
@@ -364,11 +390,9 @@ impl Decode for DigestItem {
 #[cfg(any(feature = "native"))]
 impl From<&Header> for AvailHeader {
     fn from(header: &Header) -> Self {
-        let extension: Extension = match &header.extension {
-            HeaderExtension::V1(header) => unreachable!("Not expecting these headers"),
-            HeaderExtension::V2(header) => unreachable!("Not expecting these headers"),
-            HeaderExtension::V3(header) => Extension::V3(V3Extension {
-                app_lookup: DataLookup {
+        let extension: HeaderExtension = match &header.extension {
+            SpHeaderExtension::V3(header) => HeaderExtension::V3(V3Extension {
+                app_lookup: CompactDataLookup {
                     size: header.app_lookup.size,
                     index: header
                         .app_lookup
@@ -379,6 +403,7 @@ impl From<&Header> for AvailHeader {
                             start: v.start,
                         })
                         .collect(),
+                    rows_per_tx: header.app_lookup.rows_per_tx.clone(),
                 },
                 commitment: KateCommitment {
                     rows: header.commitment.rows,

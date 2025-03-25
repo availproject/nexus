@@ -1,5 +1,5 @@
 [package]
-name = "prover"
+name = "mock_elf"
 version.workspace = true
 edition = "2021"
 

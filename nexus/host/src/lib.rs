@@ -6,15 +6,16 @@ use avail_rust::kate_recovery::commitments;
 use avail_rust::prelude::SDK;
 use avail_rust::prelude::*;
 use avail_rust::rpc as avail_rpc;
+use avail_rust::subxt::config::Header as HeaderTrait;
 use avail_rust::transactions::DataAvailabilityCalls::SubmitDataWithCommitments;
+pub use avail_rust::AvailHeader as Header;
 use avail_rust::H256 as AvailH256;
 use avail_rust::{Filter as AvailFilter, Keypair};
-use avail_subxt::config::Header as HeaderTrait;
-pub use avail_subxt::Header;
 use jmt::storage::TreeUpdateBatch;
 use kzg::verify_row_kzg;
 use kzg::{compute_kzg_proof, compute_row_proof};
 use nexus_core::types::BlobProof;
+use nexus_core::types::NexusZKVMInputs;
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 use nexus_core::{
@@ -24,7 +25,7 @@ use nexus_core::{
     state_machine::StateMachine,
     traits::NexusTransaction,
     types::{
-        AvailHeader, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader,
+        AvailHeader, BlockStatus, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader,
         Proof as NexusProof, Transaction, TransactionResult, TransactionStatus,
         TransactionWithStatus, TransactionZKVM, TxParams, H256,
     },
@@ -61,7 +62,7 @@ use kzg::kate::gridgen::EvaluationGrid;
 use kzg::kate::Seed;
 use kzg::kate_recovery::data::Cell;
 use kzg::kate_recovery::matrix::Position;
-use nexus_core::types::{Blob, DataLookup, Extension};
+use nexus_core::types::{Blob, CompactDataLookup, HeaderExtension};
 
 type DataSubmissionWithCommitmentsCall =
     avail::data_availability::calls::types::SubmitDataWithCommitments;
@@ -75,7 +76,7 @@ pub struct AvailToNexusPointer {
 
 pub fn setup_components(db_path: &str) -> (Arc<Mutex<NodeDB>>, Arc<Mutex<VmState>>) {
     // Construct the node_db path directly as a string
-    let node_db_path = format!("{}/node_db", db_path);
+    let node_db_path: String = format!("{}/node_db", db_path);
     let node_db = NodeDB::from_path(&node_db_path);
 
     // Use the runtime_db path directly as a string
@@ -186,6 +187,101 @@ pub async fn sequencer_handle(
     }
 }
 
+#[instrument(level = "info", skip(node_db_mutex, shutdown_rx))]
+pub async fn prover_handle(
+    node_db_mutex: Arc<Mutex<NodeDB>>,
+    mut shutdown_rx: watch::Receiver<bool>,
+    start_block: u32,
+    prover_mode: ProverMode,
+) -> Result<(), Error> {
+    info!("Starting prover engine in {:?} mode", prover_mode);
+
+    let mut block_to_prove: u32 = start_block;
+
+    loop {
+        if *shutdown_rx.borrow() {
+            info!("Shutdown signal received, stopping execution engine");
+            break;
+        }
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let (mut block_with_info, nexus_hash): (NexusBlockWithPointers, H256) = {
+            let mut node_db = node_db_mutex.lock().await;
+
+            let nexus_hash = match node_db
+                .get::<H256>(&[block_to_prove.to_be_bytes().as_slice(), b"-block"].concat())
+            {
+                Ok(Some(i)) => i,
+                Ok(None) => {
+                    error!("Block {} not found retrying in sometime.", block_to_prove);
+
+                    continue;
+                }
+                Err(e) => {
+                    error!(error = ?e, "Error getting block hash for block number {}", block_to_prove);
+
+                    continue;
+                }
+            };
+
+            match node_db
+                .get::<NexusBlockWithPointers>(&[nexus_hash.as_slice(), b"-block"].concat())
+            {
+                Ok(Some(i)) => (i, nexus_hash),
+                Ok(None) => {
+                    error!("Block {} not found retrying in sometime.", block_to_prove);
+
+                    continue;
+                }
+                Err(e) => {
+                    error!(error = ?e, "Error getting block details for block number {}", block_to_prove);
+
+                    continue;
+                }
+            }
+        };
+
+        let proof_result = match prove_batch::<Prover, Proof, ZKVM>(
+            block_with_info.zkvm_inputs.clone(),
+            block_with_info.block.header.clone(),
+            &prover_mode,
+        )
+        .await
+        {
+            Ok(i) => {
+                //TODO: remove zkvm_inputs to avoid state bloat.
+                block_with_info.block_status = BlockStatus::ProofGenerationSuccessful;
+                Some(i)
+            }
+            Err(e) => {
+                error!(error = ?e, "Prover error when proving block {}", block_to_prove);
+                block_with_info.block_status = BlockStatus::ProofGenerationFailed;
+
+                //We do not exit the loop, and retry in the next iteration, as sometimes it could be a temporary issue
+                None
+            }
+        };
+        let node_db = node_db_mutex.lock().await;
+
+        if proof_result.is_some() {
+            node_db.put(
+                &[nexus_hash.as_slice(), b"-proof"].concat(),
+                &proof_result.unwrap(),
+            )?;
+
+            block_to_prove += 1;
+        }
+
+        node_db.put(
+            &[nexus_hash.as_slice(), b"-block"].concat(),
+            &block_with_info,
+        )?;
+    }
+
+    Ok(())
+}
+
 #[instrument(level = "info", skip(relayer_mutex, node_db_mutex, shutdown_rx))]
 pub async fn relayer_handle(
     relayer_mutex: Arc<Mutex<impl Relayer + Send + 'static>>,
@@ -215,7 +311,7 @@ pub async fn relayer_handle(
 
             height
         } else {
-            51411
+            4806
         }
     };
 
@@ -244,9 +340,16 @@ pub async fn execute_batch<
     state_machine: &mut StateMachine<E, P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
-    prover_mode: ProverMode,
     app_id: u32,
-) -> Result<(P, NexusHeader, HashMap<H256, bool>, Option<TreeUpdateBatch>), Error>
+) -> Result<
+    (
+        NexusZKVMInputs,
+        NexusHeader,
+        HashMap<H256, bool>,
+        Option<TreeUpdateBatch>,
+    ),
+    Error,
+>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
@@ -263,8 +366,9 @@ where
     }
 
     let commitments: Vec<[u8; 48]> = {
-        let (app_lookup, commitments): (DataLookup, Vec<[u8; 48]>) = match &header.extension {
-            Extension::V3(extension) => {
+        let (app_lookup, commitments): (CompactDataLookup, Vec<[u8; 48]>) = match &header.extension
+        {
+            HeaderExtension::V3(extension) => {
                 let commitment_chunks: Vec<[u8; 48]> = extension
                     .commitment
                     .commitment
@@ -309,20 +413,60 @@ where
         }
     }
 
-    let (tree_update_batch, state_update, tx_result): (
+    let (tree_update_batch, state_update, tx_result, nexus_header): (
         Option<jmt::storage::TreeUpdateBatch>,
         nexus_core::types::StateUpdate,
         HashMap<H256, bool>,
+        NexusHeader,
     ) = state_machine
         .execute_batch(&header, header_store, &txs)
         .await?;
+
+    //Creating zkvm_inputs before adding the new header to header store.
+    let zkvm_inputs = NexusZKVMInputs {
+        blobs: blobs.clone(),
+        blob_proofs: blob_proofs.clone(),
+        state_update,
+        header: header.clone(),
+        header_store: header_store.clone(),
+        app_id,
+    };
+
+    header_store.push_front(&nexus_header);
+
+    Ok((zkvm_inputs, nexus_header, tx_result, tree_update_batch))
+}
+
+pub async fn prove_batch<
+    Z: ZKVMProver<P>,
+    P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>,
+    E: ZKVMEnv,
+>(
+    zkvm_inputs: NexusZKVMInputs,
+    nexus_header: NexusHeader,
+    prover_mode: &ProverMode,
+) -> Result<P, Error>
+where
+    <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
+{
+    let mut txs: Vec<Transaction> = Vec::new();
+
+    if zkvm_inputs.blobs.len() != zkvm_inputs.blob_proofs.len() {
+        return Err(anyhow!("Blob and blob proof lengths do not match"));
+    }
+
+    for blob in &zkvm_inputs.blobs {
+        let blob_txs: Vec<Transaction> = bincode::deserialize(&blob.get_data())
+            .map_err(|e| anyhow!("blob deserialization error: {:?}", e))?;
+        txs.extend(blob_txs);
+    }
 
     let (proof, result) = {
         #[cfg(any(feature = "sp1"))]
         let NEXUS_RUNTIME_ELF: &[u8] =
             include_bytes!("../../prover/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
 
-        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode);
+        let mut zkvm_prover = Z::new(NEXUS_RUNTIME_ELF.to_vec(), prover_mode.clone());
 
         for tx in &txs {
             if let TxParams::SubmitProof(submit_proof_tx) = &tx.params {
@@ -333,21 +477,22 @@ where
             }
         }
 
-        zkvm_prover.add_input(blobs).unwrap();
-        zkvm_prover.add_input(&blob_proofs).unwrap();
-        zkvm_prover.add_input(&state_update).unwrap();
-        zkvm_prover.add_input(&header).unwrap();
-        zkvm_prover.add_input(&app_id).unwrap();
-        zkvm_prover.add_input(&header_store).unwrap();
+        zkvm_prover.add_input(&zkvm_inputs).unwrap();
         let mut proof = zkvm_prover.prove()?;
 
+        println!("Proof generated");
         let result: NexusHeader = proof.public_inputs()?;
+        println!("Got results");
         (proof, result)
     };
 
-    header_store.push_front(&result);
+    if result.hash() != nexus_header.hash() {
+        return Err(anyhow!(
+            "Header produced during proof generation is different from the provided header"
+        ));
+    }
 
-    Ok((proof, result, tx_result, tree_update_batch))
+    Ok(proof)
 }
 
 pub async fn get_blobs_for_block(
@@ -451,7 +596,7 @@ pub async fn execution_engine_handle(
 
         if let Some(header) = header_opt {
             info!("━━━━━━━━━━━━━━━━━ NEW BLOCK ━━━━━━━━━━━━━━━━━");
-            debug!(
+            info!(
                 avail_block = header.number,
                 avail_hash = %hex::encode(header.hash()),
                 parent_hash = %hex::encode(header.parent_hash),
@@ -504,9 +649,6 @@ pub async fn execution_engine_handle(
 
             debug!("🔄 Beginning batch execution");
 
-            if header.number > 51412 {
-                return Ok(());
-            }
             tokio::time::sleep(Duration::from_secs(5)).await;
             match execute_batch::<Prover, Proof, ZKVM>(
                 &blobs,
@@ -514,12 +656,11 @@ pub async fn execution_engine_handle(
                 &mut state_machine,
                 &AvailHeader::from(&header),
                 &mut old_headers,
-                prover_mode.clone(),
                 app_id,
             )
             .await
             {
-                Ok((_, result, tx_result, tree_update_batch)) => {
+                Ok((zkvm_inputs, result, tx_result, tree_update_batch)) => {
                     let updated_version = state.lock().await.get_version(false)?;
                     info!(
                         nexus_block = result.number,
@@ -553,6 +694,7 @@ pub async fn execution_engine_handle(
                                 Some(i) => i,
                                 None => 0,
                             },
+                            zkvm_inputs,
                         },
                     )
                     .await
@@ -684,6 +826,8 @@ pub async fn save_batch_information<'a>(
                 transactions: txs_result_vec,
             },
             jmt_version: processed_batch_info.jmt_version,
+            zkvm_inputs: processed_batch_info.zkvm_inputs,
+            block_status: BlockStatus::ExecutionCompleted,
         },
     );
     batch_transaction.put(
@@ -713,6 +857,7 @@ pub struct ProcessedBatchInfo<'a> {
     //mempool_index: &'a Option<usize>,
     updated_header_store: &'a HeaderStore,
     jmt_version: u64,
+    zkvm_inputs: NexusZKVMInputs,
 }
 
 pub fn run_server(
@@ -757,16 +902,21 @@ pub async fn run_nexus(
     mut shutdown_rx: watch::Receiver<bool>,
     ws_url: String,
     app_id: u32,
+    start_block: u32,
 ) -> Result<(), Error> {
     let mut shutdown_rx_1 = shutdown_rx.clone();
     let mut shutdown_rx_2 = shutdown_rx.clone();
     let mut shutdown_rx_3 = shutdown_rx.clone();
+    let mut shutdown_rx_4 = shutdown_rx.clone();
 
     let ws_url_clone = ws_url.clone();
 
     let db_clone = node_db.clone();
     let db_clone_2 = node_db.clone();
+    let db_clone_3 = node_db.clone();
     let state_2 = state.clone();
+
+    let prover_mode_clone = prover_mode.clone();
 
     let receiver = {
         let mut relayer = relayer_mutex.lock().await;
@@ -780,6 +930,11 @@ pub async fn run_nexus(
     let relayer_handle = tokio::spawn(async move {
         relayer_handle(relayer_mutex, db_clone_2, shutdown_rx_1.clone()).await
     });
+
+    let prover_handle = tokio::spawn(async move {
+        prover_handle(db_clone_3, shutdown_rx_4, start_block, prover_mode_clone).await
+    });
+
     let execution_engine = tokio::spawn(async move {
         let sdk: SDK = SDK::new(&ws_url.clone())
             .await
@@ -807,11 +962,12 @@ pub async fn run_nexus(
         server_handle,
         execution_engine,
         relayer_handle,
-        sequencer_handle
+        sequencer_handle,
+        prover_handle,
     );
 
     match result {
-        Ok((_, execution_engine_result, _, _)) => {
+        Ok((_, execution_engine_result, _, _, _)) => {
             info!("✅ Exited node gracefully");
 
             match execution_engine_result {

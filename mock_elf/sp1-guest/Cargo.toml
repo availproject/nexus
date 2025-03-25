@@ -1,0 +1,8 @@
+[package]
+name = "mock_program_sp1"
+version.workspace = true
+edition = "2021"
+
+
+[dependencies]
+sp1-zkvm = { version = "3.4.0" }
