@@ -46,13 +46,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
     let avail_rpc = args
+        .clone()
         .iter()
         .find(|arg| arg.starts_with("--avail-rpc="))
         .map(|arg| arg.trim_start_matches("--avail-rpc="))
-        .unwrap_or("wss://turing-rpc.avail.so:443/ws");
+        .unwrap_or("wss://turing-rpc.avail.so:443/ws")
+        .to_string();
+
+    // To configure the nexus start block when running for the first time
+    // Default value : 10000
+    let avail_start_block: u32 = args
+        .iter()
+        .find(|arg| arg.starts_with("--nexus-start-block="))
+        .map(|arg| arg.trim_start_matches("--nexus-start-block="))
+        .unwrap_or("10000")
+        .to_string()
+        .parse()?;
 
     info!("Connecting to Avail RPC at: {}", avail_rpc);
-    let relayer_mutex = Arc::new(Mutex::new(SimpleRelayer::new(avail_rpc)));
+    let relayer_mutex = Arc::new(Mutex::new(SimpleRelayer::new(&avail_rpc)));
     // Shared shutdown signal using a watch channel
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
@@ -81,6 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 (prover_mode, 7000),
                 state,
                 shutdown_rx,
+                avail_start_block,
             )
             .await;
         });

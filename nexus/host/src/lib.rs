@@ -64,6 +64,7 @@ pub async fn relayer_handle(
     relayer_mutex: Arc<Mutex<impl Relayer + Send + 'static>>,
     node_db_mutex: Arc<Mutex<NodeDB>>,
     mut shutdown_rx: watch::Receiver<bool>,
+    avail_start_block: u32,
 ) -> () {
     let relayer = relayer_mutex.lock().await;
     let start_height: u32 = {
@@ -88,7 +89,7 @@ pub async fn relayer_handle(
 
             height
         } else {
-            10000
+            avail_start_block
         }
     };
 
@@ -441,6 +442,7 @@ pub async fn run_nexus(
     (prover_mode, server_port): (ProverMode, u32),
     state: Arc<Mutex<VmState>>,
     mut shutdown_rx: watch::Receiver<bool>,
+    avail_start_block: u32,
 ) -> Result<(), Error> {
     let mut shutdown_rx_1 = shutdown_rx.clone();
     let mut shutdown_rx_2 = shutdown_rx.clone();
@@ -455,7 +457,15 @@ pub async fn run_nexus(
     };
     let mempool = Mempool::new(node_db.clone());
     let mempool_clone = mempool.clone();
-    let relayer_handle = tokio::spawn(async move { relayer_handle(relayer_mutex, db_clone_2, shutdown_rx_1.clone()).await });
+    let relayer_handle = tokio::spawn(async move {
+        relayer_handle(
+            relayer_mutex,
+            db_clone_2,
+            shutdown_rx_1.clone(),
+            avail_start_block,
+        )
+        .await
+    });
 
     let execution_engine = tokio::spawn(async move {
         execution_engine_handle(

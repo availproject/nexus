@@ -52,6 +52,12 @@ enum Commands {
         #[arg(short, long)]
         env: Option<String>,
     },
+
+    /// Test
+    Test {
+        #[command(subcommand)]
+        test_option: TestOptions,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -61,6 +67,9 @@ enum CleanCommands {
 
     /// Cleans the database in examples/zksync_adapter/host
     Zksync,
+
+    /// Cleans the database in examples/mock_geth_adapter/host
+    MockGeth,
 
     /// Cleans the databases in both nexus/host and examples/zksync_adapter/host
     All,
@@ -72,6 +81,12 @@ enum ZKVMOptions {
     SP1,
 }
 
+#[derive(Subcommand, Debug)]
+enum TestOptions {
+    Host,
+    Integration,
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -79,6 +94,8 @@ fn main() {
     let project_root = env::var("PROJECT_ROOT").expect("PROJECT_ROOT environment variable is not set");
     let nexus_dir = Path::new(&project_root).join("nexus/host");
     let zksync_dir = Path::new(&project_root).join("examples/zksync_adapter/host");
+    let mock_geth_adapter_dir = Path::new(&project_root).join("examples/mock_geth_adapter/host");
+    let integration_dir = Path::new(&project_root).join("integration");
 
     match args.command {
         Commands::Clean { clean_cmd } => {
@@ -94,12 +111,19 @@ fn main() {
                         exit(1);
                     }
                 }
+                CleanCommands::MockGeth => {
+                    if clean_db(&mock_geth_adapter_dir).is_err() {
+                        exit(1);
+                    }
+                }
                 CleanCommands::All => {
                     let nexus_result = clean_db(&nexus_dir);
                     let zksync_result = clean_db(&zksync_dir);
+                    let mock_geth_adapter_result = clean_db(&mock_geth_adapter_dir);
+                    let integration_result = clean_db(&integration_dir);
 
                     // Check if either of the operations failed
-                    if nexus_result.is_err() || zksync_result.is_err() {
+                    if nexus_result.is_err() || zksync_result.is_err() || mock_geth_adapter_result.is_err() || integration_result.is_err() {
                         eprintln!("One or more clean operations failed.");
                         exit(1);
                     }
@@ -109,6 +133,7 @@ fn main() {
         Commands::Zksync { url, dev, app_id, zkvm } => run_zksync(&url, &zksync_dir, dev, app_id, zkvm),
         Commands::Nexus { dev, zkvm } => run_nexus(&nexus_dir, dev, zkvm),
         Commands::Init { env } => init_env(env),
+        Commands::Test { test_option } => run_tests((&project_root).as_ref(), test_option),
     }
 }
 
@@ -208,6 +233,27 @@ fn run_nexus(nexus_dir: &Path, dev: bool, zkvm: Option<ZKVMOptions>) {
     if !status.success() {
         eprintln!("`cargo run` failed with exit status: {}", status);
         exit(1);
+    }
+}
+
+fn run_tests(nexus_dir: &Path, test_options: TestOptions) {
+    let mut command = Cmd::new("cargo");
+    command.env("RISC0_DEV_MODE", "true");
+
+    match test_options {
+        TestOptions::Host => {
+            command.current_dir(nexus_dir.join("nexus/host"));
+            command.arg("test");
+        }
+        TestOptions::Integration => {
+            command.current_dir(nexus_dir.join("integration"));
+            command.arg("test");
+        }
+    }
+
+    let status = command.status().expect("Failed to run test command");
+    if !status.success() {
+        eprintln!("`cargo test` failed with exit status: {}", status);
     }
 }
 

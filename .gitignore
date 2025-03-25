@@ -15,4 +15,5 @@ contracts/out
 contracts/out-*
 *.bin
 .idea/
+avail-node/
 **/*/.env
