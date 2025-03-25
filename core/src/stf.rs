@@ -1,9 +1,6 @@
 use crate::traits::NexusTransaction;
 use crate::{
-    types::{
-        AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusRollupPI,
-        SubmitProof, Transaction, TxParams, H256,
-    },
+    types::{AccountState, AppAccountId, AvailHeader, HeaderStore, InitAccount, NexusRollupPI, SubmitProof, Transaction, TxParams, H256},
     zkvm::traits::ZKVMEnv,
 };
 use anyhow::{anyhow, Error};
@@ -193,11 +190,7 @@ impl<Z: ZKVMEnv> StateTransitionFunction<Z> {
         Ok((public_inputs.app_id.clone(), post_state))
     }
 
-    fn init_account(
-        &self,
-        params: &InitAccount,
-        pre_state: (&AppAccountId, &AccountState),
-    ) -> Result<(AppAccountId, AccountState), Error> {
+    fn init_account(&self, params: &InitAccount, pre_state: (&AppAccountId, &AccountState)) -> Result<(AppAccountId, AccountState), Error> {
         if pre_state.1.clone() != AccountState::zero() {
             return Err(anyhow!("Account already initiated."));
         }

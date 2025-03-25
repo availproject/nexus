@@ -58,8 +58,7 @@ impl Relayer for SimpleRelayer {
 
                 // }
 
-                let finalized_header_hash = match rpc::chain::get_finalized_head(&sdk.client).await
-                {
+                let finalized_header_hash = match rpc::chain::get_finalized_head(&sdk.client).await {
                     Ok(i) => i,
                     Err(_) => {
                         println!("Error getting header: {}", next_height);
@@ -68,15 +67,14 @@ impl Relayer for SimpleRelayer {
                     }
                 };
 
-                let finalized_header =
-                    match rpc::chain::get_header(&sdk.client, Some(finalized_header_hash)).await {
-                        Ok(i) => i,
-                        Err(_) => {
-                            println!("Error getting header: {}", next_height);
-                            tokio::time::sleep(Duration::from_secs(2)).await;
-                            continue;
-                        }
-                    };
+                let finalized_header = match rpc::chain::get_header(&sdk.client, Some(finalized_header_hash)).await {
+                    Ok(i) => i,
+                    Err(_) => {
+                        println!("Error getting header: {}", next_height);
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                };
 
                 let header = if finalized_header.number == next_height {
                     finalized_header.clone()
@@ -85,15 +83,14 @@ impl Relayer for SimpleRelayer {
                     tokio::time::sleep(Duration::from_secs(2)).await;
                     continue;
                 } else {
-                    let hash =
-                        match rpc::chain::get_block_hash(&sdk.client, Some(next_height)).await {
-                            Ok(i) => i,
-                            Err(_) => {
-                                println!("Error getting block: {}", next_height);
-                                tokio::time::sleep(Duration::from_secs(2)).await;
-                                continue;
-                            }
-                        };
+                    let hash = match rpc::chain::get_block_hash(&sdk.client, Some(next_height)).await {
+                        Ok(i) => i,
+                        Err(_) => {
+                            println!("Error getting block: {}", next_height);
+                            tokio::time::sleep(Duration::from_secs(2)).await;
+                            continue;
+                        }
+                    };
 
                     let header = match rpc::chain::get_header(&sdk.client, Some(hash)).await {
                         Ok(i) => i,

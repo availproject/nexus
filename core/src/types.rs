@@ -364,9 +364,7 @@ impl Encode for DigestItem {
     }
 }
 impl Decode for DigestItem {
-    fn decode<I: parity_scale_codec::Input>(
-        input: &mut I,
-    ) -> Result<Self, parity_scale_codec::Error> {
+    fn decode<I: parity_scale_codec::Input>(input: &mut I) -> Result<Self, parity_scale_codec::Error> {
         let item_type: DigestItemType = Decode::decode(input)?;
         match item_type {
             DigestItemType::PreRuntime => {
@@ -425,17 +423,11 @@ impl From<&Header> for AvailHeader {
                     .logs
                     .iter()
                     .map(|f| match f {
-                        SpDigestItem::PreRuntime(i, v) => {
-                            DigestItem::PreRuntime(i.clone(), v.clone())
-                        }
-                        SpDigestItem::Consensus(i, v) => {
-                            DigestItem::Consensus(i.clone(), v.clone())
-                        }
+                        SpDigestItem::PreRuntime(i, v) => DigestItem::PreRuntime(i.clone(), v.clone()),
+                        SpDigestItem::Consensus(i, v) => DigestItem::Consensus(i.clone(), v.clone()),
                         SpDigestItem::Seal(i, v) => DigestItem::Seal(i.clone(), v.clone()),
                         SpDigestItem::Other(v) => DigestItem::Other(v.clone()),
-                        SpDigestItem::RuntimeEnvironmentUpdated => {
-                            DigestItem::RuntimeEnvironmentUpdated
-                        }
+                        SpDigestItem::RuntimeEnvironmentUpdated => DigestItem::RuntimeEnvironmentUpdated,
                     })
                     .collect(),
             },

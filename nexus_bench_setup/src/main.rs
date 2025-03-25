@@ -5,8 +5,8 @@ use nexus_core::db::NodeDB;
 use nexus_core::state::vm_state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
-    AccountWithProof, AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader,
-    NexusRollupPI, StatementDigest, SubmitProof, Transaction, TxParams, TxSignature, H256,
+    AccountWithProof, AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader, NexusRollupPI, StatementDigest, SubmitProof,
+    Transaction, TxParams, TxSignature, H256,
 };
 use nexus_core::zkvm::ProverMode;
 use nexus_host::execute_batch;
@@ -41,9 +41,7 @@ struct AdapterStateData {
     adapter_config: AdapterConfig,
 }
 
-fn create_mock_data(
-    prover_mode: ProverMode,
-) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
+fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
     let db_path = "./db";
     let prover_mode_string = match prover_mode {
         ProverMode::NoAggregation => "no_aggregation",
@@ -127,31 +125,26 @@ async fn generate_submit_proof_transactions(prover_mode: ProverMode, header: Nex
         };
 
         // Retrieve or initialize the adapter state data from the database
-        let adapter_state_data = AdapterStateData {
-            last_height: 0,
-            adapter_config,
-        };
+        let adapter_state_data = AdapterStateData { last_height: 0, adapter_config };
 
         // Main loop to fetch headers and run adapter
         let mut start_nexus_hash = None;
 
         let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-        let account_with_proof: AccountWithProof =
-            match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-                Ok(i) => i,
-                Err(e) => {
-                    println!("{:?}", e);
-                    continue;
-                }
-            };
+        let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+            Ok(i) => i,
+            Err(e) => {
+                println!("{:?}", e);
+                continue;
+            }
+        };
 
         let height: u32 = 30; // random height
         let public_inputs = NexusRollupPI {
             nexus_hash: header.hash(),
             state_root: H256::zero(),
             height,
-            start_nexus_hash: start_nexus_hash
-                .unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
+            start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
             app_id: app_account_id.clone(),
             img_id: StatementDigest(ADAPTER_ID),
             rollup_hash: Some(H256::zero()),
@@ -268,8 +261,7 @@ async fn main() -> Result<(), Error> {
     }
 
     let mut prover_mode: ProverMode = ProverMode::Compressed;
-    let (mut state_machine, avail_headers, mut header_store) =
-        create_mock_data(prover_mode.clone());
+    let (mut state_machine, avail_headers, mut header_store) = create_mock_data(prover_mode.clone());
     let mock_txs: Vec<Transaction> = Vec::new();
 
     prover_mode = match args[1].as_str() {

@@ -7,11 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct DemoProof(pub ());
 
 impl RollupProof for DemoProof {
-    fn verify(
-        &self,
-        vk: &[u8; 32],
-        public_inputs: &RollupPublicInputs,
-    ) -> Result<(), anyhow::Error> {
+    fn verify(&self, vk: &[u8; 32], public_inputs: &RollupPublicInputs) -> Result<(), anyhow::Error> {
         Ok(())
     }
 }

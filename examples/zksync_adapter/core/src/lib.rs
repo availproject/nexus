@@ -32,13 +32,12 @@ pub mod verifier;
 
 //pub use zksync_types::commitment::L1BatchWithMetadata;
 pub use crate::constants::{
-    SystemLogKey, L2_LOG_ADDRESS_OFFSET, L2_LOG_KEY_OFFSET, L2_LOG_VALUE_OFFSET,
-    L2_TO_L1_LOG_SERIALIZE_SIZE, MAX_NUMBER_OF_BLOBS, PUBDATA_COMMITMENT_SIZE, PUBLIC_INPUT_SHIFT,
-    TOTAL_BLOBS_IN_COMMITMENT,
+    SystemLogKey, L2_LOG_ADDRESS_OFFSET, L2_LOG_KEY_OFFSET, L2_LOG_VALUE_OFFSET, L2_TO_L1_LOG_SERIALIZE_SIZE, MAX_NUMBER_OF_BLOBS,
+    PUBDATA_COMMITMENT_SIZE, PUBLIC_INPUT_SHIFT, TOTAL_BLOBS_IN_COMMITMENT,
 };
 pub use crate::types::{
-    CommitBatchInfo, H256Vec, L1BatchPassThroughData, L1BatchWithMetadata, LogProcessingOutput,
-    ProofWithCommitmentAndL1BatchMetaData, ProofWithL1BatchMetaData, RootState,
+    CommitBatchInfo, H256Vec, L1BatchPassThroughData, L1BatchWithMetadata, LogProcessingOutput, ProofWithCommitmentAndL1BatchMetaData,
+    ProofWithL1BatchMetaData, RootState,
 };
 use crate::verifier::ZksyncVerifier;
 
@@ -51,17 +50,10 @@ pub struct STF {
 //TODO: Add generics for risczero types, so SP1 could be used as well.
 impl STF {
     pub fn new(img_id: [u32; 8], elf: Vec<u8>, prover_mode: ProverMode) -> Self {
-        Self {
-            img_id,
-            elf,
-            prover_mode,
-        }
+        Self { img_id, elf, prover_mode }
     }
 
-    fn process_l2_logs(
-        new_batch: CommitBatchInfo,
-        expected_system_contract_upgrade_tx_hash: H256,
-    ) -> Result<LogProcessingOutput, anyhow::Error> {
+    fn process_l2_logs(new_batch: CommitBatchInfo, expected_system_contract_upgrade_tx_hash: H256) -> Result<LogProcessingOutput, anyhow::Error> {
         let mut log_output = LogProcessingOutput::new();
         let emitted_l2_logs = new_batch.system_logs;
 
@@ -76,20 +68,15 @@ impl STF {
                 log_output.pubdata_hash = log_value;
             } else if (log_key == U256::from(SystemLogKey::StateDiffHashKey as u16)) {
                 log_output.state_diff_hash = log_value;
-            } else if (log_key
-                == U256::from(SystemLogKey::PackedBatchAndL2BlockTimestampKey as u16))
-            {
-                log_output.packed_batch_and_l2_block_timestamp =
-                    U256::from(log_value.as_fixed_bytes());
+            } else if (log_key == U256::from(SystemLogKey::PackedBatchAndL2BlockTimestampKey as u16)) {
+                log_output.packed_batch_and_l2_block_timestamp = U256::from(log_value.as_fixed_bytes());
             } else if (log_key == U256::from(SystemLogKey::PrevBatchHashKey as u16)) {
                 log_output.previous_batch_hash = log_value;
             } else if (log_key == U256::from(SystemLogKey::ChainedPriorityTxnHashKey as u16)) {
                 log_output.chained_priority_txs_hash = log_value.as_fixed_bytes().to_vec();
             } else if (log_key == U256::from(SystemLogKey::NumberOfLayer1TxsKey as u16)) {
                 log_output.number_of_layer1_txs = U256::from(log_value.as_fixed_bytes());
-            } else if (log_key >= U256::from(SystemLogKey::BlobOneHashKey as u16)
-                && log_key <= U256::from(SystemLogKey::BlobSixHashKey as u16))
-            {
+            } else if (log_key >= U256::from(SystemLogKey::BlobOneHashKey as u16) && log_key <= U256::from(SystemLogKey::BlobSixHashKey as u16)) {
                 let blob_number = log_key - U256::from(SystemLogKey::BlobOneHashKey as u16);
                 log_output.blob_hashes[blob_number.low_u64() as usize] = log_value;
             }
@@ -102,10 +89,7 @@ impl STF {
     }
 
     #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
-    fn get_commit_batch_info(
-        new_rollup_pi: L1BatchWithMetadata,
-        pubdata_commitments: Vec<u8>,
-    ) -> CommitBatchInfo {
+    fn get_commit_batch_info(new_rollup_pi: L1BatchWithMetadata, pubdata_commitments: Vec<u8>) -> CommitBatchInfo {
         let commit_batch_info = CommitBatchInfo {
             batch_number: new_rollup_pi.header.number.0 as u64,
             timestamp: new_rollup_pi.header.timestamp,
@@ -113,10 +97,7 @@ impl STF {
             new_state_root: new_rollup_pi.metadata.root_hash,
             number_of_layer1_txs: new_rollup_pi.header.l1_tx_count.into(),
             priority_operations_hash: new_rollup_pi.header.priority_ops_onchain_data_hash(),
-            bootloader_heap_initial_contents_hash: new_rollup_pi
-                .metadata
-                .bootloader_initial_content_commitment
-                .unwrap(),
+            bootloader_heap_initial_contents_hash: new_rollup_pi.metadata.bootloader_initial_content_commitment.unwrap(),
             events_queue_state_hash: new_rollup_pi.metadata.events_queue_commitment.unwrap(),
             system_logs: crate::utils::serialize_commitments(&new_rollup_pi.header.system_logs),
             // new_rollup_pi.header.system_logs, need to serialize it somehow
@@ -144,17 +125,10 @@ impl STF {
         return hash;
     }
 
-    fn calculate_public_input(
-        prev_batch_commitment: String,
-        current_batch_commitment: String,
-    ) -> U256 {
+    fn calculate_public_input(prev_batch_commitment: String, current_batch_commitment: String) -> U256 {
         let current_batch_commitment = U256::from_str_radix(&current_batch_commitment, 16).unwrap();
         let prev_batch_commitment = U256::from_str_radix(&prev_batch_commitment, 16).unwrap();
-        let val = abi::encode_packed(&[
-            Token::Uint(prev_batch_commitment),
-            Token::Uint(current_batch_commitment),
-        ])
-        .unwrap();
+        let val = abi::encode_packed(&[Token::Uint(prev_batch_commitment), Token::Uint(current_batch_commitment)]).unwrap();
 
         let public_input = U256::from_big_endian(&keccak256(&val)) >> PUBLIC_INPUT_SHIFT;
         public_input
@@ -189,8 +163,7 @@ impl STF {
 
         let hash = keccak256(&result);
         let current_batch_commitment = H256::from(hash);
-        let current_batch_commitment_string =
-            format!("0x{}", hex::encode(current_batch_commitment.as_bytes()));
+        let current_batch_commitment_string = format!("0x{}", hex::encode(current_batch_commitment.as_bytes()));
 
         // TODO: uncomment this else further batch proving won't work
         let prev_batch_commitment_string = format!(
@@ -205,7 +178,6 @@ impl STF {
             prev_batch_commitment_string,
             current_batch_commitment_string,
         );
-
 
         // don't perform proof verification for mock proof modes.
         //TODO: Separate prover config and zksync verifier config. We may want to verify zksync proofs but not generate proofs.
@@ -223,9 +195,7 @@ impl STF {
 
         if new_rollup_pi.header.number.0 > 1 {
             // state root of current proof should be same as batch hash of previous batch
-            if log_output.previous_batch_hash.as_fixed_bytes()
-                != previous_adapter_pi.state_root.as_fixed_slice()
-            {
+            if log_output.previous_batch_hash.as_fixed_bytes() != previous_adapter_pi.state_root.as_fixed_slice() {
                 return Err(anyhow!("Previous batch hash does not match"));
             }
         };
@@ -246,11 +216,7 @@ impl STF {
     }
 
     #[cfg(any(feature = "native", feature = "risc0", feature = "sp1"))]
-    pub fn create_recursive_proof<
-        Z: ZKVMProver<P>,
-        P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>,
-        E: ZKVMEnv,
-    >(
+    pub fn create_recursive_proof<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + TryFrom<NexusProof>, E: ZKVMEnv>(
         &self,
         //previous_adapter_pi: AdapterPublicInputs,
         mut prev_adapter_proof: Option<P>,
@@ -267,9 +233,7 @@ impl STF {
         // genesis rollup hash
 
         use std::str::FromStr;
-        let genesis_batch_commitment =
-            H256::from_str("0x2d00e5f8d77afcebf58a6b82ae56ba967566fe7dfbcb6760319fb0d215d18ffd")
-                .unwrap();
+        let genesis_batch_commitment = H256::from_str("0x2d00e5f8d77afcebf58a6b82ae56ba967566fe7dfbcb6760319fb0d215d18ffd").unwrap();
 
         use types::L1BatchNumber;
         let prev_adapter_pi: AdapterPublicInputs = match &mut prev_adapter_proof {
@@ -284,19 +248,26 @@ impl STF {
                             height: 0,
                             app_id: i.0,
                             img_id: i.1.statement,
-                            rollup_hash: Some(NexusH256::from(genesis_batch_commitment.as_fixed_bytes().clone())),
+                            rollup_hash: Some(NexusH256::from(
+                                genesis_batch_commitment.as_fixed_bytes().clone(),
+                            )),
                         },
-                        None => return Err(anyhow!("Init account details not provided which is required for first recursive proof")),
+                        None => {
+                            return Err(anyhow!(
+                                "Init account details not provided which is required for first recursive proof"
+                            ))
+                        }
                     }
                 } else {
-                    return Err(anyhow!("Previous public inputs not provided, and it should be provided if not first recursive proof."));
+                    return Err(anyhow!(
+                        "Previous public inputs not provided, and it should be provided if not first recursive proof."
+                    ));
                 }
             }
         };
 
         // TODO: need to take the input batch
-        let new_batch =
-            Self::get_commit_batch_info(new_rollup_pi.clone(), pubdata_commitments.clone());
+        let new_batch = Self::get_commit_batch_info(new_rollup_pi.clone(), pubdata_commitments.clone());
 
         let check = Self::verify_continuity_and_proof(
             prev_adapter_pi.clone(),

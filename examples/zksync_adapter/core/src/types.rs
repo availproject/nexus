@@ -2,8 +2,8 @@ use crate::constants::MAX_NUMBER_OF_BLOBS;
 use serde::{Deserialize, Serialize};
 use substrate_bn::{Fq, Fr, G1, G2};
 use zksync_basic_types::{
-    ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, ethabi::Token,
-    protocol_version::ProtocolVersionId, web3::keccak256, Address, H160, H256, U256,
+    ethabi::ethereum_types::Bloom as H2048, ethabi::Bytes, ethabi::Token, protocol_version::ProtocolVersionId, web3::keccak256, Address, H160, H256,
+    U256,
 };
 #[cfg(any(feature = "native"))]
 use zksync_types::commitment::SerializeCommitment;

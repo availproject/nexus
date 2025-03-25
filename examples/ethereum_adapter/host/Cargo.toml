@@ -1,0 +1,56 @@
+[package]
+name    = "ethereum-adapter-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ethereum-adapter-methods = { path = "../methods", default-features = false }
+risc0-zkvm = { version = "1.2.0", default-features = false, optional = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = [ "env-filter" ] }
+dotenv = "0.15.0"
+clap = "4.5.9"
+env_logger = "0.11.3"
+tokio = "1.38.0"
+serde = { workspace = true }
+serde_cbor = "0.11.2"
+log = "0.4.22"
+helios-consensus-core = { workspace = true }
+helios-ethereum = { workspace = true }
+tree_hash = { workspace = true }
+alloy-primitives = "0.8.15"
+anyhow = { workspace = true }
+cargo_metadata = "0.18"
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+nexus-core = { path = "../../../core", default-features = false, optional = true }
+adapter_sdk = { path = "../../../adapter_sdk", default-features = false }
+ethereum-core = { path = "../core", default-features = false }
+sp1-sdk = { version = "4.1.0", optional = true }
+derive_more = { git = "https://github.com/JelteF/derive_more", tag = "v1.0.0", features = [
+    "display",
+] }
+
+[features]
+default = [ "risc0" ]
+sp1 = [
+    "sp1-sdk",
+    "nexus-core/native-sp1",
+    "ethereum-adapter-methods/sp1",
+    "ethereum-core/sp1",
+    "adapter_sdk/zkvm-sp1",
+]
+risc0 = [
+    "risc0-zkvm/std",
+    "nexus-core/native-risc0",
+    "ethereum-adapter-methods/risc0",
+    "ethereum-core/risc0",
+    "adapter_sdk/zkvm-risc0",
+]
+risc0-cuda = [
+    "risc0-zkvm/cuda",
+    "nexus-core/native-risc0-cuda",
+    "ethereum-adapter-methods/risc0",
+    "ethereum-core/zkvm-risc0",
+    "adapter_sdk/zkvm-risc0",
+]

@@ -76,20 +76,12 @@ impl NexusAPI {
         Ok(range)
     }
 
-    pub async fn get_account_state(
-        &self,
-        app_account_id: &H256,
-    ) -> Result<AccountWithProof, anyhow::Error> {
+    pub async fn get_account_state(&self, app_account_id: &H256) -> Result<AccountWithProof, anyhow::Error> {
         let app_account_id = hex::encode(app_account_id.as_slice());
         let mut params = HashMap::new();
         params.insert("app_account_id".to_string(), app_account_id.to_string());
 
-        let response = self
-            .client
-            .get(&format!("{}/account", self.url))
-            .query(&params)
-            .send()
-            .await?;
+        let response = self.client.get(&format!("{}/account", self.url)).query(&params).send().await?;
 
         if response.status().is_success() {
             let account: AccountWithProof = response.json().await?;

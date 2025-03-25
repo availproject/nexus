@@ -1,8 +1,8 @@
 use anyhow::anyhow;
-use reqwest::Client;
-use zksync_core::{L1BatchWithMetadata, ProofWithL1BatchMetaData, ProofWithCommitmentAndL1BatchMetaData, Token};
 use num_bigint::BigUint;
 use primitive_types::U256;
+use reqwest::Client;
+use zksync_core::{L1BatchWithMetadata, ProofWithCommitmentAndL1BatchMetaData, ProofWithL1BatchMetaData, Token};
 
 pub struct ProofAPI {
     url: String,
@@ -36,10 +36,7 @@ fn serialized_proof_bigint_strings_array(token: &Token) -> Vec<String> {
 }
 
 impl ProofAPI {
-    pub async fn get_proof_for_l1_batch(
-        &self,
-        l1_batch_number: u32,
-    ) -> Result<ProofAPIResponse, anyhow::Error> {
+    pub async fn get_proof_for_l1_batch(&self, l1_batch_number: u32) -> Result<ProofAPIResponse, anyhow::Error> {
         // Construct the API URL
         let request_url = format!("{}/metadata?l1BatchNumber={}", self.url, l1_batch_number);
 
@@ -56,7 +53,10 @@ impl ProofAPI {
             let pubdata_commitments = proof_with_commitment_and_l1_batch_meta_data.clone().pubdata_commitments;
 
             // Assuming you have a way to get MockProof; otherwise, return an appropriate variant
-            Ok(ProofAPIResponse::Found((proof_with_commitment_and_l1_batch_meta_data, proof)))
+            Ok(ProofAPIResponse::Found((
+                proof_with_commitment_and_l1_batch_meta_data,
+                proof,
+            )))
         } else {
             // Handle different status codes as needed
             match response.status().as_u16() {

@@ -2,8 +2,8 @@ use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
 use anyhow::{anyhow, Context, Error};
 use nexus_core::db::NodeDB;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI,
-    StatementDigest, SubmitProof, Transaction, TxParams, TxSignature, H256,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, StatementDigest, SubmitProof, Transaction, TxParams,
+    TxSignature, H256,
 };
 
 #[cfg(feature = "risc0")]
@@ -68,11 +68,7 @@ async fn main() -> Result<(), Error> {
 
     let zksync_proof_api_url = &args[1];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
-    let prover_mode = if dev_flag {
-        ProverMode::MockProof
-    } else {
-        ProverMode::Compressed
-    };
+    let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
 
     // Default app_id
     let mut app_id = 100;
@@ -100,32 +96,27 @@ async fn main() -> Result<(), Error> {
     let db = NodeDB::from_path(&db_path);
 
     #[cfg(feature = "sp1")]
-    let ZKSYNC_ADAPTER_ELF: &[u8] =
-        include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
+    let ZKSYNC_ADAPTER_ELF: &[u8] = include_bytes!("../../methods/sp1-guest/elf/riscv32im-succinct-zkvm-elf");
 
     #[cfg(feature = "sp1")]
     let ZKSYNC_ADAPTER_ID = Prover::new(ZKSYNC_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(); // since sp1 doesn't implements verify method on proof object
 
     // Retrieve or initialize the adapter state data from the database
-    let adapter_state_data =
-        if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
-            data
-        } else {
-            // Initialize with default values if no data found in the database
-            let adapter_config = AdapterConfig {
-                app_id: AppId(app_id),
-                elf: ZKSYNC_ADAPTER_ELF.to_vec(),
-                adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
-                vk: [0u8; 32],
-                rollup_start_height: 606460,
-                prover_mode: prover_mode.clone(),
-                avail_url: String::from("wss://turing-rpc.avail.so:443/ws"),
-            };
-            AdapterStateData {
-                last_height: 0,
-                adapter_config,
-            }
+    let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
+        data
+    } else {
+        // Initialize with default values if no data found in the database
+        let adapter_config = AdapterConfig {
+            app_id: AppId(app_id),
+            elf: ZKSYNC_ADAPTER_ELF.to_vec(),
+            adapter_elf_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+            vk: [0u8; 32],
+            rollup_start_height: 606460,
+            prover_mode: prover_mode.clone(),
+            avail_url: String::from("wss://turing-rpc.avail.so:443/ws"),
         };
+        AdapterStateData { last_height: 0, adapter_config }
+    };
 
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
@@ -144,9 +135,7 @@ async fn main() -> Result<(), Error> {
     let proof_api = proof_api::ProofAPI::new(zksync_proof_api_url);
 
     let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-    let account_with_proof: AccountWithProof = nexus_api
-        .get_account_state(&app_account_id.as_h256())
-        .await?;
+    let account_with_proof: AccountWithProof = nexus_api.get_account_state(&app_account_id.as_h256()).await?;
     let height_on_nexus = account_with_proof.account.height;
 
     // if adapter_state_data.adapter_config.adapter_elf_id.clone()
@@ -197,17 +186,15 @@ async fn main() -> Result<(), Error> {
                 let current_height = batch_metadata.header.number.0;
                 // println!("metadata: {:?}", batch_metadata);
 
-                let app_account_id =
-                    AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-                let account_with_proof: AccountWithProof =
-                    match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-                        Ok(i) => i,
-                        Err(e) => {
-                            println!("{:?}", e);
+                let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+                let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+                    Ok(i) => i,
+                    Err(e) => {
+                        println!("{:?}", e);
 
-                            continue;
-                        }
-                    };
+                        continue;
+                    }
+                };
                 let height_on_nexus = account_with_proof.account.height;
 
                 // if adapter_state_data.adapter_config.adapter_elf_id.clone()
@@ -232,10 +219,7 @@ async fn main() -> Result<(), Error> {
                     continue;
                 }
 
-                let (prev_proof_with_pi, account_state): (
-                    Option<Proof>,
-                    Option<(AppAccountId, AccountState)>,
-                ) = if last_height == 0 {
+                let (prev_proof_with_pi, account_state): (Option<Proof>, Option<(AppAccountId, AccountState)>) = if last_height == 0 {
                     (
                         None,
                         //TODO: Remove this clone of app account id.
@@ -245,7 +229,9 @@ async fn main() -> Result<(), Error> {
                     match db.get(&last_height.to_be_bytes())? {
                         Some(i) => (Some(i), None),
                         None => {
-                            return Err(anyhow!("previous proof and metadata not found for last height as per adapter state"))
+                            return Err(anyhow!(
+                                "previous proof and metadata not found for last height as per adapter state"
+                            ))
                         }
                     }
                 };
@@ -274,20 +260,10 @@ async fn main() -> Result<(), Error> {
 
                 println!(
                     "Current proof data: {:?}",
-                    recursive_proof
-                        .clone()
-                        .public_inputs::<NexusRollupPI>()
-                        .unwrap()
-                        .rollup_hash
-                        .unwrap()
+                    recursive_proof.clone().public_inputs::<NexusRollupPI>().unwrap().rollup_hash.unwrap()
                 );
 
-                let rollup_hash = recursive_proof
-                    .clone()
-                    .public_inputs::<NexusRollupPI>()
-                    .unwrap()
-                    .rollup_hash
-                    .unwrap();
+                let rollup_hash = recursive_proof.clone().public_inputs::<NexusRollupPI>().unwrap().rollup_hash.unwrap();
 
                 #[cfg(feature = "risc0")]
                 match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
@@ -299,11 +275,7 @@ async fn main() -> Result<(), Error> {
                 }
 
                 #[cfg(feature = "sp1")]
-                match recursive_proof.verify(
-                    None,
-                    Some(ZKSYNC_ADAPTER_ELF.to_vec()),
-                    prover_mode.clone(),
-                ) {
+                match recursive_proof.verify(None, Some(ZKSYNC_ADAPTER_ELF.to_vec()), prover_mode.clone()) {
                     Ok(()) => {
                         println!("Proof verification successful");
                         ()
@@ -314,14 +286,10 @@ async fn main() -> Result<(), Error> {
                 if current_height > height_on_nexus {
                     let public_inputs = NexusRollupPI {
                         nexus_hash: range[0],
-                        state_root: H256::from(
-                            batch_metadata.metadata.root_hash.as_fixed_bytes().clone(),
-                        ),
+                        state_root: H256::from(batch_metadata.metadata.root_hash.as_fixed_bytes().clone()),
                         //TODO: remove unwrap
                         height: current_height,
-                        start_nexus_hash: start_nexus_hash.unwrap_or_else(|| {
-                            H256::from(account_with_proof.account.start_nexus_hash)
-                        }),
+                        start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
                         rollup_hash: Some(rollup_hash),
@@ -365,7 +333,10 @@ async fn main() -> Result<(), Error> {
                         }
                     }
                 } else {
-                    println!("Current height is lesser than height on nexus. current height: {} nexus height: {}", current_height, height_on_nexus);
+                    println!(
+                        "Current height is lesser than height on nexus. current height: {} nexus height: {}",
+                        current_height, height_on_nexus
+                    );
                 }
 
                 // Persist adapter state data to the database
@@ -391,7 +362,9 @@ async fn main() -> Result<(), Error> {
             Ok(ProofAPIResponse::Pruned) => {
                 println!("Error fetching proof - Already pruned. Need to fetch from indexer");
 
-                return Err(anyhow!("Error fetching proof - Already pruned. Need to fetch from indexer which is not implemented, exiting"));
+                return Err(anyhow!(
+                    "Error fetching proof - Already pruned. Need to fetch from indexer which is not implemented, exiting"
+                ));
             }
             Err(e) => {
                 println!("Err while fetching proof {:?}", e);

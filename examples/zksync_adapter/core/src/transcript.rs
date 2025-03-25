@@ -7,8 +7,8 @@ use tiny_keccak::{Hasher, Keccak};
 
 use crate::utils::{padd_bytes3, padd_bytes32};
 pub struct Transcript {
-    state_0: [u8; 32], // bytes32 in Solidity is equivalent to an array of 32 bytes in Rust
-    state_1: [u8; 32], // Similarly, bytes32 translates to [u8; 32] in Rust
+    state_0: [u8; 32],      // bytes32 in Solidity is equivalent to an array of 32 bytes in Rust
+    state_1: [u8; 32],      // Similarly, bytes32 translates to [u8; 32] in Rust
     challenge_counter: u32, // uint32 in Solidity is equivalent to u32 in Rust
     // TODO: make below values are constants
     FR_MASK: Fr,
@@ -23,10 +23,7 @@ impl Transcript {
             state_0: [0; 32],     // Initializes state_0 with 32 bytes of zeros
             state_1: [0; 32],     // Initializes state_1 with 32 bytes of zeros
             challenge_counter: 0, // Initializes challenge_counter to 0
-            FR_MASK: Fr::from_str(
-                "14474011154664524427946373126085988481658748083205070504932198000989141204991",
-            )
-            .unwrap(),
+            FR_MASK: Fr::from_str("14474011154664524427946373126085988481658748083205070504932198000989141204991").unwrap(),
             DST_0: 0,
             DST_1: 1,
             DST_CHALLENGE: 2,
@@ -116,9 +113,8 @@ impl Transcript {
         let res = BigInt::from_bytes_be(Sign::Plus, &out);
 
         const FR_MASK: [u8; 32] = [
-            0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff,
+            0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         ];
         let mut res_fr = [0u8; 32];
 
