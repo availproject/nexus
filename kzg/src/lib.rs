@@ -2,9 +2,7 @@ use std::num::NonZeroUsize;
 
 use anyhow::anyhow;
 use ark_ff::Field;
-use bls12_381::{
-    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
-};
+use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use ff::derive::sbb;
 use kate::gridgen::AsBytes;
 use kate::pmp::ark_poly::univariate::{DenseOrSparsePolynomial, DensePolynomial};
@@ -22,10 +20,7 @@ use kate_recovery::data::Cell;
 pub use kate;
 pub use kate_recovery;
 
-fn poly_div_q_r<F: Field>(
-    num: DenseOrSparsePolynomial<F>,
-    denom: DenseOrSparsePolynomial<F>,
-) -> Result<(Vec<F>, Vec<F>), anyhow::Error> {
+fn poly_div_q_r<F: Field>(num: DenseOrSparsePolynomial<F>, denom: DenseOrSparsePolynomial<F>) -> Result<(Vec<F>, Vec<F>), anyhow::Error> {
     if denom.is_zero() {
         return Err(anyhow!("Divisor is zero"));
     }
@@ -57,8 +52,7 @@ pub fn compute_row_proof(blob: &Vec<[u8; 32]>) -> Result<[u8; 48], anyhow::Error
         fr.map_err(|_| anyhow!("Failed to convert Scalar to Fr"))?
     };
 
-    let challenge_proof =
-        compute_kzg_proof(&public_params, co_eff_polynomial, evaluation_challenge)?;
+    let challenge_proof = compute_kzg_proof(&public_params, co_eff_polynomial, evaluation_challenge)?;
     let mut challenge_proof_serialized = [0u8; 48];
 
     challenge_proof
@@ -68,11 +62,7 @@ pub fn compute_row_proof(blob: &Vec<[u8; 32]>) -> Result<[u8; 48], anyhow::Error
     Ok(challenge_proof_serialized)
 }
 
-pub fn compute_kzg_proof(
-    srs: &M1NoPrecomp,
-    row_poly: Vec<Fr>,
-    challenge_evaluation: Fr,
-) -> Result<Proof, anyhow::Error> {
+pub fn compute_kzg_proof(srs: &M1NoPrecomp, row_poly: Vec<Fr>, challenge_evaluation: Fr) -> Result<Proof, anyhow::Error> {
     use ark_ff::One;
     let poly = DensePolynomial::from_coefficients_vec(row_poly);
     let divisor = DensePolynomial::from_coefficients_vec(vec![-challenge_evaluation, Fr::one()]);
@@ -83,11 +73,7 @@ pub fn compute_kzg_proof(
     Ok(KZGProof::open(srs, witness).or_else(|_| Err(anyhow!("Failed to open proof")))?)
 }
 
-pub fn verify_row_kzg(
-    row: &Vec<[u8; 32]>,
-    commitment: &[u8; 48],
-    proof_bytes: &[u8; 48],
-) -> Result<bool, anyhow::Error> {
+pub fn verify_row_kzg(row: &Vec<[u8; 32]>, commitment: &[u8; 48], proof_bytes: &[u8; 48]) -> Result<bool, anyhow::Error> {
     let commitment = safe_g1_affine_from_bytes(commitment)?;
     let proof = safe_g1_affine_from_bytes(proof_bytes)?;
 
@@ -123,18 +109,13 @@ pub fn safe_g1_affine_from_bytes(bytes: &[u8; 48]) -> Result<G1Affine, anyhow::E
     Ok(g1.unwrap())
 }
 
-pub fn evaluate_polynomial_in_evaluation_form(
-    polynomial: Vec<Scalar>,
-    x: Scalar,
-) -> Result<Scalar, anyhow::Error> {
+pub fn evaluate_polynomial_in_evaluation_form(polynomial: Vec<Scalar>, x: Scalar) -> Result<Scalar, anyhow::Error> {
     let eval_domain = GeneralEvaluationDomain::<ArkScalar>::new(polynomial.len()).unwrap();
 
     let eval_domain_in_scalar: Vec<Scalar> = eval_domain
         .elements()
         .map(|e| {
-            let scalar =
-                Scalar::from_bytes(&e.to_bytes().expect("Failed to convert element to bytes"))
-                    .unwrap();
+            let scalar = Scalar::from_bytes(&e.to_bytes().expect("Failed to convert element to bytes")).unwrap();
 
             scalar
         })
@@ -174,11 +155,7 @@ pub fn evaluate_polynomial_in_evaluation_form(
     Ok(out)
 }
 
-fn batch_inversion(
-    out: &mut [Scalar],
-    a: &[Scalar],
-    len: NonZeroUsize,
-) -> Result<(), anyhow::Error> {
+fn batch_inversion(out: &mut [Scalar], a: &[Scalar], len: NonZeroUsize) -> Result<(), anyhow::Error> {
     if a == out {
         return Err(anyhow!("Destination is the same as source".to_string(),));
     }
@@ -243,9 +220,7 @@ pub fn verify_kzg_proof_impl(
 }
 
 pub fn pairings_verify(a1: G1Affine, a2: G2Affine, b1: G1Affine, b2: G2Affine) -> bool {
-    multi_miller_loop(&[(&-a1, &G2Prepared::from(a2)), (&b1, &G2Prepared::from(b2))])
-        .final_exponentiation()
-        == Gt::identity()
+    multi_miller_loop(&[(&-a1, &G2Prepared::from(a2)), (&b1, &G2Prepared::from(b2))]).final_exponentiation() == Gt::identity()
 }
 
 pub fn scalar_from_bytes_unchecked(bytes: [u8; 32]) -> Scalar {
@@ -269,17 +244,11 @@ pub fn scalar_from_u64_array_unchecked(array: [u64; 4]) -> Scalar {
 
 /// Constant representing the modulus
 /// q = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
-pub const MODULUS: [u64; 4] = [
-    0xffff_ffff_0000_0001,
-    0x53bd_a402_fffe_5bfe,
-    0x3339_d808_09a1_d805,
-    0x73ed_a753_299d_7d48,
-];
+pub const MODULUS: [u64; 4] = [0xffff_ffff_0000_0001, 0x53bd_a402_fffe_5bfe, 0x3339_d808_09a1_d805, 0x73ed_a753_299d_7d48];
 
 pub const G2_POINT: [u8; 96] = [
-    177, 96, 16, 241, 179, 211, 58, 165, 243, 246, 8, 195, 133, 64, 9, 121, 237, 54, 220, 63, 171,
-    83, 211, 98, 111, 81, 156, 116, 215, 225, 235, 239, 98, 201, 173, 53, 121, 100, 4, 206, 47,
-    195, 235, 180, 33, 103, 181, 161, 5, 10, 194, 124, 53, 39, 7, 43, 129, 175, 15, 169, 166, 131,
-    226, 38, 218, 121, 39, 95, 41, 133, 201, 232, 154, 13, 185, 105, 183, 110, 11, 107, 233, 79,
-    238, 135, 76, 72, 88, 103, 55, 173, 85, 136, 207, 30, 16, 65,
+    177, 96, 16, 241, 179, 211, 58, 165, 243, 246, 8, 195, 133, 64, 9, 121, 237, 54, 220, 63, 171, 83, 211, 98, 111, 81, 156, 116, 215, 225, 235,
+    239, 98, 201, 173, 53, 121, 100, 4, 206, 47, 195, 235, 180, 33, 103, 181, 161, 5, 10, 194, 124, 53, 39, 7, 43, 129, 175, 15, 169, 166, 131, 226,
+    38, 218, 121, 39, 95, 41, 133, 201, 232, 154, 13, 185, 105, 183, 110, 11, 107, 233, 79, 238, 135, 76, 72, 88, 103, 55, 173, 85, 136, 207, 30, 16,
+    65,
 ];

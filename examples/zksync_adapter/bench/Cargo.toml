@@ -1,7 +1,7 @@
 [package]
-name = "bench"
+name              = "bench"
 version.workspace = true
-edition = "2021"
+edition           = "2021"
 
 [dependencies]
 nexus-core = { path = "../../../core", default-features = false, optional = true }
@@ -19,12 +19,12 @@ env_logger = "0.11.5"
 log = "0.4.22"
 
 [[bench]]
-name = "adapter_bench"
-path = "src/adapter_bench.rs"
-harness = false               #disable default harness
+name    = "adapter_bench"
+path    = "src/adapter_bench.rs"
+harness = false                  #disable default harness
 
 [features]
-default = ["risc0"]
+default = [ "risc0" ]
 risc0 = [
     "nexus-core/native-risc0",
     "zksync-core/risc0",
