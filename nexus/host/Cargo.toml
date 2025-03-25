@@ -35,9 +35,6 @@ utoipa-swagger-ui = "5.0"
 derive_more = { git = "https://github.com/JelteF/derive_more", tag = "v1.0.0", features = [
     "display",
 ] }
-httpmock = "0.7.0"
-adapter_sdk = { path = "../../adapter_sdk", features = [ "native-risc0" ] }
-geth-methods = { path = "../../examples/mock_geth_adapter/methods", optional = true }
 
 [features]
 default = [ "risc0" ] # need to change this to run with sp1
@@ -46,7 +43,6 @@ risc0 = [
     "risc0-zkvm/std",
     "nexus-core/native-risc0",
     "prover/risc0",
-    "geth-methods",
 ]
 cuda = [ "risc0-zkvm/cuda" ]
 

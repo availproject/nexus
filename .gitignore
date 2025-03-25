@@ -7,7 +7,6 @@ target/
 **/db
 **/adapter_store
 **/elf
-Cargo.lock
 .DS_Store
 **/dist
 **/node_modules

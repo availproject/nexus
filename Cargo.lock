@@ -5810,14 +5810,11 @@ dependencies = [
 name = "host"
 version = "1.0.0"
 dependencies = [
- "adapter_sdk",
  "anyhow",
  "avail-subxt",
  "bincode",
  "derive_more 1.0.0 (git+https://github.com/JelteF/derive_more?tag=v1.0.0)",
- "geth-methods",
  "hex",
- "httpmock",
  "jmt",
  "mockall",
  "nexus-core",
