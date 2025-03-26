@@ -14,3 +14,5 @@ pub mod types;
 pub mod utils;
 pub mod zkvm;
 pub mod zkvm_state_machine;
+#[cfg(any(feature = "native"))]
+pub mod metrics;

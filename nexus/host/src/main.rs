@@ -14,6 +14,9 @@ use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
 use tracing::{error, info};
 use tracing_subscriber::{fmt, EnvFilter};
+use crate::instrumentation::Instrumentation;
+
+mod instrumentation;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing subscriber
@@ -31,6 +34,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_ansi(true)
         .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
         .init();
+
+    // Setup Instrumentation
+    let mut analytics = Instrumentation::new("nexus-node".to_string());
+    analytics.setup()?;
 
     let args: Vec<String> = args().collect();
     let dev_flag = args.iter().any(|arg| arg == "--dev");
