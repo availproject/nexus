@@ -13,11 +13,13 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, warn};
+use crate::metrics::BatchMetrics;
 
 pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
     stf: StateTransitionFunction<Z>,
     state: Arc<Mutex<VmState>>,
     p: PhantomData<P>, //db: NodeDB,
+    block_number_metrics: BatchMetrics
 }
 
 impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
@@ -29,6 +31,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
             //      db: node_db,
             p: PhantomData,
             state,
+            block_number_metrics: BatchMetrics::init()
         }
     }
 
@@ -51,7 +54,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         if (root.as_fixed_slice() != state_root.as_fixed_slice()) {
             return Err(anyhow::anyhow!("State roots do not match to commit."));
         }
-
+        self.block_number_metrics.batch_number_counter.add(1, &[]);
         info!(
             "State commitment done for batch {}. State root: {:?}",
             batch_number, state_root
@@ -66,6 +69,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         old_nexus_headers: &HeaderStore,
         txs: &Vec<Transaction>,
     ) -> Result<(Option<TreeUpdateBatch>, StateUpdate, HashMap<H256, bool>), Error> {
+        self.block_number_metrics.number_of_transactions_batch.record(txs.len() as u64, &[]);
         debug!("Executing batch in state machine");
         //TODO: Increment version for each update.
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();

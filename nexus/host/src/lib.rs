@@ -29,6 +29,7 @@ use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prove
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
 
+use nexus_core::metrics::ExecutionMetrics;
 #[cfg(any(feature = "risc0"))]
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 pub use relayer::{Relayer, SimpleRelayer};
@@ -114,16 +115,21 @@ pub async fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + 
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     prover_mode: ProverMode,
+    execution_metrics: ExecutionMetrics,
 ) -> Result<(P, NexusHeader, HashMap<H256, bool>, Option<TreeUpdateBatch>), Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
 {
+    let batch_execution_time_start = std::time::Instant::now();
     let (tree_update_batch, state_update, tx_result): (
         Option<jmt::storage::TreeUpdateBatch>,
         nexus_core::types::StateUpdate,
         HashMap<H256, bool>,
     ) = state_machine.execute_batch(&header, header_store, &txs).await?;
+    let batch_execution_time = batch_execution_time_start.elapsed();
+    execution_metrics.batch_execution_time.record(batch_execution_time.as_secs(), &[]);
 
+    let batch_proving_time_start = std::time::Instant::now();
     let (proof, result) = {
         #[cfg(any(feature = "sp1"))]
         let NEXUS_RUNTIME_ELF: &[u8] = include_bytes!("../../../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/nexus_runtime_sp1");
@@ -158,6 +164,8 @@ where
         let result: NexusHeader = proof.public_inputs()?;
         (proof, result)
     };
+    let batch_proving_time = batch_proving_time_start.elapsed();
+    execution_metrics.batch_proving_time.record(batch_proving_time.as_secs(), &[]);
 
     header_store.push_front(&result);
 
@@ -177,6 +185,8 @@ pub async fn execution_engine_handle(
     info!("Starting execution engine in {:?} mode", prover_mode);
     const MAX_HEADERS: usize = 5;
     let mut header_array: Vec<Header> = Vec::new();
+    // Initialize the execution metrics
+    let execution_metrics = ExecutionMetrics::init();
 
     loop {
         if *shutdown_rx.borrow() {
@@ -229,12 +239,15 @@ pub async fn execution_engine_handle(
             );
 
             debug!("🔄 Beginning batch execution");
+            let batch_execution_start_time = std::time::Instant::now();
+
             match execute_batch::<Prover, Proof, ZKVM>(
                 &txs,
                 &mut state_machine,
                 &AvailHeader::from(&header),
                 &mut old_headers,
                 prover_mode.clone(),
+                execution_metrics.clone(),
             )
             .await
             {
@@ -290,6 +303,9 @@ pub async fn execution_engine_handle(
                 }
             }
             info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ \n");
+
+            let batch_execution_time = batch_execution_start_time.elapsed();
+            execution_metrics.total_batch_execution_time.record(batch_execution_time.as_secs(), &[]);
         } else {
             debug!("Waiting for new blocks");
             tokio::time::sleep(Duration::from_millis(100)).await;

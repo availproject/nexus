@@ -44,7 +44,6 @@ opentelemetry-otlp = { version = "0.17.0", features = [
     "metrics",
     "logs",
 ] }
-tracing-opentelemetry = "0.24.0"
 opentelemetry-semantic-conventions = { version = "0.25.0" }
 
 [features]
