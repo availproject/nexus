@@ -51,7 +51,8 @@ jobs:
           echo "${HOME}/.risc0/bin" >> $GITHUB_PATH
           # Need to install for specific version next.
           ${HOME}/.risc0/bin/rzup install
-          ${HOME}/.risc0/bin/rzup install 1.2.5
+          ${HOME}/.risc0/bin/rzup install cargo-risczero 1.2.5
+          ${HOME}/.risc0/bin/rzup install r0vm 1.2.5
 
       - name: Build binaries
         run : |
