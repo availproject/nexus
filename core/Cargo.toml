@@ -37,7 +37,10 @@ hex = "0.4.3"
 winnow = "0.6.18"
 tracing = { workspace = true, optional = true }
 utoipa = { version = "5.3", optional = true }
-opentelemetry = { version = "0.24.0", features = ["metrics", "logs"], optional = true }
+opentelemetry = { version = "0.24.0", features = [
+    "metrics",
+    "logs",
+], optional = true }
 
 [features]
 # default = ["native-risc0"]

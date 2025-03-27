@@ -37,8 +37,8 @@ derive_more = { git = "https://github.com/JelteF/derive_more", tag = "v1.0.0", f
 ] }
 
 # OTEL
-opentelemetry = { version = "0.24.0", features = ["metrics", "logs"] }
-opentelemetry_sdk = { version = "0.24.0", features = ["rt-tokio", "logs"] }
+opentelemetry = { version = "0.24.0", features = [ "metrics", "logs" ] }
+opentelemetry_sdk = { version = "0.24.0", features = [ "rt-tokio", "logs" ] }
 opentelemetry-otlp = { version = "0.17.0", features = [
     "tonic",
     "metrics",
