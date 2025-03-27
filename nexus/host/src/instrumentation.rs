@@ -27,7 +27,10 @@ impl Instrumentation {
     }
 
     pub fn setup(&mut self) -> anyhow::Result<()> {
-        let otel_endpoint = self.otel_collector_endpoint.clone().expect("OTEL_COLLECTOR_ENDPOINT not set");
+        let otel_endpoint = self.otel_collector_endpoint.clone();
+        if otel_endpoint.is_none() {
+            return Ok(());
+        }
 
         // Set up tracing subscriber without OpenTelemetry
         let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
@@ -36,7 +39,8 @@ impl Instrumentation {
 
         // Set up just the metrics exporter
         let export_config = ExportConfig {
-            endpoint: otel_endpoint.to_string(),
+            // Can use unwrap here because we know otel_endpoint exists from the check above
+            endpoint: otel_endpoint.unwrap().to_string(),
             ..ExportConfig::default()
         };
 

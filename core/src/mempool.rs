@@ -1,3 +1,4 @@
+use crate::metrics::MempoolMetrics;
 use crate::{
     db::NodeDB,
     traits::NexusTransaction,
@@ -7,13 +8,12 @@ use anyhow::anyhow;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, event, info, instrument, span, warn, Level};
-use crate::metrics::MempoolMetrics;
 
 #[derive(Clone)]
 pub struct Mempool {
     tx_list: Arc<Mutex<Vec<Transaction>>>,
     node_db: Arc<Mutex<NodeDB>>,
-    mempool_metrics: MempoolMetrics
+    mempool_metrics: MempoolMetrics,
 }
 
 impl Mempool {
@@ -23,7 +23,7 @@ impl Mempool {
         Self {
             tx_list: Arc::new(Mutex::new(vec![])),
             node_db,
-            mempool_metrics: MempoolMetrics::init()
+            mempool_metrics: MempoolMetrics::init(),
         }
     }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::metrics::BatchMetrics;
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
 use crate::types::{AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, Transaction, TransactionZKVM, TxParams, H256};
@@ -13,13 +14,12 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, warn};
-use crate::metrics::BatchMetrics;
 
 pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
     stf: StateTransitionFunction<Z>,
     state: Arc<Mutex<VmState>>,
     p: PhantomData<P>, //db: NodeDB,
-    block_number_metrics: BatchMetrics
+    block_number_metrics: BatchMetrics,
 }
 
 impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
@@ -31,7 +31,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
             //      db: node_db,
             p: PhantomData,
             state,
-            block_number_metrics: BatchMetrics::init()
+            block_number_metrics: BatchMetrics::init(),
         }
     }
 

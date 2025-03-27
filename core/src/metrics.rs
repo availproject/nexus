@@ -1,6 +1,6 @@
-use std::time::Instant;
 use opentelemetry::global;
 use opentelemetry::metrics::{Counter, Gauge, Histogram};
+use std::time::Instant;
 
 #[derive(Clone)]
 pub struct BatchMetrics {
@@ -14,7 +14,7 @@ impl BatchMetrics {
         let number_of_transactions_batch = metrics_meter.u64_histogram("number_of_transactions").init();
         Self {
             batch_number_counter,
-            number_of_transactions_batch
+            number_of_transactions_batch,
         }
     }
 }
@@ -27,9 +27,7 @@ impl MempoolMetrics {
     pub fn init() -> Self {
         let metrics_meter = global::meter("nexus-metrics");
         let mempool_txn_count_gauge = metrics_meter.u64_gauge("mempool_txn_count").with_unit("Transactions").init();
-        Self {
-            mempool_txn_count_gauge,
-        }
+        Self { mempool_txn_count_gauge }
     }
 }
 
