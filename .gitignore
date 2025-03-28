@@ -16,3 +16,4 @@ contracts/out-*
 *.bin
 .idea/
 **/*/.env
+.vscode/

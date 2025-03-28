@@ -330,7 +330,8 @@ impl Blob {
         for d in &self.0 {
             data.extend_from_slice(&d[..31]);
         }
-        data
+
+        Decode::decode(&mut &data[..]).expect("Failed to decode data")
     }
 }
 

@@ -7,7 +7,6 @@ edition           = "2021"
 nexus-core = { path = "../../core", default-features = false, optional = true }
 prover = { path = "../prover", optional = true }
 sparse-merkle-tree = { git = "https://github.com/vibhurajeev/sparse-merkle-tree.git", rev = "a2f94a7", default-features = false }
-primitive-types = "0.12"
 risc0-zkvm = { version = "1.2.0", default-features = false, features = [
     "std",
 ], optional = true }
@@ -20,22 +19,20 @@ rocksdb = { version = "0.22.0" }
 tokio = "1.36.0"
 serde_json = "1.0.114"
 risc0-zkvm-platform = { version = "1.2.0", features = [ "sys-getenv" ] }
-adapter_sdk = { path = "../../adapter_sdk", features = [ "native-risc0" ] }
-geth-methods = { path = "../../examples/mock_geth_adapter/methods" }
 serde = "1.0"
 anyhow = "1.0.80"
 
 
-[[bench]]
-name    = "nexus_bench"
-path    = "src/nexus_bench.rs"
-harness = false                #disable default harness
+[[bin]]
+name = "nexus_bench"
+path = "src/nexus_bench.rs"
+#harness = false                #disable default harness
 
 [features]
 default = [ "risc0" ]
 risc0 = [
     "nexus-core/native-risc0",
-    "risc0-zkvm/cuda",
+    "risc0-zkvm/metal",
     "prover/risc0",
     "nexus-host/risc0",
 ]

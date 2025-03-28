@@ -1,7 +1,7 @@
 use crate::traits::RollupProof;
 use crate::types::{AdapterPrivateInputs, AdapterPublicInputs, RollupProofWithPublicInputs};
 use anyhow::{anyhow, Error};
-use nexus_core::types::{AppAccountId, AvailHeader, Extension, StatementDigest, V3Extension, H256};
+use nexus_core::types::{AppAccountId, AvailHeader, HeaderExtension, StatementDigest, V3Extension, H256};
 use nexus_core::utils::hasher::ShaHasher;
 #[cfg(feature = "zkvm-risc0")]
 use risc0_zkvm::{
@@ -108,7 +108,7 @@ pub fn verify_proof<P: RollupProof>(
         Some(i) => (i.proof, i.public_inputs),
         None => {
             let app_lookup = match private_inputs.avail_header.extension {
-                Extension::V3(extension) => extension.app_lookup,
+                HeaderExtension::V3(extension) => extension.app_lookup,
                 _ => unreachable!("Other headers not expected"),
             };
 

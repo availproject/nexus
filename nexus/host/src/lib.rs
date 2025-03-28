@@ -25,8 +25,8 @@ use nexus_core::{
     state_machine::StateMachine,
     traits::NexusTransaction,
     types::{
-        AvailHeader, BlockStatus, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader, Proof as NexusProof, Transaction, TransactionResult,
-        TransactionStatus, TransactionWithStatus, TransactionZKVM, TxParams, H256,
+        AvailHeader, BlockStatus, HeaderStore, NexusBlock, NexusBlockWithPointers, NexusHeader, NexusRollupPI, Proof as NexusProof, Transaction,
+        TransactionResult, TransactionStatus, TransactionWithStatus, TransactionZKVM, TxParams, H256,
     },
     zkvm::{
         traits::{ZKVMEnv, ZKVMProof, ZKVMProver},
@@ -439,7 +439,8 @@ where
             if let TxParams::SubmitProof(submit_proof_tx) = &tx.params {
                 //TODO: Remove transactions that error out from mempool
                 let proof = submit_proof_tx.proof.clone();
-                let receipt: P = P::try_from(proof).unwrap();
+                let mut receipt: P = P::try_from(proof).unwrap();
+
                 zkvm_prover.add_proof_for_recursion(receipt).unwrap();
             }
         }
@@ -447,9 +448,8 @@ where
         zkvm_prover.add_input(&zkvm_inputs).unwrap();
         let mut proof = zkvm_prover.prove()?;
 
-        println!("Proof generated");
         let result: NexusHeader = proof.public_inputs()?;
-        println!("Got results");
+
         (proof, result)
     };
 
@@ -480,8 +480,6 @@ pub async fn get_blobs_for_block(sdk: &SDK, avail_block_hash: AvailH256, app_id:
     let header = block.block.header();
 
     info!("app index: {:?}", header.extension);
-
-    let txs = block.transactions(AvailFilter::new().app_id(app_id));
 
     let blob_txs = block.transactions_static::<SubmitDataWithCommitments>(AvailFilter::new().app_id(app_id));
 

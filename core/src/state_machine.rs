@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
-use crate::types::{AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, Transaction, TransactionZKVM, TxParams, H256};
+use crate::types::{AccountState, AppAccountId, AvailHeader, HeaderStore, NexusHeader, StateUpdate, Transaction, TransactionZKVM, TxParams, H256};
 use crate::zkvm::traits::{ZKVMEnv, ZKVMProof};
 use anyhow::{anyhow, Error};
 use jmt::storage::{NodeBatch, TreeUpdateBatch};

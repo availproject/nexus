@@ -61,7 +61,22 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
         };
 
         let receipt = match &self.prover_mode {
-            ProverMode::MockProof => prover.prove(env, &self.elf).map_err(|e| anyhow!("Error when proving: {:?}", e))?,
+            ProverMode::MockProof => {
+                let session = prover.execute(env, &self.elf).map_err(|e| anyhow!(e))?;
+
+                let mock_prover_env = ExecutorEnv::builder()
+                    .write(&session.journal.bytes.len())
+                    .map_err(|e| anyhow!("Error writing to mock prover env {:?}", e))?
+                    .write_slice(&session.journal.bytes)
+                    .build()
+                    .map_err(|e| anyhow!("Error building mock prover env {:?}", e))?;
+
+                let prove_info = prover
+                    .prove(mock_prover_env, &MOCK_GUEST_RISC0_ELF)
+                    .map_err(|e| anyhow!("Error when proving: {:?}", e))?;
+
+                prove_info
+            }
             _ => prover
                 .prove_with_opts(env, &self.elf, &prover_opts)
                 .map_err(|e| anyhow!("Error when proving: {:?}", e))?,
@@ -82,7 +97,7 @@ pub struct RiscZeroProof(pub Receipt);
 #[cfg(any(feature = "native-risc0"))]
 impl ZKVMProof for RiscZeroProof {
     fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error> {
-        from_slice(&self.0.journal.bytes).map_err(|e| anyhow!(e))
+        bincode::deserialize(&self.0.journal.bytes).map_err(|e| anyhow!(e))
     }
 
     fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error> {
@@ -133,7 +148,7 @@ impl ZKVMEnv for ZKVM {
     }
 
     fn verify<T: serde::Serialize>(img_id: [u32; 8], public_inputs: &T) -> Result<(), anyhow::Error> {
-        let public_input_vec = match to_vec(public_inputs) {
+        let public_input_vec = match bincode::serialize(public_inputs) {
             Ok(i) => i,
             Err(_) => return Err(anyhow::anyhow!("Could not encode public inputs")),
         };
@@ -142,7 +157,9 @@ impl ZKVMEnv for ZKVM {
     }
 
     fn commit<T: serde::Serialize>(data: &T) {
-        env::commit(data);
+        let serialized = bincode::serialize(data).unwrap();
+
+        env::commit_slice(&serialized);
     }
 }
 
