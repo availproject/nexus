@@ -34,6 +34,7 @@ members = [
     "examples/ethereum_adapter/core",
     "examples/ethereum_adapter/methods/risc0-guest",
     "examples/ethereum_adapter/methods/sp1-guest",
+    "integration",
 ]
 
 [workspace.package]

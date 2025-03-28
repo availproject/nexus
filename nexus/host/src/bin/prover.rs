@@ -47,6 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
     let avail_rpc = args
+        .clone()
         .iter()
         .find(|arg| arg.starts_with("--avail-rpc="))
         .map(|arg| arg.trim_start_matches("--avail-rpc="))
@@ -87,6 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 //Make nexus app ID configurable
                 10,
                 1,
+                avail_start_block,
             )
             .await;
         });
