@@ -878,7 +878,7 @@ pub async fn run_nexus(
         .await
     });
 
-    let prover_handle = tokio::spawn(async move { prover_handle(db_clone_3, shutdown_rx_4, start_block, prover_mode_clone).await });
+   // let prover_handle = tokio::spawn(async move { prover_handle(db_clone_3, shutdown_rx_4, start_block, prover_mode_clone).await });
 
     let execution_engine = tokio::spawn(async move {
         let sdk: SDK = SDK::new(&ws_url.clone()).await.expect("Failed to connect to Avail RPC");
@@ -904,11 +904,13 @@ pub async fn run_nexus(
         execution_engine,
         relayer_handle,
         sequencer_handle,
-        prover_handle,
+     //   prover_handle,
     );
 
     match result {
-        Ok((_, execution_engine_result, _, _, _)) => {
+        Ok((_, execution_engine_result, _, _, 
+        //    _
+        )) => {
             info!("✅ Exited node gracefully");
 
             match execution_engine_result {

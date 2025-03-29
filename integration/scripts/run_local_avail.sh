@@ -2,7 +2,7 @@
 
 mkdir -p avail-node
 
-AVAIL_VERSION="v1.11.0.0"
+AVAIL_VERSION="toufeeq/scalable-da-2"
 IMAGE_NAME="availnode"
 IMAGE_TAG="latest"
 

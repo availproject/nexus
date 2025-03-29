@@ -47,7 +47,7 @@ pub fn add_check_body_and_response<'a>(mock_server: &'a MockServer, body_contain
 }
 
 pub async fn run_nexus_client() -> anyhow::Result<ManagedProcess> {
-    let target_binary = "../target/debug/host";
+    let target_binary = "../target/debug/node";
 
     // Check if we are in the directory
     if !Path::new(&target_binary).is_file() {

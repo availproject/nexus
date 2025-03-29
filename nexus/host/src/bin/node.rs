@@ -53,6 +53,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|arg| arg.trim_start_matches("--avail-rpc="))
         .unwrap_or("wss://zero-devnet.avail.so:443/ws")
         .to_string();
+    let avail_start_block: u32 = args
+        .iter()
+        .find(|arg| arg.starts_with("--nexus-start-block="))
+        .map(|arg| arg.trim_start_matches("--nexus-start-block="))
+        .unwrap_or("10000")
+        .to_string()
+        .parse()?;
 
     info!("Connecting to Avail RPC at: {}", avail_rpc);
     let relayer_mutex = Arc::new(Mutex::new(SimpleRelayer::new(&avail_rpc)));

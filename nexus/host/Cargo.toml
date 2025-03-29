@@ -40,5 +40,5 @@ risc0   = [ "risc0-zkvm/std", "nexus-core/native-risc0", "prover/risc0" ]
 serde = { version = "1.0.204" }
 
 [[bin]]
-name = "prover"
-path = "src/bin/prover.rs"
+name = "node"
+path = "src/bin/node.rs"
