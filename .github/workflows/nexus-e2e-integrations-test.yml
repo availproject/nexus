@@ -59,13 +59,7 @@ jobs:
             cargo build --bin node --no-default-features --features "risc0"
             cd ../../examples/mock_geth_adapter/host
             cargo build
-
-      - name: Run avail node
-        run: |
-          docker pull ocdbytes/availnode:latest
-          mkdir output
-          docker run --rm -p 30333:30333 -p 9944:9944 -v ./output:/output ocdbytes/availnode:latest --dev --rpc-methods=unsafe --unsafe-rpc-external --rpc-cors=all &
-
+            
       - name: Run integration tests
         run: |
           cd integration
