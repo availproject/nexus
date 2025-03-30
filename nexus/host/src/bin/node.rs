@@ -55,11 +55,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .to_string();
     let avail_start_block: u32 = args
         .iter()
-        .find(|arg| arg.starts_with("--nexus-start-block="))
-        .map(|arg| arg.trim_start_matches("--nexus-start-block="))
+        .find(|arg| arg.starts_with("--avail-start-block="))
+        .map(|arg| arg.trim_start_matches("--avail-start-block="))
         .unwrap_or("10000")
         .to_string()
         .parse()?;
+    let app_id = args
+        .clone()
+        .iter()
+        .find(|arg| arg.starts_with("--app-id="))
+        .map(|arg| arg.trim_start_matches("--app-id="))
+        .unwrap_or("wss://zero-devnet.avail.so:443/ws")
+        .to_string().parse()?;
+    let port = args
+        .clone()
+        .iter()
+        .find(|arg| arg.starts_with("--api-port="))
+        .map(|arg| arg.trim_start_matches("--api-port="))
+        .unwrap_or("7000")
+        .to_string().parse()?;
 
     info!("Connecting to Avail RPC at: {}", avail_rpc);
     let relayer_mutex = Arc::new(Mutex::new(SimpleRelayer::new(&avail_rpc)));
@@ -88,12 +102,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 relayer_mutex,
                 node_db,
                 state_machine,
-                (prover_mode, 7000),
+                (prover_mode, port),
                 state,
                 shutdown_rx,
                 avail_rpc,
                 //Make nexus app ID configurable
-                10,
+                app_id,
                 1,
                 avail_start_block,
             )

@@ -30,25 +30,26 @@ async fn main() -> Result<(), Error> {
     // Retrieve Ethereum node URL and --dev flag from command line arguments
     let args: Vec<String> = args().collect();
 
-    if args.len() <= 2 {
+    if args.len() <= 3 {
         if args.len() == 2 && args[1] == "--dev" {
-            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev] [--poll]");
+            eprintln!("Usage: cargo run -- <ethereum_node_url> <nexus_api_url> [--dev] [--poll]");
             return Ok(());
         }
 
-        if args.len() < 2 {
-            eprintln!("Usage: cargo run -- <ethereum_node_url> [--dev] [--poll]");
+        if args.len() < 3 {
+            eprintln!("Usage: cargo run -- <ethereum_node_url> <nexus_api_url> [--dev] [--poll]");
             return Ok(());
         }
     }
     let ethereum_node_url = &args[1];
+    let nexus_api_url = &args[2];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
     let poll_flag = args.iter().any(|arg| arg == "--poll");
     let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
-    let nexus_api = NexusAPI::new(&"http://127.0.0.1:7000");
+    let nexus_api = NexusAPI::new(nexus_api_url);
 
     // Create or open the database
-    let db_path = "db";
+    let db_path = "db/mock_geth_adapter";
     let db = NodeDB::from_path(db_path);
 
     // Retrieve or initialize the adapter state data from the database
@@ -79,7 +80,7 @@ async fn main() -> Result<(), Error> {
     loop {
         match web3.eth().block(BlockId::Number(web3::types::BlockNumber::Latest)).await {
             Ok(Some(header)) => {
-                println!(">>> Got header: {:?}", header);
+                println!(">>> Got header: {:?} last height {}", header, account_with_proof.account.height);
                 let current_height = header.number.unwrap().as_u32();
                 let range = match nexus_api.get_range().await {
                     Ok(i) => i,
@@ -128,36 +129,6 @@ async fn main() -> Result<(), Error> {
                         }
                     }
                 }
-                //else {
-                //     let timestamp = SystemTime::now()
-                //         .duration_since(UNIX_EPOCH)
-                //         .expect("Time went backwards")
-                //         .as_secs() as u32;
-                //     let app_id = AppAccountId::from(AppId(timestamp));
-
-                //     let tx = Transaction {
-                //         signature: TxSignature([0u8; 64]),
-                //         params: TxParams::InitAccount(InitAccount {
-                //             app_id: app_id.clone(),
-                //             statement: StatementDigest(ADAPTER_ID),
-                //             start_nexus_hash: range[0],
-                //         }),
-                //     };
-                //     match nexus_api.send_tx(tx).await {
-                //         Ok(i) => {
-                //             println!(
-                //                 "Initiated account on nexus. AppAccountId: {:?} Response: {:?}",
-                //                 &app_id, i,
-                //             )
-                //         }
-                //         Err(e) => {
-                //             println!("Error when iniating account: {:?}", e);
-
-                //             continue;
-                //         }
-                //     }
-                //     println!("Account is already initiated.");
-                // }
 
                 let height: u32 = header.number.unwrap().as_u32();
 
@@ -265,8 +236,16 @@ async fn main() -> Result<(), Error> {
                             // Check txn status :
                             let txn_hash = tx.hash();
                             let txn_status = nexus_api.get_transaction_status(&txn_hash).await?;
+
+                            //TODO: Below check needs to be done after 60 seconds.
                             // Assert txn status to be successful
-                            assert_eq!(txn_status.status, TransactionStatus::Successful);
+                            if txn_status.status !=  TransactionStatus::InPool {
+                                if !poll_flag {
+                                    return Err(anyhow::anyhow!("Failed to submit proof"));
+                                }
+
+                                continue;
+                            }
                         }
                         Err(e) => {
                             println!("Error when iniating account: {:?}", e);
@@ -349,5 +328,5 @@ async fn main() -> Result<(), Error> {
 }
 
 // To run :
-// With polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> --dev --poll
-// Without polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> --dev
+// With polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> <nexus_api_url> --dev --poll
+// Without polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> <nexus_api_url> --dev

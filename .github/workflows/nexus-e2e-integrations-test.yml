@@ -58,7 +58,7 @@ jobs:
             cd nexus/host
             cargo build --no-default-features --features "risc0"
             cd ../../examples/mock_geth_adapter/host
-            cargo build --bin node
+            cargo build
 
       - name: Run avail node
         run: |

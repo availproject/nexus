@@ -8657,6 +8657,7 @@ version = "1.0.0"
 dependencies = [
  "adapter_sdk",
  "anyhow",
+ "avail-rust",
  "geth-methods",
  "hex",
  "httpmock",

@@ -480,7 +480,7 @@ pub async fn get_blobs_for_block(sdk: &SDK, avail_block_hash: AvailH256, app_id:
 
     let header = block.block.header();
 
-    info!("app index: {:?}", header.extension);
+    debug!("app index: {:?}", header.extension);
 
     let blob_txs = block.transactions_static::<SubmitDataWithCommitments>(AvailFilter::new().app_id(app_id));
 
@@ -522,7 +522,7 @@ pub async fn get_blobs_for_block(sdk: &SDK, avail_block_hash: AvailH256, app_id:
     Ok((blobs, proofs))
 }
 
-#[instrument(level = "info", skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver))]
+#[instrument(level = "info", skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver, sdk))]
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,

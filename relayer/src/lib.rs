@@ -69,8 +69,8 @@ impl Relayer for SimpleRelayer {
 
                 let finalized_header = match rpc::chain::get_header(&sdk.client, Some(finalized_header_hash)).await {
                     Ok(i) => i,
-                    Err(_) => {
-                        println!("Error getting finalized_header: {}", next_height);
+                    Err(e) => {
+                        println!("Error getting finalized_header: {} {:?}", next_height, e);
                         tokio::time::sleep(Duration::from_secs(2)).await;
                         continue;
                     }

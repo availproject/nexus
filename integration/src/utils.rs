@@ -42,11 +42,12 @@ pub fn get_mock_server() -> MockServer {
 pub fn add_check_body_and_response<'a>(mock_server: &'a MockServer, body_contains: &'a str, response: &'a str) -> Mock<'a> {
     mock_server.mock(|when, then| {
         when.method(POST).path("/").json_body_partial(body_contains);
+        
         then.status(200).body(response);
     })
 }
 
-pub async fn run_nexus_client() -> anyhow::Result<ManagedProcess> {
+pub async fn run_nexus_client(avail_rpc_url: &str, start_block: u32, port: u32) -> anyhow::Result<ManagedProcess> {
     let target_binary = "../target/debug/node";
 
     // Check if we are in the directory
@@ -62,7 +63,7 @@ pub async fn run_nexus_client() -> anyhow::Result<ManagedProcess> {
     // Running nexus in dev mode
     command.env("RUST_LOG", "info");
     command.env("RISC0_DEV_MODE", "1");
-    command.args(&["--dev", "--avail-rpc=ws://127.0.0.1:9944", "--nexus-start-block=1"]);
+    command.args(&["--dev", &format!("--avail-rpc={}", avail_rpc_url), &format!("--avail-start-block={}", start_block), "--app-id=1", &format!("--api-port={}", port)]);
 
     let child = command.spawn()?;
     println!("Client started with PID: {}", child.id());
@@ -74,7 +75,7 @@ pub async fn run_nexus_client() -> anyhow::Result<ManagedProcess> {
     Ok(managed_process)
 }
 
-pub async fn run_mock_geth_adapter_once(ethereum_rpc_url: String) -> anyhow::Result<ManagedProcess> {
+pub async fn run_mock_geth_adapter_once(ethereum_rpc_url: &str, nexus_api_url: &str) -> anyhow::Result<ManagedProcess> {
     let target_binary = "../target/debug/geth-adapter-host";
 
     // Check if we are in the directory
@@ -90,7 +91,7 @@ pub async fn run_mock_geth_adapter_once(ethereum_rpc_url: String) -> anyhow::Res
     // Running nexus in dev mode
     command.env("RUST_LOG", "info");
     command.env("RISC0_DEV_MODE", "1");
-    command.args(&[ethereum_rpc_url, "--dev".into()]);
+    command.args(&[ethereum_rpc_url, nexus_api_url, "--dev".into()]);
 
     let child = command.spawn()?;
 
