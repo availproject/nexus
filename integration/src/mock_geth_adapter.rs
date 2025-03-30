@@ -1,14 +1,14 @@
 use crate::utils::{add_check_body_and_response, get_mock_server, run_mock_geth_adapter_once, run_nexus_client};
 use adapter_sdk::api::NexusAPI;
 use anyhow::anyhow;
+use avail_rust::rpc;
+use avail_rust::SDK;
 use geth_methods::ADAPTER_ID;
 use nexus_core::types::{AccountWithProof, AppAccountId, AppId, InitAccount, Sha256, StatementDigest, Transaction, TxParams, TxSignature, H256};
 use nexus_core::utils::hasher::Digest;
 use std::env;
 use std::time::Duration;
 use tokio::time::sleep;
-use avail_rust::rpc;
-use avail_rust::SDK;
 
 // As defined in the mock geth adapter
 const NEXUS_PORT: u32 = 7002;
@@ -23,7 +23,7 @@ async fn test_integration_mock_geth_adapter() {
         .map(|arg| arg.trim_start_matches("--avail-rpc="))
         .unwrap_or("wss://zero-devnet.avail.so:443/ws")
         .to_string();
-        let eth_response = include_str!("../../integration/data/0_get_block_by_number.json");
+    let eth_response = include_str!("../../integration/data/0_get_block_by_number.json");
     // Creating the mock server for eth client
     let mock_server = get_mock_server();
     let mock = add_check_body_and_response(
@@ -37,12 +37,18 @@ async fn test_integration_mock_geth_adapter() {
     );
     let sdk = SDK::new(&avail_rpc_url).await.unwrap();
 
-    let finalized_header_hash = rpc::chain::get_finalized_head(&sdk.client).await.expect("RPC call should not have failed");
+    let finalized_header_hash = rpc::chain::get_finalized_head(&sdk.client)
+        .await
+        .expect("RPC call should not have failed");
 
-    let finalized_header = rpc::chain::get_header(&sdk.client, Some(finalized_header_hash)).await.expect("RPC call should not have failed");
+    let finalized_header = rpc::chain::get_header(&sdk.client, Some(finalized_header_hash))
+        .await
+        .expect("RPC call should not have failed");
 
     // run nexus
-    let _nexus_client = run_nexus_client(&avail_rpc_url, finalized_header.number, NEXUS_PORT).await.expect("Failed to run nexus");
+    let _nexus_client = run_nexus_client(&avail_rpc_url, finalized_header.number, NEXUS_PORT)
+        .await
+        .expect("Failed to run nexus");
 
     // Check If we are able to fetch state from nexus node
     let app_id = AppId(100);
@@ -62,9 +68,12 @@ async fn test_integration_mock_geth_adapter() {
     let initial_account_state = get_account_state(&nexus_api, app_account_id.clone(), 2).await.unwrap();
 
     // run mock geth adapter once
-    let _geth_adapter = run_mock_geth_adapter_once(&mock_server.base_url(), &format!("http://0.0.0.0:{}", NEXUS_PORT))
-        .await
-        .expect("Failed to run mock geth adapter");
+    let _geth_adapter = run_mock_geth_adapter_once(
+        &mock_server.base_url(),
+        &format!("http://0.0.0.0:{}", NEXUS_PORT),
+    )
+    .await
+    .expect("Failed to run mock geth adapter");
 
     // Wait for 120 secs as a buffer time
     sleep(Duration::from_secs(120)).await;

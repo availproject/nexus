@@ -66,14 +66,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .find(|arg| arg.starts_with("--app-id="))
         .map(|arg| arg.trim_start_matches("--app-id="))
         .unwrap_or("wss://zero-devnet.avail.so:443/ws")
-        .to_string().parse()?;
+        .to_string()
+        .parse()?;
     let port = args
         .clone()
         .iter()
         .find(|arg| arg.starts_with("--api-port="))
         .map(|arg| arg.trim_start_matches("--api-port="))
         .unwrap_or("7000")
-        .to_string().parse()?;
+        .to_string()
+        .parse()?;
 
     info!("Connecting to Avail RPC at: {}", avail_rpc);
     let relayer_mutex = Arc::new(Mutex::new(SimpleRelayer::new(&avail_rpc)));

@@ -42,7 +42,7 @@ pub fn get_mock_server() -> MockServer {
 pub fn add_check_body_and_response<'a>(mock_server: &'a MockServer, body_contains: &'a str, response: &'a str) -> Mock<'a> {
     mock_server.mock(|when, then| {
         when.method(POST).path("/").json_body_partial(body_contains);
-        
+
         then.status(200).body(response);
     })
 }
@@ -63,7 +63,13 @@ pub async fn run_nexus_client(avail_rpc_url: &str, start_block: u32, port: u32) 
     // Running nexus in dev mode
     command.env("RUST_LOG", "info");
     command.env("RISC0_DEV_MODE", "1");
-    command.args(&["--dev", &format!("--avail-rpc={}", avail_rpc_url), &format!("--avail-start-block={}", start_block), "--app-id=1", &format!("--api-port={}", port)]);
+    command.args(&[
+        "--dev",
+        &format!("--avail-rpc={}", avail_rpc_url),
+        &format!("--avail-start-block={}", start_block),
+        "--app-id=1",
+        &format!("--api-port={}", port),
+    ]);
 
     let child = command.spawn()?;
     println!("Client started with PID: {}", child.id());

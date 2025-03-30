@@ -43,7 +43,6 @@ use kzg::compute_row_proof;
 use rand::Rng;
 use sp_runtime::traits::BlakeTwo256;
 
-
 #[derive(Clone, Serialize, Deserialize)]
 struct AdapterStateData {
     last_height: u32,
@@ -399,5 +398,3 @@ fn generate_header_and_proofs(txs: &Vec<Transaction>, app_id: u32, parent_hash: 
 
     (header, nexus_blobs, proofs)
 }
-
-generate_

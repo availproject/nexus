@@ -80,7 +80,10 @@ async fn main() -> Result<(), Error> {
     loop {
         match web3.eth().block(BlockId::Number(web3::types::BlockNumber::Latest)).await {
             Ok(Some(header)) => {
-                println!(">>> Got header: {:?} last height {}", header, account_with_proof.account.height);
+                println!(
+                    ">>> Got header: {:?} last height {}",
+                    header, account_with_proof.account.height
+                );
                 let current_height = header.number.unwrap().as_u32();
                 let range = match nexus_api.get_range().await {
                     Ok(i) => i,
@@ -239,7 +242,7 @@ async fn main() -> Result<(), Error> {
 
                             //TODO: Below check needs to be done after 60 seconds.
                             // Assert txn status to be successful
-                            if txn_status.status !=  TransactionStatus::InPool {
+                            if txn_status.status != TransactionStatus::InPool {
                                 if !poll_flag {
                                     return Err(anyhow::anyhow!("Failed to submit proof"));
                                 }
