@@ -8,11 +8,16 @@ use crate::utils::hasher::{Digest as RiscZeroDigestTrait, ShaHasher};
 #[cfg(any(feature = "native"))]
 pub use avail_core::{AppExtrinsic, OpaqueExtrinsic};
 #[cfg(any(feature = "native"))]
-use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
+use avail_rust::avail::runtime_types::avail_core::header::extension::HeaderExtension as SpHeaderExtension;
 #[cfg(any(feature = "native"))]
-pub use avail_subxt::{config::substrate::DigestItem as SpDigestItem, primitives::Header};
+use avail_rust::subxt::config::substrate::DigestItem as SpDigestItem;
+#[cfg(any(feature = "native"))]
+use avail_rust::AvailHeader as Header; // #[cfg(any(feature = "native"))]
+                                       // use avail_subxt::api::runtime_types::avail_core::header::extension::HeaderExtension;
 use jmt::proof::{SparseMerkleLeafNode, SparseMerkleNode, SparseMerkleProof, UpdateMerkleProof};
 use jmt::storage::TreeUpdateBatch;
+pub use kzg::kate_recovery::data::Cell;
+use kzg::kate_recovery::matrix::Position;
 use parity_scale_codec::{Decode, Encode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -69,7 +74,7 @@ pub enum TxParams {
     InitAccount(InitAccount),
 }
 
-#[cfg(any(feature = "native"))]
+//#[cfg(any(feature = "native"))]
 #[derive(Clone, Serialize, Eq, PartialEq, Deserialize, Debug, Encode, Decode)]
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct Transaction {
@@ -98,6 +103,9 @@ pub struct SubmitProof {
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct Proof(pub Vec<u8>);
 
+#[derive(Clone, Serialize, Deserialize, Debug, Encode, Decode, PartialEq, Eq)]
+pub struct BlobProof(#[serde(with = "BigArray")] pub [u8; 48]);
+
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[cfg_attr(feature = "native", derive(ToSchema))]
 pub struct InitAccount {
@@ -123,7 +131,7 @@ pub struct NexusHeader {
     pub parent_hash: H256,
     pub prev_state_root: H256,
     pub state_root: H256,
-    pub tx_root: H256,
+    // pub tx_root: H256,
     pub avail_header_hash: H256,
     pub number: u32,
 }
@@ -167,12 +175,33 @@ pub struct NexusBlock {
 
 #[cfg(any(feature = "native"))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub enum BlockStatus {
+    ExecutionCompleted,
+    ProofGenerationInProgress,
+    ProofGenerationFailed,
+    ProofGenerationSuccessful,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NexusZKVMInputs {
+    pub blobs: Vec<Blob>,
+    pub blob_proofs: Vec<BlobProof>,
+    pub state_update: StateUpdate,
+    pub header: AvailHeader,
+    pub header_store: HeaderStore,
+    pub app_id: u32,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NexusBlockWithPointers {
     pub block: NexusBlock,
     pub jmt_version: u64,
+    pub zkvm_inputs: NexusZKVMInputs,
+    pub block_status: BlockStatus,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StateUpdate {
     pub pre_state_root: H256,
     pub post_state_root: H256,
@@ -194,18 +223,19 @@ pub struct AvailHeader {
     pub state_root: H256,
     pub extrinsics_root: H256,
     pub digest: Digest,
-    pub extension: Extension,
+    pub extension: HeaderExtension,
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum Extension {
-    V3(V3Extension) = 2,
+#[derive(Eq, Decode, Encode, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[codec(dumb_trait_bound)]
+pub enum HeaderExtension {
+    #[codec(index = 2)]
+    V3(V3Extension),
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
 pub struct V3Extension {
-    pub app_lookup: DataLookup,
+    pub app_lookup: CompactDataLookup,
     pub commitment: KateCommitment,
 }
 
@@ -236,10 +266,11 @@ enum DigestItemType {
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
-pub struct DataLookup {
+pub struct CompactDataLookup {
     #[codec(compact)]
     pub size: ::core::primitive::u32,
     pub index: Vec<DataLookupItem>,
+    pub rows_per_tx: Vec<::core::primitive::u16>,
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
@@ -268,9 +299,41 @@ pub struct KateCommitment {
     pub data_root: H256,
 }
 
+#[derive(PartialEq, Eq, Clone, Encode, Decode, Debug, Serialize, Deserialize)]
+pub struct Blob(pub Vec<[u8; 32]>);
+
 //--------------
 //Implementations
 //--------------
+
+impl Blob {
+    // pub fn get_cells(&self) -> Vec<Cell> {
+    //     let mut cells: Vec<Cell> = self
+    //         .0
+    //         .iter()
+    //         .map(|(pos, data)| {
+    //             let mut content = [0u8; 80];
+    //             content.copy_from_slice(data);
+    //             Cell {
+    //                 position: *pos,
+    //                 content,
+    //             }
+    //         })
+    //         .collect();
+
+    //     cells
+    // }
+
+    pub fn get_data(&self) -> Vec<u8> {
+        let mut data = Vec::new();
+
+        for d in &self.0 {
+            data.extend_from_slice(&d[..31]);
+        }
+
+        Decode::decode(&mut &data[..]).expect("Failed to decode data")
+    }
+}
 
 impl Encode for DigestItem {
     fn encode(&self) -> Vec<u8> {
@@ -326,11 +389,9 @@ impl Decode for DigestItem {
 #[cfg(any(feature = "native"))]
 impl From<&Header> for AvailHeader {
     fn from(header: &Header) -> Self {
-        let extension: Extension = match &header.extension {
-            HeaderExtension::V1(header) => unreachable!("Not expecting these headers"),
-            HeaderExtension::V2(header) => unreachable!("Not expecting these headers"),
-            HeaderExtension::V3(header) => Extension::V3(V3Extension {
-                app_lookup: DataLookup {
+        let extension: HeaderExtension = match &header.extension {
+            SpHeaderExtension::V3(header) => HeaderExtension::V3(V3Extension {
+                app_lookup: CompactDataLookup {
                     size: header.app_lookup.size,
                     index: header
                         .app_lookup
@@ -341,6 +402,7 @@ impl From<&Header> for AvailHeader {
                             start: v.start,
                         })
                         .collect(),
+                    rows_per_tx: header.app_lookup.rows_per_tx.clone(),
                 },
                 commitment: KateCommitment {
                     rows: header.commitment.rows,
@@ -483,7 +545,7 @@ impl NexusTransaction for TransactionZKVM {
     }
 }
 
-#[cfg(any(feature = "native"))]
+// #[cfg(any(feature = "native"))]
 impl NexusTransaction for Transaction {
     fn hash(&self) -> H256 {
         let serialized = self.params.encode();

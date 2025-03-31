@@ -15,5 +15,6 @@ contracts/out
 contracts/out-*
 *.bin
 .idea/
+.vscode/
 avail-node/
 **/*/.env

@@ -27,6 +27,10 @@ members = [
     "examples/zksync_adapter/bench",
     "nexus/bench",
     "nexus_bench_setup",
+    "kzg",
+    "mock_elf",
+    "mock_elf/risc0-guest",
+    "mock_elf/sp1-guest",
     "examples/ethereum_adapter/core",
     "examples/ethereum_adapter/methods/risc0-guest",
     "examples/ethereum_adapter/methods/sp1-guest",
@@ -67,4 +71,6 @@ bumpalo = { git = "https://github.com/fitzgen/bumpalo", tag = "3.14.0" }
 ethereum_hashing = { git = "https://github.com/ncitron/ethereum_hashing", rev = "7ee70944ed4fabe301551da8c447e4f4ae5e6c35" }
 # Need to add this here so the precompile is added when building the helios deps.
 # IMP : Comment it out when building with risc0 feature flag (May cause issues otherwise in guest code build)
-bls12_381 = { git = "https://github.com/sp1-patches/bls12_381", tag = "patch-0.8.0-sp1-4.0.0", optional = true }
+# bls12_381 = { git = "https://github.com/sp1-patches/bls12_381", tag = "patch-0.8.0-sp1-4.0.0", optional = true }
+# Add patch for blst to ensure consistent version
+blst = { git = "https://github.com/ToufeeqP/blst", rev = "afdb0a4b7d98d4ff22c3a1d35faca223cde0ef3a" }

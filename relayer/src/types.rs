@@ -1,1 +1,1 @@
-pub use avail_subxt::primitives::Header;
+pub use avail_rust::AvailHeader as Header;

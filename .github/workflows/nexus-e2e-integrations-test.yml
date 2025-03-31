@@ -16,16 +16,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
       - name: Free Disk Space
         run: |
           echo "Before cleanup:"
@@ -38,6 +28,16 @@ jobs:
           docker system prune --all --force --volumes
           echo "After cleanup:"
           df -h
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
@@ -53,18 +53,13 @@ jobs:
           ${HOME}/.risc0/bin/rzup install
           ${HOME}/.risc0/bin/rzup install cargo-risczero 1.2.0
 
+#TODO: Run a local avail devnet once there is an infinity devnet release. Currently we use a deployment for the tests.
       - name: Build binaries
         run : |
             cd nexus/host
-            cargo build --no-default-features --features "risc0"
+            cargo build --bin node --no-default-features --features "risc0"
             cd ../../examples/mock_geth_adapter/host
             cargo build
-
-      - name: Run avail node
-        run: |
-          docker pull ocdbytes/availnode:latest
-          mkdir output
-          docker run --rm -p 30333:30333 -p 9944:9944 -v ./output:/output ocdbytes/availnode:latest --dev --rpc-methods=unsafe --unsafe-rpc-external --rpc-cors=all &
 
       - name: Run integration tests
         run: |

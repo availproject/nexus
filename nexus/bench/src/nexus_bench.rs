@@ -1,13 +1,14 @@
 use anyhow::Error;
-use geth_methods::ADAPTER_ID;
 use nexus_core::{
     db::NodeDB,
     state::vm_state::VmState,
     state_machine::StateMachine,
-    types::{AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader, StatementDigest, Transaction, TxParams, TxSignature},
+    types::{
+        AppAccountId, AppId, AvailHeader, HeaderStore, InitAccount, NexusHeader, NexusZKVMInputs, StatementDigest, Transaction, TxParams, TxSignature,
+    },
     zkvm::ProverMode,
 };
-use nexus_host::execute_batch;
+use nexus_host::{execute_batch, prove_batch};
 use rocksdb::Options;
 use serde_json::from_reader;
 use std::env::args;
@@ -54,7 +55,7 @@ fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<
     let state = Arc::new(Mutex::new(VmState::new(&String::from(runtime_db_path))));
     let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
 
-    let avail_header = File::open("mock_data/avail_header.json").unwrap();
+    let avail_header = File::open("../mock_data/avail_header.json").unwrap();
     let avail_header_reader = BufReader::new(avail_header);
     let avail_headers: Vec<AvailHeader> = from_reader(avail_header_reader).unwrap();
 
@@ -63,46 +64,28 @@ fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<
     (state_machine, avail_headers, header_store)
 }
 
-async fn bench_init_account_transactions(
-    prover_mode: ProverMode,
-    state_machine: &mut StateMachine<ZKVM, Proof>,
-    avail_headers: Vec<AvailHeader>,
-    header_store: &mut HeaderStore,
-) -> Proof {
-    let file_content = fs::read_to_string("mock_data/init_account_txns.json").unwrap();
-    let init_account_transactions: Vec<Transaction> = serde_json::from_str(&file_content).unwrap();
+async fn bench_init_account_transactions(prover_mode: ProverMode) -> Proof {
+    let suffix = if cfg!(feature = "risc0") { "risc0" } else { "sp1" };
+    let file_path = format!("./mock_data/zkvm_inputs_2_{}.bin", suffix);
+    let bytes = std::fs::read(&file_path).expect(&format!("Failed to read file: {}", file_path));
+    let (zkvm_inputs_2, nexus_header_2): (NexusZKVMInputs, NexusHeader) = bincode::deserialize(&bytes).expect("Failed to decode zkvm_inputs_2");
 
-    let (proof, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
-        &init_account_transactions,
-        state_machine,
-        &avail_headers[1],
-        header_store,
-        prover_mode.clone(),
-    )
-    .await
-    .unwrap();
+    let proof = prove_batch::<Prover, Proof, ZKVM>(zkvm_inputs_2, nexus_header_2, &prover_mode)
+        .await
+        .expect("Failed to prove zkvm_inputs_2");
 
     proof
 }
 
-async fn bench_submit_proof_transactions(
-    prover_mode: ProverMode,
-    state_machine: &mut StateMachine<ZKVM, Proof>,
-    avail_headers: Vec<AvailHeader>,
-    header_store: &mut HeaderStore,
-) -> Proof {
-    let file_content = fs::read_to_string("mock_data/submit_proof_txns.json").unwrap();
-    let submit_proof_transactions: Vec<Transaction> = serde_json::from_str(&file_content).unwrap();
+async fn bench_submit_proof_transactions(prover_mode: ProverMode) -> Proof {
+    let suffix = if cfg!(feature = "risc0") { "risc0" } else { "sp1" };
+    let file_path = format!("./mock_data/zkvm_inputs_3_{}.bin", suffix);
+    let bytes = std::fs::read(&file_path).expect(&format!("Failed to read file: {}", file_path));
+    let (zkvm_inputs_3, nexus_header_3): (NexusZKVMInputs, NexusHeader) = bincode::deserialize(&bytes).expect("Failed to decode zkvm_inputs_3");
 
-    let (proof, _, _, _) = execute_batch::<Prover, Proof, ZKVM>(
-        &submit_proof_transactions,
-        state_machine,
-        &avail_headers[2],
-        header_store,
-        prover_mode.clone(),
-    )
-    .await
-    .unwrap();
+    let proof = prove_batch::<Prover, Proof, ZKVM>(zkvm_inputs_3, nexus_header_3, &prover_mode)
+        .await
+        .expect("Failed to prove zkvm_inputs_3");
 
     proof
 }
@@ -127,6 +110,8 @@ async fn main() -> Result<(), anyhow::Error> {
     #[cfg(any(feature = "sp1"))]
     env_logger::Builder::from_env("RUST_LOG").filter_level(log::LevelFilter::Info).init();
 
+    let suffix = if cfg!(feature = "risc0") { "risc0" } else { "sp1" };
+
     let prover_mode_param = env::var("PROVER_MODE").unwrap_or_else(|_| "default".to_string());
 
     if !["compressed", "no_aggregation", "groth16"].contains(&prover_mode_param.as_str()) {
@@ -145,47 +130,30 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     };
 
-    let (mut state_machine, avail_headers, mut header_store) = create_mock_data(prover_mode.clone());
-    let mock_txs: Vec<Transaction> = Vec::new();
+    let file_path = format!("./mock_data/zkvm_inputs_1_{}.bin", suffix);
+    let bytes = std::fs::read(&file_path).expect(&format!("Failed to read file: {}", file_path));
+    let (zkvm_inputs_1, nexus_header_1): (NexusZKVMInputs, NexusHeader) = bincode::deserialize(&bytes).expect("Failed to decode zkvm_inputs_1");
 
-    let (_, header, _, _) = execute_batch::<Prover, Proof, ZKVM>(
-        &mock_txs,
-        &mut state_machine,
-        &avail_headers[0],
-        &mut header_store,
-        prover_mode.clone(),
-    )
-    .await
-    .unwrap();
+    let proof = prove_batch::<Prover, Proof, ZKVM>(zkvm_inputs_1, nexus_header_1, &prover_mode)
+        .await
+        .expect("Failed to prove zkvm_inputs_1");
 
-    let init_account_time_start = Instant::now();
+    // let init_account_time_start = Instant::now();
 
-    let mut proof = bench_init_account_transactions(
-        prover_mode.clone(),
-        &mut state_machine,
-        avail_headers.clone(),
-        &mut header_store,
-    )
-    .await;
+    // let proof = bench_init_account_transactions(prover_mode.clone()).await;
 
-    let init_account_transactions_duration = init_account_time_start.elapsed();
-    println!(
-        "Proof generation time for Init account transactions with prover mode {:?} took: {:?}",
-        prover_mode_param, init_account_transactions_duration
-    );
+    // let init_account_transactions_duration = init_account_time_start.elapsed();
+    // println!(
+    //     "Proof generation time for Init account transactions with prover mode {:?} took: {:?}",
+    //     prover_mode_param, init_account_transactions_duration
+    // );
 
-    let mut file_size = get_proof_size(proof);
-    println!("Size of the Proof Binary: {} bytes", file_size);
+    // let file_size = get_proof_size(proof);
+    // println!("Size of the Proof Binary: {} bytes", file_size);
 
     let submit_account_time_start = Instant::now();
 
-    proof = bench_submit_proof_transactions(
-        prover_mode.clone(),
-        &mut state_machine,
-        avail_headers.clone(),
-        &mut header_store,
-    )
-    .await;
+    let proof = bench_submit_proof_transactions(prover_mode.clone()).await;
 
     let submit_account_transactions_duration = submit_account_time_start.elapsed();
     println!(
@@ -193,7 +161,7 @@ async fn main() -> Result<(), anyhow::Error> {
         prover_mode_param, submit_account_transactions_duration
     );
 
-    file_size = get_proof_size(proof);
+    let file_size = get_proof_size(proof);
     println!("Size of the Proof Binary: {} bytes", file_size);
 
     return Ok(());

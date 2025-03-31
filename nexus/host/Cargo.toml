@@ -4,22 +4,19 @@ version.workspace = true
 edition           = "2021"
 
 [dependencies]
+avail-rust = { git = "https://github.com/availproject/avail-rust.git", branch = "toufeeq/scalable-da-2" }
 avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.0.0", features = [
     "std",
 ] }
 prover = { path = "../prover", optional = true }
 risc0-zkvm = { version = "1.2.0", default-features = false, optional = true }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3", features = [ "env-filter" ] }
+tracing-subscriber = { version = "0.3", features = [ "env-filter", "time" ] }
 serde = "1.0"
 nexus-core = { path = "../../core", optional = true }
 serde_json = "1.0.114"
 tokio = { version = "1.36.0", features = [ "signal" ] }
 sp-runtime = "33.0.0"
-parity-scale-codec = { version = "3", default-features = false, features = [
-    "derive",
-    "max-encoded-len",
-] }
 relayer = { path = "../../relayer" }
 anyhow = "1.0.89"
 warp = "0.3.6"
@@ -32,15 +29,16 @@ mockall = "0.13.1"
 reqwest = { version = "0.12.9", features = [ "json" ] }
 utoipa = { version = "5.3", features = [ "axum_extras" ] }
 utoipa-swagger-ui = "5.0"
-derive_more = { git = "https://github.com/JelteF/derive_more", tag = "v1.0.0", features = [
-    "display",
-] }
+kzg = { path = "../../kzg" }
 
 [features]
 default = [ "risc0" ]                                                     # need to change this to run with sp1
 sp1     = [ "sp1-sdk", "nexus-core/native-sp1", "prover/sp1" ]
 risc0   = [ "risc0-zkvm/std", "nexus-core/native-risc0", "prover/risc0" ]
-cuda    = [ "risc0-zkvm/cuda" ]
 
 [patch.crates-io]
 serde = { version = "1.0.204" }
+
+[[bin]]
+name = "node"
+path = "src/bin/node.rs"
