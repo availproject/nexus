@@ -878,6 +878,8 @@ pub async fn run_nexus(
         .await
     });
 
+    // The prover handle picks up executed batches from the shared db and generates the proofs with zkvm inputs.
+    // This initiation needs to be moved to a separate binary.
     // let prover_handle = tokio::spawn(async move { prover_handle(db_clone_3, shutdown_rx_4, start_block, prover_mode_clone).await });
 
     let execution_engine = tokio::spawn(async move {

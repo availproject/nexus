@@ -53,6 +53,7 @@ jobs:
           ${HOME}/.risc0/bin/rzup install
           ${HOME}/.risc0/bin/rzup install cargo-risczero 1.2.0
 
+#TODO: Run a local avail devnet once there is an infinity devnet release. Currently we use a deployment for the tests.
       - name: Build binaries
         run : |
             cd nexus/host
