@@ -5,6 +5,7 @@ use nexus_core::{state_machine::StateMachine, zkvm::ProverMode};
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
+use host::instrumentation::Instrumentation;
 use host::{run_nexus, setup_components};
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
@@ -15,7 +16,6 @@ use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
 use tracing::{error, info};
 use tracing_subscriber::{fmt, EnvFilter};
-use host::instrumentation::Instrumentation;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing subscriber

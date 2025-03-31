@@ -66,8 +66,8 @@ use nexus_core::types::{Blob, CompactDataLookup, HeaderExtension};
 
 type DataSubmissionWithCommitmentsCall = avail::data_availability::calls::types::SubmitDataWithCommitments;
 
-pub mod rpc;
 pub mod instrumentation;
+pub mod rpc;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AvailToNexusPointer {
     number: u32,
@@ -174,12 +174,13 @@ pub async fn sequencer_handle(mempool: Mempool, mut shutdown_rx: watch::Receiver
     }
 }
 
-#[instrument(level = "info", skip(node_db_mutex, shutdown_rx))]
+#[instrument(level = "info", skip(node_db_mutex, shutdown_rx, execution_metrics))]
 pub async fn prover_handle(
     node_db_mutex: Arc<Mutex<NodeDB>>,
     mut shutdown_rx: watch::Receiver<bool>,
     start_block: u32,
     prover_mode: ProverMode,
+    execution_metrics: ExecutionMetrics,
 ) -> Result<(), Error> {
     info!("Starting prover engine in {:?} mode", prover_mode);
 
@@ -229,6 +230,7 @@ pub async fn prover_handle(
             block_with_info.zkvm_inputs.clone(),
             block_with_info.block.header.clone(),
             &prover_mode,
+            execution_metrics.clone(),
         )
         .await
         {
@@ -321,7 +323,7 @@ pub async fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + 
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     app_id: u32,
-    execution_metrics: ExecutionMetrics
+    execution_metrics: ExecutionMetrics,
 ) -> Result<
     (
         NexusZKVMInputs,
@@ -421,7 +423,7 @@ pub async fn prove_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + De
     zkvm_inputs: NexusZKVMInputs,
     nexus_header: NexusHeader,
     prover_mode: &ProverMode,
-    execution_metrics: ExecutionMetrics
+    execution_metrics: ExecutionMetrics,
 ) -> Result<P, Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
@@ -532,7 +534,10 @@ pub async fn get_blobs_for_block(sdk: &SDK, avail_block_hash: AvailH256, app_id:
     Ok((blobs, proofs))
 }
 
-#[instrument(level = "info", skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver, sdk))]
+#[instrument(
+    level = "info",
+    skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver, sdk, execution_metrics)
+)]
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,
@@ -542,7 +547,7 @@ pub async fn execution_engine_handle(
     state: Arc<Mutex<VmState>>,
     sdk: SDK,
     app_id: u32,
-    execution_metrics: ExecutionMetrics
+    execution_metrics: ExecutionMetrics,
 ) -> Result<(), anyhow::Error> {
     info!("Starting execution engine in {:?} mode", prover_mode);
     const MAX_HEADERS: usize = 5;
@@ -624,7 +629,7 @@ pub async fn execution_engine_handle(
                 &AvailHeader::from(&header),
                 &mut old_headers,
                 app_id,
-                execution_metrics.clone()
+                execution_metrics.clone(),
             )
             .await
             {
@@ -913,7 +918,7 @@ pub async fn run_nexus(
             state_2,
             sdk,
             app_id,
-            execution_metrics
+            execution_metrics,
         )
         .await
     });

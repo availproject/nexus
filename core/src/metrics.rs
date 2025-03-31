@@ -31,7 +31,7 @@ impl MempoolMetrics {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ExecutionMetrics {
     pub batch_execution_time: Histogram<u64>,
     pub batch_proving_time: Histogram<u64>,

@@ -142,7 +142,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
                     version,
                 )?;
 
-            state_lock.update_version(version)?;
+                state_lock.update_version(version)?;
 
                 info!(
                     "Pre execution of batch {} successful. State changes count: {}",
