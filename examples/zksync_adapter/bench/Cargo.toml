@@ -37,6 +37,3 @@ sp1 = [
     "zksync-methods/sp1",
     "sp1-sdk/cuda",
 ]
-
-[env]
-RUST_LOG = "info"

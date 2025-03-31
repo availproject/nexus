@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::metrics::BatchMetrics;
 use crate::state::VmState;
 use crate::stf::StateTransitionFunction;
-use crate::types::{AccountState, AppAccountId, AvailHeader, HeaderStore, StateUpdate, Transaction, TransactionZKVM, TxParams, H256};
+use crate::types::{AccountState, AppAccountId, AvailHeader, HeaderStore, NexusHeader, StateUpdate, Transaction, TransactionZKVM, TxParams, H256};
 use crate::zkvm::traits::{ZKVMEnv, ZKVMProof};
 use anyhow::{anyhow, Error};
 use jmt::storage::{NodeBatch, TreeUpdateBatch};
@@ -68,11 +68,24 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         avail_header: &AvailHeader,
         old_nexus_headers: &HeaderStore,
         txs: &Vec<Transaction>,
-    ) -> Result<(Option<TreeUpdateBatch>, StateUpdate, HashMap<H256, bool>), Error> {
+    ) -> Result<
+        (
+            Option<TreeUpdateBatch>,
+            StateUpdate,
+            HashMap<H256, bool>,
+            NexusHeader,
+        ),
+        Error,
+    > {
         self.block_number_metrics.number_of_transactions_batch.record(txs.len() as u64, &[]);
         debug!("Executing batch in state machine");
         //TODO: Increment version for each update.
         let mut pre_state: HashMap<[u8; 32], AccountState> = HashMap::new();
+        let number: u32 = if let Some(first_header) = old_nexus_headers.first() {
+            first_header.number + 1
+        } else {
+            0
+        };
 
         let result: Result<u64, anyhow::Error> = {
             let state_lock = self.state.lock().await;
@@ -107,63 +120,66 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         };
 
         let version = prev_version + 1;
-        //TODO: Need to simplify this part.
-        let zkvm_txs: Vec<TransactionZKVM> = txs
-            .iter()
-            .map(|tx| {
-                return TransactionZKVM {
-                    params: tx.params.clone(),
-                    signature: tx.signature.clone(),
-                };
-            })
-            .collect();
-        let (stf_state_result, tx_result) = self
-            .stf
-            .execute_batch_with_results(avail_header, old_nexus_headers, &zkvm_txs, &pre_state)?;
+
+        let (stf_state_result, tx_result) = self.stf.execute_batch_with_results(avail_header, old_nexus_headers, &txs, &pre_state)?;
         let mut state_lock = self.state.lock().await;
 
-        if !stf_state_result.is_empty() {
-            let num_state_changes = stf_state_result.len();
+        let (tree_update_batch, state_update, tx_result): (Option<TreeUpdateBatch>, StateUpdate, HashMap<H256, bool>) =
+            if !stf_state_result.is_empty() {
+                let num_state_changes = stf_state_result.len();
 
-            let result = state_lock.update_set(
-                stf_state_result
-                    .into_iter()
-                    .map(|(key, account_state)| {
-                        if account_state == AccountState::zero() {
-                            (H256::from(key), None)
-                        } else {
-                            (H256::from(key), Some(account_state))
-                        }
-                    })
-                    .collect(),
-                version,
-            )?;
+                let result = state_lock.update_set(
+                    stf_state_result
+                        .into_iter()
+                        .map(|(key, account_state)| {
+                            if account_state == AccountState::zero() {
+                                (H256::from(key), None)
+                            } else {
+                                (H256::from(key), Some(account_state))
+                            }
+                        })
+                        .collect(),
+                    version,
+                )?;
 
             state_lock.update_version(version)?;
 
-            info!(
-                "Pre execution of batch {} successful. State changes count: {}",
-                avail_header.number, num_state_changes
-            );
-            Ok((Some(result.0), result.1, tx_result))
-        } else {
-            //Get root for previous version as new one has no updates.
-            let root = state_lock.get_root(version - 1)?;
+                info!(
+                    "Pre execution of batch {} successful. State changes count: {}",
+                    avail_header.number, num_state_changes
+                );
+                (Some(result.0), result.1, tx_result)
+            } else {
+                //Get root for previous version as new one has no updates.
+                let root = state_lock.get_root(version - 1)?;
 
-            info!(
-                "Pre execution of batch {} successful. State changes count: {}",
-                avail_header.number,
-                stf_state_result.len()
-            );
-            Ok((
-                None,
-                StateUpdate {
-                    pre_state_root: root,
-                    post_state_root: root,
-                    pre_state: HashMap::new(),
-                },
-                tx_result,
-            ))
-        }
+                info!(
+                    "Pre execution of batch {} successful. State changes count: {}",
+                    avail_header.number,
+                    stf_state_result.len()
+                );
+                (
+                    None,
+                    StateUpdate {
+                        pre_state_root: root,
+                        post_state_root: root,
+                        pre_state: HashMap::new(),
+                    },
+                    tx_result,
+                )
+            };
+
+        let new_nexus_header = NexusHeader {
+            parent_hash: match old_nexus_headers.first() {
+                Some(i) => i.hash(),
+                None => H256::zero(),
+            },
+            prev_state_root: state_update.pre_state_root.clone(),
+            state_root: state_update.post_state_root.clone(),
+            avail_header_hash: avail_header.hash(),
+            number,
+        };
+
+        Ok((tree_update_batch, state_update, tx_result, new_nexus_header))
     }
 }

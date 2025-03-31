@@ -1,3 +1,4 @@
+use avail_rust::SDK;
 pub use avail_subxt::Header;
 use nexus_core::{state_machine::StateMachine, zkvm::ProverMode};
 
@@ -57,16 +58,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .find(|arg| arg.starts_with("--avail-rpc="))
         .map(|arg| arg.trim_start_matches("--avail-rpc="))
-        .unwrap_or("wss://turing-rpc.avail.so:443/ws")
+        .unwrap_or("wss://zero-devnet.avail.so:443/ws")
         .to_string();
-
-    // To configure the nexus start block when running for the first time
-    // Default value : 10000
     let avail_start_block: u32 = args
         .iter()
-        .find(|arg| arg.starts_with("--nexus-start-block="))
-        .map(|arg| arg.trim_start_matches("--nexus-start-block="))
+        .find(|arg| arg.starts_with("--avail-start-block="))
+        .map(|arg| arg.trim_start_matches("--avail-start-block="))
         .unwrap_or("10000")
+        .to_string()
+        .parse()?;
+    let app_id = args
+        .clone()
+        .iter()
+        .find(|arg| arg.starts_with("--app-id="))
+        .map(|arg| arg.trim_start_matches("--app-id="))
+        .unwrap_or("wss://zero-devnet.avail.so:443/ws")
+        .to_string()
+        .parse()?;
+    let port = args
+        .clone()
+        .iter()
+        .find(|arg| arg.starts_with("--api-port="))
+        .map(|arg| arg.trim_start_matches("--api-port="))
+        .unwrap_or("7000")
         .to_string()
         .parse()?;
 
@@ -97,9 +111,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 relayer_mutex,
                 node_db,
                 state_machine,
-                (prover_mode, 7000),
+                (prover_mode, port),
                 state,
                 shutdown_rx,
+                avail_rpc,
+                //Make nexus app ID configurable
+                app_id,
+                1,
                 avail_start_block,
             )
             .await;
