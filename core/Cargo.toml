@@ -42,6 +42,9 @@ hex = "0.4.3"
 winnow = "0.6.18"
 tracing = { workspace = true, optional = true }
 utoipa = { version = "5.3", optional = true }
+kzg = { path = "../kzg" }
+mock_elf = { path = "../mock_elf", optional = true }
+avail-rust = { git = "https://github.com/availproject/avail-rust.git", branch = "toufeeq/scalable-da-2", optional = true }
 opentelemetry = { version = "0.24.0", features = [
     "metrics",
     "logs",
@@ -57,10 +60,11 @@ native = [
     "tokio",
     "dep:tracing",
     "utoipa",
+    "avail-rust",
 ]
 zkvm = [ "sparse-merkle-tree/arch-32", "sparse-merkle-tree/std" ]
-native-sp1 = [ "sp1-sdk", "sp1-zkvm/verify", "sha2", "native" ]
-native-risc0 = [ "risc0-zkvm/default", "native" ]
-zkvm-sp1 = [ "sp1-zkvm/verify", "zkvm", "sha2" ]
+native-sp1 = [ "sp1-sdk", "sp1-zkvm/verify", "native", "mock_elf/sp1" ]
+native-risc0 = [ "risc0-zkvm/prove", "native", "mock_elf/risc0" ]
+zkvm-sp1 = [ "sp1-zkvm/verify", "zkvm" ]
 zkvm-risc0 = [ "risc0-zkvm/std", "zkvm" ]
-native-risc0-cuda = [ "risc0-zkvm/cuda", "native" ]
+native-risc0-cuda = [ "risc0-zkvm/cuda", "native", "mock_elf/risc0" ]

@@ -67,6 +67,7 @@ use nexus_core::types::{Blob, CompactDataLookup, HeaderExtension};
 type DataSubmissionWithCommitmentsCall = avail::data_availability::calls::types::SubmitDataWithCommitments;
 
 pub mod rpc;
+pub mod instrumentation;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AvailToNexusPointer {
     number: u32,
@@ -320,6 +321,7 @@ pub async fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + 
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     app_id: u32,
+    execution_metrics: ExecutionMetrics
 ) -> Result<
     (
         NexusZKVMInputs,
@@ -400,7 +402,6 @@ where
     let batch_execution_time = batch_execution_time_start.elapsed();
     execution_metrics.batch_execution_time.record(batch_execution_time.as_secs(), &[]);
 
-    let batch_proving_time_start = std::time::Instant::now();
     //Creating zkvm_inputs before adding the new header to header store.
     let zkvm_inputs = NexusZKVMInputs {
         blobs: blobs.clone(),
@@ -420,6 +421,7 @@ pub async fn prove_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + De
     zkvm_inputs: NexusZKVMInputs,
     nexus_header: NexusHeader,
     prover_mode: &ProverMode,
+    execution_metrics: ExecutionMetrics
 ) -> Result<P, Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
@@ -540,12 +542,11 @@ pub async fn execution_engine_handle(
     state: Arc<Mutex<VmState>>,
     sdk: SDK,
     app_id: u32,
+    execution_metrics: ExecutionMetrics
 ) -> Result<(), anyhow::Error> {
     info!("Starting execution engine in {:?} mode", prover_mode);
     const MAX_HEADERS: usize = 5;
     let mut header_array: Vec<Header> = Vec::new();
-    // Initialize the execution metrics
-    let execution_metrics = ExecutionMetrics::init();
 
     loop {
         if *shutdown_rx.borrow() {
@@ -623,6 +624,7 @@ pub async fn execution_engine_handle(
                 &AvailHeader::from(&header),
                 &mut old_headers,
                 app_id,
+                execution_metrics.clone()
             )
             .await
             {
@@ -867,6 +869,9 @@ pub async fn run_nexus(
 
     let ws_url_clone = ws_url.clone();
 
+    // Initialize the execution metrics
+    let execution_metrics = ExecutionMetrics::init();
+
     let db_clone = node_db.clone();
     let db_clone_2 = node_db.clone();
     let db_clone_3 = node_db.clone();
@@ -908,6 +913,7 @@ pub async fn run_nexus(
             state_2,
             sdk,
             app_id,
+            execution_metrics
         )
         .await
     });
