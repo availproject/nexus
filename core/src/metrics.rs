@@ -5,14 +5,20 @@ use std::time::Instant;
 #[derive(Clone)]
 pub struct MempoolMetrics {
     pub mempool_txn_count_gauge: Gauge<u64>,
-    pub mempool_txn_count_histogram: Histogram<u64>
+    pub mempool_txn_count_histogram: Histogram<u64>,
 }
 impl MempoolMetrics {
     pub fn init() -> Self {
         let metrics_meter = global::meter("nexus-metrics");
         let mempool_txn_count_gauge = metrics_meter.u64_gauge("mempool_txn_count").with_unit("Transactions").init();
-        let mempool_txn_count_histogram = metrics_meter.u64_histogram("mempool_txn_count_histogram").with_unit("Transactions").init();
-        Self { mempool_txn_count_gauge, mempool_txn_count_histogram }
+        let mempool_txn_count_histogram = metrics_meter
+            .u64_histogram("mempool_txn_count_histogram")
+            .with_unit("Transactions")
+            .init();
+        Self {
+            mempool_txn_count_gauge,
+            mempool_txn_count_histogram,
+        }
     }
 }
 
