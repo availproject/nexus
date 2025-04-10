@@ -4,6 +4,8 @@ pub mod db;
 mod h256;
 #[cfg(any(feature = "native"))]
 pub mod mempool;
+#[cfg(any(feature = "native"))]
+pub mod metrics;
 pub mod prover;
 pub mod state;
 #[cfg(any(feature = "native"))]

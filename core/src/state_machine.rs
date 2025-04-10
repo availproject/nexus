@@ -51,7 +51,6 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
         if (root.as_fixed_slice() != state_root.as_fixed_slice()) {
             return Err(anyhow::anyhow!("State roots do not match to commit."));
         }
-
         info!(
             "State commitment done for batch {}. State root: {:?}",
             batch_number, state_root

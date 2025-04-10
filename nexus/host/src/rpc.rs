@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 use warp::reject::custom;
 use warp::reply::WithStatus;
@@ -20,6 +21,7 @@ use warp::{http::StatusCode, http::Uri, hyper::Response, path::FullPath, path::T
 
 use crate::AvailToNexusPointer;
 
+use nexus_core::metrics::ApiMetrics;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::Config;
 
@@ -640,172 +642,252 @@ pub fn routes(
     let db_clone_4 = db.clone();
     let db_clone_5 = db.clone();
 
-    let health_check = warp::path("health")
-        .and(warp::get())
-        .map(|| warp::reply::json(&serde_json::json!({"status": "Alive ser."})));
+    // Initialize metrics
+    let metrics = ApiMetrics::new();
+    let health_metrics = metrics.clone();
+    let tx_metrics = metrics.clone();
+    let tx_status_metrics = metrics.clone();
+    let block_metrics = metrics.clone();
+    let range_metrics = metrics.clone();
+    let header_metrics = metrics.clone();
+    let account_metrics = metrics.clone();
+    let account_hex_metrics = metrics.clone();
 
+    // Health check endpoint with direct metrics
+    let health_check = warp::path("health").and(warp::get()).map(move || {
+        let start = Instant::now();
+        let response = warp::reply::json(&serde_json::json!({"status": "Alive ser."}));
+        response
+    });
+
+    // Transaction submission endpoint with direct metrics
     let tx = warp::path("tx")
         .and(warp::post())
         .and(warp::any().map(move || mempool_clone.clone()))
         .and(warp::body::json())
-        .and_then(submit_tx);
-    let tx_status = warp::path("tx_status")
+        .and_then(move |mempool: Mempool, tx: Transaction| {
+            let metrics = tx_metrics.clone();
+            let start = Instant::now();
+
+            async move {
+                let result = submit_tx(mempool, tx).await;
+                metrics.record_submit_tx_request(start);
+                result
+            }
+        });
+
+    // Transaction status endpoint with direct metrics
+    let tx_status_route = warp::path("tx_status")
         .and(warp::get())
         .and(warp::any().map(move || db_clone_4.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
-            |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
-                match params.get("tx_hash") {
-                    Some(hash_str) => {
-                        let tx_hash = H256::try_from(hash_str.as_str());
-                        match tx_hash {
-                            Ok(hash) => tx_status(db, hash).await,
-                            Err(_) => Ok(warp::reply::with_status(
-                                "Invalid hash".to_string(),
-                                warp::http::StatusCode::BAD_REQUEST,
-                            )),
+            move |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| {
+                let metrics = tx_status_metrics.clone();
+                let start = Instant::now();
+
+                async move {
+                    let result = match params.get("tx_hash") {
+                        Some(hash_str) => {
+                            let tx_hash = H256::try_from(hash_str.as_str());
+                            match tx_hash {
+                                Ok(hash) => tx_status(db, hash).await,
+                                Err(_) => Ok(warp::reply::with_status(
+                                    "Invalid hash".to_string(),
+                                    warp::http::StatusCode::BAD_REQUEST,
+                                )),
+                            }
                         }
-                    }
-                    None => Ok(warp::reply::with_status(
-                        "Hash parameter not provided".to_string(),
-                        warp::http::StatusCode::BAD_REQUEST,
-                    )),
+                        None => Ok(warp::reply::with_status(
+                            "Hash parameter not provided".to_string(),
+                            warp::http::StatusCode::BAD_REQUEST,
+                        )),
+                    };
+
+                    metrics.record_tx_status_request(start);
+                    result
                 }
             },
         );
 
-    let block = warp::path("block")
+    // Block retrieval endpoint with direct metrics
+    let block_route = warp::path("block")
         .and(warp::get())
         .and(warp::any().map(move || db_clone_5.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
-            |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
-                let block_hash = match params
-                    .get("block_hash")
-                    .map(|hash_str| H256::try_from(hash_str.as_str()))
-                    .transpose()
-                    .map_err(|_| {
-                        warp::reply::with_status(
-                            "Invalid hash".to_string(),
-                            warp::http::StatusCode::BAD_REQUEST,
-                        )
-                    }) {
-                    Ok(i) => i,
-                    Err(e) => return Ok(e),
-                };
+            move |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| {
+                let metrics = block_metrics.clone();
+                let start = Instant::now();
 
-                let block_number = match params
-                    .get("block_number")
-                    .map(|hash_str| hash_str.parse::<u32>())
-                    .transpose()
-                    .map_err(|_| {
-                        warp::reply::with_status(
-                            "Invalid block number".to_string(),
-                            warp::http::StatusCode::BAD_REQUEST,
-                        )
-                    }) {
-                    Ok(i) => i,
-                    Err(e) => return Ok(e),
-                };
-
-                get_block(db, block_hash, block_number).await
-            },
-        );
-
-    let submit_batch = warp::path("range")
-        .and(warp::get())
-        .and(warp::any().map(move || db_clone_2.clone()))
-        .and_then(range);
-
-    let header = warp::path("header")
-        .and(warp::get())
-        .and(warp::any().map(move || db_clone.clone()))
-        .and(warp::query::<HashMap<String, String>>())
-        .and_then(
-            |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
-                match params.get("hash") {
-                    Some(hash_str) => {
-                        let avail_hash = H256::try_from(hash_str.as_str());
-                        match avail_hash {
-                            Ok(hash) => get_header(db, hash).await,
-                            Err(_) => Ok(warp::reply::with_status(
+                async move {
+                    let block_hash = match params
+                        .get("block_hash")
+                        .map(|hash_str| H256::try_from(hash_str.as_str()))
+                        .transpose()
+                        .map_err(|_| {
+                            warp::reply::with_status(
                                 "Invalid hash".to_string(),
                                 warp::http::StatusCode::BAD_REQUEST,
-                            )),
-                        }
-                    }
-                    None => Ok(warp::reply::with_status(
-                        "Hash parameter not provided".to_string(),
-                        warp::http::StatusCode::BAD_REQUEST,
-                    )),
+                            )
+                        }) {
+                        Ok(i) => i,
+                        Err(e) => return Ok(e),
+                    };
+
+                    let block_number = match params
+                        .get("block_number")
+                        .map(|hash_str| hash_str.parse::<u32>())
+                        .transpose()
+                        .map_err(|_| {
+                            warp::reply::with_status(
+                                "Invalid block number".to_string(),
+                                warp::http::StatusCode::BAD_REQUEST,
+                            )
+                        }) {
+                        Ok(i) => i,
+                        Err(e) => return Ok(e),
+                    };
+
+                    let result = get_block(db, block_hash, block_number).await;
+                    metrics.record_get_block_request(start);
+                    result
                 }
             },
         );
 
-    let account = warp::path("account")
+    // Block range endpoint with direct metrics
+    let range_route = warp::path("range")
+        .and(warp::get())
+        .and(warp::any().map(move || db_clone_2.clone()))
+        .and_then(move |db: Arc<Mutex<NodeDB>>| {
+            let metrics = range_metrics.clone();
+            let start = Instant::now();
+
+            async move {
+                let result = range(db).await;
+                metrics.record_range_request(start);
+                result
+            }
+        });
+
+    // Header endpoint with direct metrics
+    let header_route = warp::path("header")
+        .and(warp::get())
+        .and(warp::any().map(move || db_clone.clone()))
+        .and(warp::query::<HashMap<String, String>>())
+        .and_then(
+            move |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| {
+                let metrics = header_metrics.clone();
+                let start = Instant::now();
+
+                async move {
+                    let result = match params.get("hash") {
+                        Some(hash_str) => {
+                            let avail_hash = H256::try_from(hash_str.as_str());
+                            match avail_hash {
+                                Ok(hash) => get_header(db, hash).await,
+                                Err(_) => Ok(warp::reply::with_status(
+                                    "Invalid hash".to_string(),
+                                    warp::http::StatusCode::BAD_REQUEST,
+                                )),
+                            }
+                        }
+                        None => Ok(warp::reply::with_status(
+                            "Hash parameter not provided".to_string(),
+                            warp::http::StatusCode::BAD_REQUEST,
+                        )),
+                    };
+
+                    metrics.record_get_header_request(start);
+                    result
+                }
+            },
+        );
+
+    // Account state endpoint with direct metrics
+    let account_route = warp::path("account")
         .and(warp::get())
         .and(warp::any().map(move || db.clone()))
         .and(warp::any().map(move || vm_state.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
-            |db: Arc<Mutex<NodeDB>>, vm_state: Arc<Mutex<VmState>>, params: HashMap<String, String>| async move {
-                match params.get("app_account_id") {
-                    Some(hash_str) => {
-                        let block_hash = match params.get("block_hash") {
-                            Some(i) => match H256::try_from(i.as_str()) {
-                                Ok(i) => Some(i),
-                                Err(_) => {
-                                    return Ok(warp::reply::with_status(
-                                        "Invalid hash".to_string(),
-                                        warp::http::StatusCode::BAD_REQUEST,
-                                    ))
-                                }
-                            },
-                            None => None,
-                        };
-                        let app_account_id = H256::try_from(hash_str.as_str());
-                        match app_account_id {
-                            Ok(i) => get_state(db, vm_state, &i, block_hash).await,
-                            Err(_) => Ok(warp::reply::with_status(
-                                "Invalid hash".to_string(),
-                                warp::http::StatusCode::BAD_REQUEST,
-                            )),
+            move |db: Arc<Mutex<NodeDB>>, vm_state: Arc<Mutex<VmState>>, params: HashMap<String, String>| {
+                let metrics = account_metrics.clone();
+                let start = Instant::now();
+
+                async move {
+                    let result = match params.get("app_account_id") {
+                        Some(hash_str) => {
+                            let block_hash = match params.get("block_hash") {
+                                Some(i) => match H256::try_from(i.as_str()) {
+                                    Ok(i) => Some(i),
+                                    Err(_) => {
+                                        return Ok(warp::reply::with_status(
+                                            "Invalid hash".to_string(),
+                                            warp::http::StatusCode::BAD_REQUEST,
+                                        ))
+                                    }
+                                },
+                                None => None,
+                            };
+                            let app_account_id = H256::try_from(hash_str.as_str());
+                            match app_account_id {
+                                Ok(i) => get_state(db, vm_state, &i, block_hash).await,
+                                Err(_) => Ok(warp::reply::with_status(
+                                    "Invalid hash".to_string(),
+                                    warp::http::StatusCode::BAD_REQUEST,
+                                )),
+                            }
                         }
-                    }
-                    None => Ok(warp::reply::with_status(
-                        "Hash parameter not provided".to_string(),
-                        warp::http::StatusCode::BAD_REQUEST,
-                    )),
+                        None => Ok(warp::reply::with_status(
+                            "Hash parameter not provided".to_string(),
+                            warp::http::StatusCode::BAD_REQUEST,
+                        )),
+                    };
+
+                    metrics.record_get_state_request(start);
+                    result
                 }
             },
         );
 
-    let account_hex = warp::path("account-hex")
+    // Account hex state endpoint with direct metrics
+    let account_hex_route = warp::path("account-hex")
         .and(warp::get())
         .and(warp::any().map(move || db_clone_3.clone()))
         .and(warp::any().map(move || vm_state_clone.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
-            |db: Arc<Mutex<NodeDB>>, vm_state: Arc<Mutex<VmState>>, params: HashMap<String, String>| async move {
-                match params.get("app_account_id") {
-                    Some(hash_str) => {
-                        let app_account_id = H256::try_from(hash_str.as_str());
-                        match app_account_id {
-                            Ok(i) => get_state_hex(db, vm_state, &i).await,
-                            Err(_) => Ok(warp::reply::with_status(
-                                "Invalid hash".to_string(),
-                                warp::http::StatusCode::BAD_REQUEST,
-                            )),
+            move |db: Arc<Mutex<NodeDB>>, vm_state: Arc<Mutex<VmState>>, params: HashMap<String, String>| {
+                let metrics = account_hex_metrics.clone();
+                let start = Instant::now();
+
+                async move {
+                    let result = match params.get("app_account_id") {
+                        Some(hash_str) => {
+                            let app_account_id = H256::try_from(hash_str.as_str());
+                            match app_account_id {
+                                Ok(i) => get_state_hex(db, vm_state, &i).await,
+                                Err(_) => Ok(warp::reply::with_status(
+                                    "Invalid hash".to_string(),
+                                    warp::http::StatusCode::BAD_REQUEST,
+                                )),
+                            }
                         }
-                    }
-                    None => Ok(warp::reply::with_status(
-                        "Hash parameter not provided".to_string(),
-                        warp::http::StatusCode::BAD_REQUEST,
-                    )),
+                        None => Ok(warp::reply::with_status(
+                            "Hash parameter not provided".to_string(),
+                            warp::http::StatusCode::BAD_REQUEST,
+                        )),
+                    };
+
+                    metrics.record_get_state_hex_request(start);
+                    result
                 }
             },
         );
 
+    // Swagger documentation endpoints (no metrics needed)
     let config = Arc::new(Config::from("/api-doc.json"));
     let api_doc = warp::path("api-doc.json").and(warp::get()).map(|| warp::reply::json(&ApiDoc::openapi()));
 
@@ -816,13 +898,14 @@ pub fn routes(
         .and(warp::any().map(move || config.clone()))
         .and_then(serve_swagger);
 
+    // Combine all routes
     tx.or(health_check)
-        .or(tx_status)
-        .or(block)
-        .or(submit_batch)
-        .or(header)
-        .or(account)
-        .or(account_hex)
+        .or(tx_status_route)
+        .or(block_route)
+        .or(range_route)
+        .or(header_route)
+        .or(account_route)
+        .or(account_hex_route)
         .or(api_doc)
         .or(swagger_ui)
 }

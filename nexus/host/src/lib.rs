@@ -42,6 +42,7 @@ use tracing::{debug, error, info, instrument};
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
 
+use nexus_core::metrics::ExecutionMetrics;
 #[cfg(any(feature = "risc0"))]
 use prover::{NEXUS_RUNTIME_ELF, NEXUS_RUNTIME_ID};
 pub use relayer::{Relayer, SimpleRelayer};
@@ -65,6 +66,7 @@ use nexus_core::types::{Blob, CompactDataLookup, HeaderExtension};
 
 type DataSubmissionWithCommitmentsCall = avail::data_availability::calls::types::SubmitDataWithCommitments;
 
+pub mod instrumentation;
 pub mod rpc;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AvailToNexusPointer {
@@ -172,12 +174,13 @@ pub async fn sequencer_handle(mempool: Mempool, mut shutdown_rx: watch::Receiver
     }
 }
 
-#[instrument(level = "info", skip(node_db_mutex, shutdown_rx))]
+#[instrument(level = "info", skip(node_db_mutex, shutdown_rx, execution_metrics))]
 pub async fn prover_handle(
     node_db_mutex: Arc<Mutex<NodeDB>>,
     mut shutdown_rx: watch::Receiver<bool>,
     start_block: u32,
     prover_mode: ProverMode,
+    execution_metrics: ExecutionMetrics,
 ) -> Result<(), Error> {
     info!("Starting prover engine in {:?} mode", prover_mode);
 
@@ -227,6 +230,7 @@ pub async fn prover_handle(
             block_with_info.zkvm_inputs.clone(),
             block_with_info.block.header.clone(),
             &prover_mode,
+            execution_metrics.clone(),
         )
         .await
         {
@@ -319,6 +323,7 @@ pub async fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + 
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     app_id: u32,
+    execution_metrics: ExecutionMetrics,
 ) -> Result<
     (
         NexusZKVMInputs,
@@ -389,12 +394,15 @@ where
         }
     }
 
+    let batch_execution_time_start = std::time::Instant::now();
     let (tree_update_batch, state_update, tx_result, nexus_header): (
         Option<jmt::storage::TreeUpdateBatch>,
         nexus_core::types::StateUpdate,
         HashMap<H256, bool>,
         NexusHeader,
     ) = state_machine.execute_batch(&header, header_store, &txs).await?;
+    let batch_execution_time = batch_execution_time_start.elapsed();
+    execution_metrics.batch_execution_time.record(batch_execution_time.as_secs(), &[]);
 
     //Creating zkvm_inputs before adding the new header to header store.
     let zkvm_inputs = NexusZKVMInputs {
@@ -415,6 +423,7 @@ pub async fn prove_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + De
     zkvm_inputs: NexusZKVMInputs,
     nexus_header: NexusHeader,
     prover_mode: &ProverMode,
+    execution_metrics: ExecutionMetrics,
 ) -> Result<P, Error>
 where
     <P as TryFrom<NexusProof>>::Error: std::fmt::Debug,
@@ -430,6 +439,7 @@ where
         txs.extend(blob_txs);
     }
 
+    let batch_proving_time_start = std::time::Instant::now();
     let (proof, result) = {
         #[cfg(any(feature = "sp1"))]
         let NEXUS_RUNTIME_ELF: &[u8] = include_bytes!("../../../target/elf-compilation/riscv32im-succinct-zkvm-elf/release/nexus_runtime_sp1");
@@ -453,6 +463,8 @@ where
 
         (proof, result)
     };
+    let batch_proving_time = batch_proving_time_start.elapsed();
+    execution_metrics.batch_proving_time.record(batch_proving_time.as_secs(), &[]);
 
     if result.hash() != nexus_header.hash() {
         return Err(anyhow!(
@@ -522,7 +534,10 @@ pub async fn get_blobs_for_block(sdk: &SDK, avail_block_hash: AvailH256, app_id:
     Ok((blobs, proofs))
 }
 
-#[instrument(level = "info", skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver, sdk))]
+#[instrument(
+    level = "info",
+    skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver, sdk, execution_metrics)
+)]
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,
@@ -532,6 +547,7 @@ pub async fn execution_engine_handle(
     state: Arc<Mutex<VmState>>,
     sdk: SDK,
     app_id: u32,
+    execution_metrics: ExecutionMetrics,
 ) -> Result<(), anyhow::Error> {
     info!("Starting execution engine in {:?} mode", prover_mode);
     const MAX_HEADERS: usize = 5;
@@ -604,6 +620,8 @@ pub async fn execution_engine_handle(
             debug!("🔄 Beginning batch execution");
 
             tokio::time::sleep(Duration::from_secs(5)).await;
+            let batch_execution_start_time = std::time::Instant::now();
+
             match execute_batch::<Prover, Proof, ZKVM>(
                 &blobs,
                 &proofs,
@@ -611,6 +629,7 @@ pub async fn execution_engine_handle(
                 &AvailHeader::from(&header),
                 &mut old_headers,
                 app_id,
+                execution_metrics.clone(),
             )
             .await
             {
@@ -666,6 +685,9 @@ pub async fn execution_engine_handle(
                                 failed_txs = txs_length - successful_txs,
                                 "✅ Batch processing completed successfully"
                             );
+
+                            execution_metrics.batch_number_counter.add(1, &[]);
+                            execution_metrics.number_of_transactions_batch.record(txs_length as u64, &[]);
                         }
                         Err(e) => {
                             error!(error = ?e, "❌ Failed to commit batch");
@@ -679,6 +701,9 @@ pub async fn execution_engine_handle(
                 }
             }
             info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ \n");
+
+            let batch_execution_time = batch_execution_start_time.elapsed();
+            execution_metrics.total_batch_execution_time.record(batch_execution_time.as_secs(), &[]);
         } else {
             debug!("Waiting for new blocks");
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -852,6 +877,9 @@ pub async fn run_nexus(
 
     let ws_url_clone = ws_url.clone();
 
+    // Initialize the execution metrics
+    let execution_metrics = ExecutionMetrics::init();
+
     let db_clone = node_db.clone();
     let db_clone_2 = node_db.clone();
     let db_clone_3 = node_db.clone();
@@ -893,6 +921,7 @@ pub async fn run_nexus(
             state_2,
             sdk,
             app_id,
+            execution_metrics,
         )
         .await
     });

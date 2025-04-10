@@ -1,3 +1,4 @@
+use crate::metrics::MempoolMetrics;
 use crate::{
     db::NodeDB,
     traits::NexusTransaction,
@@ -12,6 +13,7 @@ use tracing::{debug, error, event, info, instrument, span, warn, Level};
 pub struct Mempool {
     tx_list: Arc<Mutex<Vec<Transaction>>>,
     node_db: Arc<Mutex<NodeDB>>,
+    mempool_metrics: MempoolMetrics,
 }
 
 impl Mempool {
@@ -21,6 +23,7 @@ impl Mempool {
         Self {
             tx_list: Arc::new(Mutex::new(vec![])),
             node_db,
+            mempool_metrics: MempoolMetrics::init(),
         }
     }
 
@@ -41,6 +44,7 @@ impl Mempool {
     #[instrument(level = "debug", skip(self))]
     pub async fn clear_upto_tx(&self, index: usize) -> () {
         debug!("Clearing transactions up to index {} from mempool", index);
+        let (_, len) = self.get_current_txs().await;
         let mut tx_list = self.tx_list.lock().await;
         // Clear transactions up to the specified index
         if index < tx_list.len() {
@@ -48,6 +52,10 @@ impl Mempool {
         } else {
             // Handle case where index exceeds the length of tx_list
             tx_list.clear();
+        }
+        if let Some(len) = len {
+            self.mempool_metrics.mempool_txn_count_gauge.record((len - index) as u64, &[]);
+            self.mempool_metrics.mempool_txn_count_histogram.record((len - index) as u64, &[]);
         }
     }
 
@@ -73,6 +81,9 @@ impl Mempool {
                 let mut tx_list = self.tx_list.lock().await;
 
                 tx_list.push(tx);
+
+                self.mempool_metrics.mempool_txn_count_gauge.record(tx_list.len() as u64, &[]);
+                self.mempool_metrics.mempool_txn_count_histogram.record(tx_list.len() as u64, &[]);
 
                 info!("Transaction successfully added to mempool");
                 Ok(())
