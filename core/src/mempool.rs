@@ -55,6 +55,7 @@ impl Mempool {
         }
         if let Some(len) = len {
             self.mempool_metrics.mempool_txn_count_gauge.record((len - index) as u64, &[]);
+            self.mempool_metrics.mempool_txn_count_histogram.record((len - index) as u64, &[]);
         }
     }
 
@@ -82,6 +83,7 @@ impl Mempool {
                 tx_list.push(tx);
 
                 self.mempool_metrics.mempool_txn_count_gauge.record(tx_list.len() as u64, &[]);
+                self.mempool_metrics.mempool_txn_count_histogram.record(tx_list.len() as u64, &[]);
 
                 info!("Transaction successfully added to mempool");
                 Ok(())

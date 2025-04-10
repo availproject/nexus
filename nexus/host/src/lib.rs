@@ -685,6 +685,9 @@ pub async fn execution_engine_handle(
                                 failed_txs = txs_length - successful_txs,
                                 "✅ Batch processing completed successfully"
                             );
+
+                            execution_metrics.batch_number_counter.add(1, &[]);
+                            execution_metrics.number_of_transactions_batch.record(txs_length as u64, &[]);
                         }
                         Err(e) => {
                             error!(error = ?e, "❌ Failed to commit batch");

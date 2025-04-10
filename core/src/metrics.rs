@@ -3,31 +3,16 @@ use opentelemetry::metrics::{Counter, Gauge, Histogram};
 use std::time::Instant;
 
 #[derive(Clone)]
-pub struct BatchMetrics {
-    pub batch_number_counter: Counter<u64>,
-    pub number_of_transactions_batch: Histogram<u64>,
-}
-impl BatchMetrics {
-    pub fn init() -> Self {
-        let metrics_meter = global::meter("nexus-metrics");
-        let batch_number_counter = metrics_meter.u64_counter("block_number").with_unit("Blocks").init();
-        let number_of_transactions_batch = metrics_meter.u64_histogram("number_of_transactions").init();
-        Self {
-            batch_number_counter,
-            number_of_transactions_batch,
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct MempoolMetrics {
     pub mempool_txn_count_gauge: Gauge<u64>,
+    pub mempool_txn_count_histogram: Histogram<u64>
 }
 impl MempoolMetrics {
     pub fn init() -> Self {
         let metrics_meter = global::meter("nexus-metrics");
         let mempool_txn_count_gauge = metrics_meter.u64_gauge("mempool_txn_count").with_unit("Transactions").init();
-        Self { mempool_txn_count_gauge }
+        let mempool_txn_count_histogram = metrics_meter.u64_histogram("mempool_txn_count_histogram").with_unit("Transactions").init();
+        Self { mempool_txn_count_gauge, mempool_txn_count_histogram }
     }
 }
 
@@ -36,6 +21,8 @@ pub struct ExecutionMetrics {
     pub batch_execution_time: Histogram<u64>,
     pub batch_proving_time: Histogram<u64>,
     pub total_batch_execution_time: Histogram<u64>,
+    pub batch_number_counter: Counter<u64>,
+    pub number_of_transactions_batch: Histogram<u64>,
 }
 impl ExecutionMetrics {
     pub fn init() -> Self {
@@ -43,10 +30,14 @@ impl ExecutionMetrics {
         let batch_execution_time = metrics_meter.u64_histogram("batch_execution_time").init();
         let batch_proving_time = metrics_meter.u64_histogram("batch_proving_time").init();
         let total_batch_execution_time = metrics_meter.u64_histogram("total_batch_execution_time").init();
+        let batch_number_counter = metrics_meter.u64_counter("block_number").with_unit("Blocks").init();
+        let number_of_transactions_batch = metrics_meter.u64_histogram("number_of_transactions").init();
         Self {
             batch_execution_time,
             batch_proving_time,
             total_batch_execution_time,
+            batch_number_counter,
+            number_of_transactions_batch,
         }
     }
 }
