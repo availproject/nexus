@@ -8007,7 +8007,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-runtime 33.0.0",
- "sp1-sdk 3.4.0",
+ "sp1-sdk 4.1.4",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",

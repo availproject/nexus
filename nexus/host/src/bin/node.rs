@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     print_animated_logo(&prover_mode);
 
     let (node_db, state) = setup_components("./db");
-    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
+    let mut state_machine = StateMachine::<Proof>::new(state.clone());
 
     let avail_rpc = args
         .clone()
@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .find(|arg| arg.starts_with("--app-id="))
         .map(|arg| arg.trim_start_matches("--app-id="))
-        .unwrap_or("wss://zero-devnet.avail.so:443/ws")
+        .unwrap_or("10")
         .to_string()
         .parse()?;
     let port = args
@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 1,
                 avail_start_block,
             )
-            .await;
+            .await
         });
 
         // Wait for both tasks to complete
