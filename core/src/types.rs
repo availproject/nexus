@@ -175,11 +175,40 @@ pub struct NexusBlock {
 
 #[cfg(any(feature = "native"))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub struct NexusBlockWithProveStatus {
+    pub header: Option<NexusHeader>,
+    pub prove_status: ProveStatus
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
 pub enum BlockStatus {
     ExecutionCompleted,
     ProofGenerationInProgress,
     ProofGenerationFailed,
     ProofGenerationSuccessful,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+pub enum ProveStatus {
+    Proved,
+    NotProved
+}
+
+impl ProveStatus {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            self::Proved => b"Proved".as_slice().to_vec(),
+            self::NotProved => b"NotProved".as_slice().to_vec()
+        }
+    }
+    pub fn to_string(&self) -> String {
+        match self {
+            self::Proved => "Proved".into(),
+            self::NotProved => "NotProved".into()
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

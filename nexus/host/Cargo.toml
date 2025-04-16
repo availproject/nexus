@@ -42,3 +42,7 @@ serde = { version = "1.0.204" }
 [[bin]]
 name = "node"
 path = "src/bin/node.rs"
+
+[[bin]]
+name = "prover"
+path = "src/bin/prover.rs"

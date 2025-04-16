@@ -5,8 +5,8 @@ use nexus_core::mempool::Mempool;
 use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers, NexusBlockWithTransactions, NexusHeader, StatementDigest,
-    Transaction, TransactionWithStatus, H256,
+    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers, NexusBlockWithTransactions, NexusHeader, ProveStatus,
+    StatementDigest, Transaction, TransactionWithStatus, H256,
 };
 use nexus_core::utils::hasher::Sha256;
 use serde::{Deserialize, Serialize};
@@ -94,7 +94,8 @@ impl From<AccountWithProof> for AccountWithProofHex {
         get_state,
         get_state_hex,
         get_header,
-        range
+        range,
+        get_block_prove_status
     ),
     components(
         schemas(
@@ -107,8 +108,9 @@ impl From<AccountWithProof> for AccountWithProofHex {
             nexus_core::types::InitAccount,
             nexus_core::types::NexusHeader,
             nexus_core::types::TransactionStatus,
+            nexus_core::types::NexusBlockWithProveStatus,
             nexus_core::state::types::AccountState,
-            nexus_core::state::types::StatementDigest
+            nexus_core::state::types::StatementDigest,
         )
     ),
     tags(
@@ -184,6 +186,41 @@ async fn tx_status(db: Arc<Mutex<NodeDB>>, tx_hash: H256) -> Result<WithStatus<S
             "Internal error".to_string(),
             warp::http::StatusCode::INTERNAL_SERVER_ERROR,
         )),
+    }
+}
+
+/// Get latest block with prove status. Depending upon the param provided it returns the block which is not proved / proved
+#[utoipa::path(
+    get,
+    path = "/block-prove-status",
+    tag = "nexus",
+    params(
+        ("prove_status" = ProveStatus, Query, description = "Prove Status must be provided as 'Proved' or 'NotProved'")
+    ),
+    responses(
+        (status = 200, description = "Block found", body = NexusBlockWithProveStatus),
+        (status = 404, description = "Block not found", body = String),
+        (status = 400, description = "Invalid hash format", body = String),
+        (status = 500, description = "Internal error", body = String)
+    )
+)]
+async fn get_block_prove_status(db: Arc<Mutex<NodeDB>>, prove_status: ProveStatus) -> Result<WithStatus<String>, Rejection> {
+    let db_lock = db.lock().await;
+    let block = db_lock.get::<NexusBlockWithProveStatus>(&prove_status.to_bytes());
+    match block {
+        Ok(Some(b)) => b,
+        Ok(None) => {
+            return Ok(warp::reply::with_status(
+                "Block not found".to_string(),
+                warp::http::StatusCode::BAD_REQUEST,
+            ))
+        }
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Error retrieving block".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     }
 }
 
@@ -640,6 +677,7 @@ pub fn routes(
     let db_clone_3 = db.clone();
     let db_clone_4 = db.clone();
     let db_clone_5 = db.clone();
+    let db_clone_6 = db.clone();
 
     let health_check = warp::path("health")
         .and(warp::get())
@@ -710,6 +748,22 @@ pub fn routes(
                 };
 
                 get_block(db, block_hash, block_number).await
+            },
+        );
+
+    let block_prove_status = warp::path("block-prove-status")
+        .and(warp::get())
+        .and(warp::any().map(move || db_clone_6.clone()))
+        .and(warp::query::<HashMap<String, String>>())
+        .and_then(
+            |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
+                match params.get("prove_status") {
+                    Some(prove_status) => get_block_prove_status(db, prove_status).await,
+                    None => Ok(warp::reply::with_status(
+                        "Prove status not provided".to_string(),
+                        warp::http::StatusCode::BAD_REQUEST,
+                    )),
+                }
             },
         );
 
@@ -820,6 +874,7 @@ pub fn routes(
     tx.or(health_check)
         .or(tx_status)
         .or(block)
+        .or(block_prove_status)
         .or(submit_batch)
         .or(header)
         .or(account)

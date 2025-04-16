@@ -15,7 +15,9 @@ use jmt::storage::TreeUpdateBatch;
 use kzg::verify_row_kzg;
 use kzg::{compute_kzg_proof, compute_row_proof};
 use nexus_core::types::BlobProof;
+use nexus_core::types::NexusBlockWithProveStatus;
 use nexus_core::types::NexusZKVMInputs;
+use nexus_core::types::ProveStatus;
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 use nexus_core::{
@@ -258,6 +260,23 @@ pub async fn prover_handle(
             &[nexus_hash.as_slice(), b"-block"].concat(),
             &block_with_info,
         )?;
+
+        // Put the latest block which is proved into the DB with key as ProveStatus::Proved
+        node_db.put(
+            &ProveStatus::Proved.to_bytes(),
+            &NexusBlockWithProveStatus {
+                header: Some(block_with_info.block.header),
+                prove_status: ProveStatus::Proved,
+            },
+        );
+        // Putting not proved as None to indicate there are no unproved batches
+        node_db.put(
+            &ProveStatus::NotProved.to_bytes(),
+            &NexusBlockWithProveStatus {
+                header: None,
+                prove_status: ProveStatus::NotProved,
+            },
+        );
     }
 
     Ok(())
@@ -782,6 +801,15 @@ pub async fn save_batch_information<'a>(
         &nexus_hash,
     );
     let db_lock = node_db.lock().await;
+
+    db_lock.put(
+        &ProveStatus::NotProved.to_bytes(),
+        &NexusBlockWithProveStatus {
+            header: Some(processed_batch_info.header.clone()),
+            prove_status: ProveStatus::NotProved,
+        },
+    );
+
     db_lock.put_batch(batch_transaction)?;
 
     db_lock.set_current_root(&processed_batch_info.header.state_root).unwrap();
