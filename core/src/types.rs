@@ -178,7 +178,7 @@ pub struct NexusBlock {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode, ToSchema)]
 pub struct NexusBlockWithProveStatus {
     pub header: Option<NexusHeader>,
-    pub prove_status: ProveStatus
+    pub prove_status: ProveStatus,
 }
 
 #[cfg(any(feature = "native"))]
@@ -194,7 +194,7 @@ pub enum BlockStatus {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode, ToSchema)]
 pub enum ProveStatus {
     Proved,
-    NotProved
+    NotProved,
 }
 
 #[cfg(any(feature = "native"))]
@@ -202,13 +202,13 @@ impl ProveStatus {
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
             crate::types::ProveStatus::Proved => b"Proved".as_slice().to_vec(),
-            crate::types::ProveStatus::NotProved => b"NotProved".as_slice().to_vec()
+            crate::types::ProveStatus::NotProved => b"NotProved".as_slice().to_vec(),
         }
     }
     pub fn to_string(&self) -> String {
         match self {
             crate::types::ProveStatus::Proved => "Proved".into(),
-            crate::types::ProveStatus::NotProved => "NotProved".into()
+            crate::types::ProveStatus::NotProved => "NotProved".into(),
         }
     }
     pub fn from_string(input: String) -> Result<Self, anyhow::Error> {
