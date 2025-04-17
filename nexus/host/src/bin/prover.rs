@@ -1,7 +1,8 @@
-use anyhow::Ok;
+use anyhow::anyhow;
 use host::{prover_handle, setup_components};
+use nexus_core::types::NexusBlockWithProveStatus;
 use nexus_core::{types::ProveStatus, zkvm::ProverMode};
-use std::{collections::HashMap, env::args};
+use std::{collections::HashMap, env::args, thread, time::Duration};
 use tokio::sync::watch;
 use tracing::{error, info};
 
@@ -41,18 +42,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Check in db for the latest block which is not proven :
         // If block status is not `ProofGenerationSuccessful`
         // We re run that block
-        let latest_unproved_block: NexusBlockWithProveStatus = get_nexus_latest_unproved_block(nexus_rpc).await.expect("Failed to get latest block.");
+        let latest_unproved_block: NexusBlockWithProveStatus = get_latest_unproved_block_with_retry(nexus_rpc).await;
+        let nexus_block_number = match latest_unproved_block.header {
+            Some(header) => header.number,
+            // Code will never reach here as it will panic during the retries
+            None => panic!("Unable to get the nexus block number."),
+        };
 
         info!("Starting prover engine");
-        let prover_task = tokio::spawn(async move {
-            prover_handle(
-                node_db,
-                shutdown_rx,
-                latest_unproved_block.header.number,
-                prover_mode,
-            )
-            .await
-        });
+        let prover_task = tokio::spawn(async move { prover_handle(node_db, shutdown_rx, nexus_block_number, prover_mode).await });
 
         // Wait for both tasks to complete
         if let Err(e) = tokio::try_join!(shutdown_task, prover_task) {
@@ -76,7 +74,38 @@ async fn get_nexus_latest_unproved_block(nexus_url: String) -> Result<NexusBlock
         Err(anyhow!(
             "Request failed with status code: {}, url: {}",
             response.status(),
-            &format!("{}/block-prove-status", self.url)
+            &format!("{}/block-prove-status", nexus_url)
         ))
     }
+}
+
+async fn get_latest_unproved_block_with_retry(nexus_url: String) -> NexusBlockWithProveStatus {
+    let mut attempts = 0;
+    let max_attempts = 10;
+
+    while attempts < max_attempts {
+        match get_nexus_latest_unproved_block(nexus_url.clone()).await {
+            Ok(block) => {
+                if block.header.is_some() {
+                    return block;
+                } else {
+                    panic!("No block yet available to prove.");
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "Attempt {} failed: {:?}. Retrying in 5 seconds...",
+                    attempts + 1,
+                    e
+                );
+                attempts += 1;
+                thread::sleep(Duration::from_secs(5));
+            }
+        }
+    }
+
+    panic!(
+        "Failed to get latest unproved block after {} attempts",
+        max_attempts
+    );
 }

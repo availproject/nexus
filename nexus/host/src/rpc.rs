@@ -4,6 +4,7 @@ use nexus_core::db::NodeDB;
 use nexus_core::mempool::Mempool;
 use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
+use nexus_core::types::NexusBlockWithProveStatus;
 use nexus_core::types::{
     AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers, NexusBlockWithTransactions, NexusHeader, ProveStatus,
     StatementDigest, Transaction, TransactionWithStatus, H256,
@@ -207,7 +208,7 @@ async fn tx_status(db: Arc<Mutex<NodeDB>>, tx_hash: H256) -> Result<WithStatus<S
 async fn get_block_prove_status(db: Arc<Mutex<NodeDB>>, prove_status: ProveStatus) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
     let block = db_lock.get::<NexusBlockWithProveStatus>(&prove_status.to_bytes());
-    match block {
+    let block_with_prove_status = match block {
         Ok(Some(b)) => b,
         Ok(None) => {
             return Ok(warp::reply::with_status(
@@ -221,6 +222,17 @@ async fn get_block_prove_status(db: Arc<Mutex<NodeDB>>, prove_status: ProveStatu
                 warp::http::StatusCode::INTERNAL_SERVER_ERROR,
             ))
         }
+    };
+
+    match serde_json::to_string(&block_with_prove_status) {
+        Ok(serialized_response) => Ok(warp::reply::with_status(
+            serialized_response,
+            warp::http::StatusCode::OK,
+        )),
+        Err(_) => Ok(warp::reply::with_status(
+            "Internal encoding error".to_string(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        )),
     }
 }
 
@@ -758,7 +770,16 @@ pub fn routes(
         .and_then(
             |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
                 match params.get("prove_status") {
-                    Some(prove_status) => get_block_prove_status(db, prove_status).await,
+                    Some(prove_status) => {
+                        let prove_status_val = ProveStatus::from_string(prove_status.clone());
+                        match prove_status_val {
+                            Ok(prove_status) => get_block_prove_status(db, prove_status).await,
+                            Err(err) => Ok(warp::reply::with_status(
+                                err.to_string(),
+                                warp::http::StatusCode::BAD_REQUEST,
+                            )),
+                        }
+                    }
                     None => Ok(warp::reply::with_status(
                         "Prove status not provided".to_string(),
                         warp::http::StatusCode::BAD_REQUEST,
