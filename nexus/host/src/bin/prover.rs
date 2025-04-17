@@ -44,8 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         // Check in db for the latest block which is not proven :
-        // If block status is not `ProofGenerationSuccessful`
-        // We re run that block
+        // If block status is not `Proved` we re run the block
         let latest_unproved_block: NexusBlockWithProveStatus = get_nexus_latest_unproved_block(nexus_rpc)
             .await
             .expect("Unable to get latest unproven block.");
