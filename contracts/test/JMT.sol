@@ -3,6 +3,7 @@ pragma solidity ^0.8.21;
 
 import "forge-std/test.sol";
 import "../src/NexusProofManager.sol";
+import {Structs} from "../src/lib/Structs.sol";
 import "../src/interfaces/INexusProofManager.sol";
 import "../src/mock/ERC20.sol";
 import "../src/verification/ethereum/Verifier.sol";
@@ -59,7 +60,7 @@ contract EthereumVerifierTest is Test, RiscZeroCheats {
         0x0000000000000000000000000000000000000000000000000000000000348371 ---> height
         */
 
-        NexusProofManager.AccountState memory state = NexusProofManager.AccountState(
+        Structs.AccountState memory state = Structs.AccountState(
             0xa01ae135624bda83c2804af67e0931b7069bcf5d9c68a90833460bd17acc6dd5,
             0x0000000000000000000000000000000000000000000000000000000000000000,
             0x30c23598430f6c4eb3d583a394240b281936dfc243e2417b4e8c9017a9679c56,
@@ -76,7 +77,7 @@ contract EthereumVerifierTest is Test, RiscZeroCheats {
 
         proofManager.updateNexusBlock(blockNumber, proof, journal);
         bytes32[] memory siblings;
-        NexusProofManager.AccountState memory state = NexusProofManager.AccountState(
+        Structs.AccountState memory state = Structs.AccountState(
             0xa01ae135624bda83c2804af67e0931b7069bcf5d9c68a90833460bd17acc6dd5,
             0x0000000000000000000000000000000000000000000000000000000000000000,
             0x30c23598430f6c4eb3d583a394240b281936dfc243e2417b4e8c9017a9679c56,

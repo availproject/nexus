@@ -1,20 +1,58 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.21;
+import {Structs} from "./Structs.sol";
 
 library JournalExtractor {
-    // Taken from (NexusRollupPI) :
-    // https://github.com/availproject/nexus/blob/441dad65a4d617f4d262159aca2b4c6873dd7f5c/core/src/types.rs#L110
-    struct Journal {
-        bytes32 nexusHash;
-        bytes32 stateRoot;
-        uint32 height;
-        bytes32 startNexusHash;
-        bytes32 appId;
-        bytes32 imgId;
-        bytes32 rollupHash;
+    function extractNexusHeader(bytes calldata data) public pure returns (Structs.NexusHeader memory) {
+        // parentHash (first 256 bytes, 1 byte from each 4-byte chunk)
+        bytes32 parentHash = 0;
+        for (uint256 i = 0; i < 32; i++) {
+            uint256 bytePos = i * 4;
+            if (bytePos < data.length) {
+                parentHash = bytes32(uint256(parentHash) << 8 | uint8(data[bytePos]));
+            }
+        }
+
+        // prevStateRoot (next 256 bytes)
+        bytes32 prevStateRoot = 0;
+        for (uint256 i = 0; i < 32; i++) {
+            uint256 bytePos = 128 + (i * 4);
+            if (bytePos < data.length) {
+                prevStateRoot = bytes32(uint256(prevStateRoot) << 8 | uint8(data[bytePos]));
+            }
+        }
+
+        // stateRoot (next 256 bytes)
+        bytes32 stateRoot = 0;
+        for (uint256 i = 0; i < 32; i++) {
+            uint256 bytePos = 256 + (i * 4);
+            if (bytePos < data.length) {
+                stateRoot = bytes32(uint256(stateRoot) << 8 | uint8(data[bytePos]));
+            }
+        }
+
+        // availHeaderHash (next 256 bytes)
+        bytes32 availHeaderHash = 0;
+        for (uint256 i = 0; i < 32; i++) {
+            uint256 bytePos = 384 + (i * 4);
+            if (bytePos < data.length) {
+                availHeaderHash = bytes32(uint256(availHeaderHash) << 8 | uint8(data[bytePos]));
+            }
+        }
+
+        // number (u32 = 4 bytes)
+        uint32 number = 0;
+        for (uint256 i = 0; i < 4; i++) {
+            uint256 bytePos = 512 + i;
+            if (bytePos < data.length) {
+                number = number << 8 | uint32(uint8(data[bytePos]));
+            }
+        }
+
+        return Structs.NexusHeader(parentHash, prevStateRoot, stateRoot, availHeaderHash, number);
     }
 
-    function extractJournal(bytes calldata journal) public pure returns (Journal memory) {
+    function extractJournal(bytes calldata journal) public pure returns (Structs.Journal memory) {
         // For nexusHash (first 256 bytes, extracting first byte from each 4-byte chunk)
         bytes32 nexusHash = 0;
         for (uint256 i = 0; i < 32; i++) {
@@ -79,6 +117,6 @@ library JournalExtractor {
             }
         }
 
-        return Journal(nexusHash, stateRoot, height, startNexusHash, appId, imgId, rollupHash);
+        return Structs.Journal(nexusHash, stateRoot, height, startNexusHash, appId, imgId, rollupHash);
     }
 }
