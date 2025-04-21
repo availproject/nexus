@@ -36,7 +36,7 @@ contract NexusProofManager {
         Structs.NexusHeader memory nexusHeaderStruct = JournalExtractor.extractNexusHeader(journal);
 
         nexusHeader[blockNumber] = Structs.NexusHeader({
-            parentHash: nexusHeaderStruct.parentHash, 
+            parentHash: nexusHeaderStruct.parentHash,
             prevStateRoot: nexusHeaderStruct.prevStateRoot,
             stateRoot: nexusHeaderStruct.stateRoot,
             availHeaderHash: nexusHeaderStruct.availHeaderHash,
@@ -101,7 +101,7 @@ contract NexusProofManager {
         uint256 availBlockNumber,
         bytes32 bridgeRoot
     ) external {
-        require(nexusHeader[nexusBlockNumber].availHeaderHash == availBlockHash) {
+        if (nexusHeader[nexusBlockNumber].availHeaderHash != availBlockHash) {
             revert InvalidAvailBridgeRootUpdate(nexusBlockNumber, availBlockHash);
         }
         // TODO : include a verification check after finalization
