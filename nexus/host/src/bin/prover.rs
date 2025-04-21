@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .clone()
         .iter()
         .find(|arg| arg.starts_with("--nexus-rpc="))
-        .map(|arg| arg.trim_start_matches("--avail-rpc="))
+        .map(|arg| arg.trim_start_matches("--nexus-rpc="))
         .unwrap_or("http://localhost:7000")
         .to_string();
 
