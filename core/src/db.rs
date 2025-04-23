@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
+use crate::traits::NexusTransaction;
+use crate::types::NexusBlockWithPointers;
+use crate::types::TransactionWithStatus;
 use crate::types::H256;
 use anyhow::{anyhow, Error};
 use rocksdb::{Options, WriteBatchWithTransaction, DB};
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::{from_slice, to_vec};
-use tracing::{debug, error, info, instrument, span, Level};
-use sqlx::{PgPool, postgres::PgPoolOptions, migrate::Migrator};
 use serde_json::to_value;
-use crate::types::TransactionWithStatus;
-use crate::types::NexusBlockWithPointers;
-use crate::traits::NexusTransaction;
+use serde_json::{from_slice, to_vec};
+use sqlx::{migrate::Migrator, postgres::PgPoolOptions, PgPool};
+use tracing::{debug, error, info, instrument, span, Level};
 
 pub struct NodeDB {
     db: DB,
@@ -153,10 +153,7 @@ pub struct StorageDb {
 
 impl StorageDb {
     pub async fn init(db_url: String) -> anyhow::Result<Self> {
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&db_url)
-            .await?;
+        let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await?;
 
         // Run migration
         // MIGRATOR.run(&pool).await.expect("Migration failed");
@@ -185,10 +182,7 @@ impl StorageDb {
         Ok(())
     }
 
-    pub async fn insert_transaction(
-        &self,
-        tx: &TransactionWithStatus,
-    ) -> anyhow::Result<()> {
+    pub async fn insert_transaction(&self, tx: &TransactionWithStatus) -> anyhow::Result<()> {
         let transaction_hash = tx.transaction.hash();
         sqlx::query!(
             r#"
@@ -205,5 +199,4 @@ impl StorageDb {
 
         Ok(())
     }
-
 }
