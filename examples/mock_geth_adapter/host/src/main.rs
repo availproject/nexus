@@ -69,8 +69,7 @@ async fn main() -> Result<(), Error> {
         AdapterStateData { last_height: 0, adapter_config }
     };
 
-    let app_account_id =
-        AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+    let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
     let account_with_proof: AccountWithProof = nexus_api.get_account_state(&app_account_id.as_h256()).await?;
 
     // Main loop to fetch headers and run adapter
@@ -144,7 +143,7 @@ async fn main() -> Result<(), Error> {
                     //         Ok(i) => i,
                     //         Err(e) => {
                     //             println!("{:?}", e);
-                    // 
+                    //
                     //             continue;
                     //         }
                     //     };

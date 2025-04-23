@@ -14,6 +14,7 @@ import "../src/verification/zksync/ZKSyncNexusManagerRouter.sol";
 import {Structs} from "../src/lib/Structs.sol";
 import {IRiscZeroVerifier} from "risc0/IRiscZeroVerifier.sol";
 import {RiscZeroCheats} from "risc0/test/RiscZeroCheats.sol";
+import {ImageID} from "../src/GethImageID.sol";
 
 import "./NexusMailboxWrapper.sol";
 
@@ -45,7 +46,7 @@ contract MailBoxTest is Test, RiscZeroCheats {
         risc0Router = new RiscZeroVerifierRouter(msg.sender);
         vm.prank(msg.sender);
         risc0Router.addVerifier(bytes4(0), risc0Verifier);
-        proofManager = new NexusProofManager(address(risc0Router));
+        proofManager = new NexusProofManager(address(risc0Router), ImageID.ADAPTER_ID);
 
         SparseMerkleTree smt = new SparseMerkleTree();
         ZKSyncNexusManagerRouter zksyncDiamond =

@@ -13,6 +13,7 @@ import {INexusProofManager} from "../src/interfaces/INexusProofManager.sol";
 import {VerifierInfo} from "../src/interfaces/INexusMailbox.sol";
 import {INexusVerifierWrapper} from "../src/interfaces/INexusVerifierWrapper.sol";
 import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
+import {ImageID} from "../src/ZksyncImageID.sol";
 
 contract NexusDeployment is Script {
     struct NetworkConfig {
@@ -55,7 +56,7 @@ contract NexusDeployment is Script {
         // TODO : add logic for adding the verifier to the router.
 
         // Deploy NexusProofManager
-        NexusProofManager nexusManager = new NexusProofManager(address(risc0Router));
+        NexusProofManager nexusManager = new NexusProofManager(address(risc0Router), ImageID.ZKSYNC_ADAPTER_ID);
         console.log("NexusProofManager deployed to: ", address(nexusManager));
 
         // Deploy and initialize NexusMailbox

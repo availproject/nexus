@@ -123,17 +123,11 @@ impl VmState {
         }
         let proof = tree.get_with_proof(KeyHash(key.as_fixed_slice().clone()), version)?;
 
-        println!(">>> root hash : {:?}", jmt::RootHash(root.as_fixed_slice().clone()));
-        println!(">>> key hash : {:?}", hex::encode(key.as_fixed_slice().clone()));
-        println!(">>> proof : {:?}", hex::encode(proof.0.clone().unwrap()));
-
         let result = proof.1.verify(
             jmt::RootHash(root.as_fixed_slice().clone()),
             KeyHash(key.as_fixed_slice().clone()),
             proof.0.clone(),
         );
-
-        println!(">>> verification result : {:?}", result);
 
         let value = match proof.0 {
             Some(i) => match AccountState::decode(&i) {

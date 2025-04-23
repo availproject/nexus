@@ -3,18 +3,17 @@ pragma solidity ^0.8.21;
 
 import {JellyfishMerkleTreeVerifier} from "./lib/JellyfishMerkleTreeVerifier.sol";
 import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
-import {ImageID} from "./GethImageID.sol"; // auto-generated from cargo-build
 import {JournalExtractor} from "./lib/JournalExtractor.sol";
 import {Structs} from "./lib/Structs.sol";
 
 contract NexusProofManager {
     uint256 public latestNexusBlockNumber = 0;
     RiscZeroVerifierRouter public immutable risc0Router;
-    bytes32 public constant imageId = ImageID.ADAPTER_ID; // added for the auto-generated contract
+    bytes32 public imageId; // added for the auto-generated contract
 
     mapping(uint256 => Structs.NexusHeader) public nexusHeader;
-    mapping(bytes32 => uint256) public nexusAppIDToLatestBlockNumber;
-    mapping(bytes32 => mapping(uint256 => bytes32)) public nexusAppIDToState;
+    mapping(bytes32 => uint256) public nexusAppAddressToLatestBlockNumber;
+    mapping(bytes32 => mapping(uint256 => bytes32)) public nexusAppAddressToState;
     mapping(bytes32 => uint256) public availBridgeRootToAvailHeight;
 
     error AlreadyUpdatedBlock(uint256 blockNumber);
@@ -22,13 +21,14 @@ contract NexusProofManager {
     error NexusLeafInclusionCheckFailed();
     error InvalidAvailBridgeRootUpdate(uint256 nexusBlockNumber, bytes32 availHeaderHash);
 
-    constructor(address _risc0Router) {
+    constructor(address _risc0Router, bytes32 _imageId) {
         risc0Router = RiscZeroVerifierRouter(_risc0Router);
+        imageId = _imageId;
     }
 
     // nexus state root
     // updated when we verify the zk proof and then st block updated
-    function updateNexusBlock(uint256 blockNumber, bytes calldata proof, bytes calldata journal) external {
+    function updateNexusBlock(uint256 blockNumber, bytes calldata _proof, bytes calldata journal) external {
         if (nexusHeader[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
         }
@@ -78,11 +78,11 @@ contract NexusProofManager {
 
         verifyRollupState(nexusHeader[nexusBlockNumber].stateRoot, proof, leaf);
 
-        if (nexusAppIDToLatestBlockNumber[key] < accountState.height) {
-            nexusAppIDToLatestBlockNumber[key] = accountState.height;
+        if (nexusAppAddressToLatestBlockNumber[key] < accountState.height) {
+            nexusAppAddressToLatestBlockNumber[key] = accountState.height;
         }
 
-        nexusAppIDToState[key][accountState.height] = accountState.stateRoot;
+        nexusAppAddressToState[key][accountState.height] = accountState.stateRoot;
     }
 
     function verifyRollupState(
@@ -109,15 +109,19 @@ contract NexusProofManager {
         availBridgeRootToAvailHeight[bridgeRoot] = availBlockNumber;
     }
 
-    function getChainState(uint256 blockNumber, bytes32 nexusAppID) external view returns (bytes32) {
-        uint256 latestBlockNumber = nexusAppIDToLatestBlockNumber[nexusAppID];
+    function getChainState(uint256 blockNumber, bytes32 nexusAppAddress) external view returns (bytes32) {
+        uint256 latestBlockNumber = nexusAppAddressToLatestBlockNumber[nexusAppAddress];
         if (blockNumber == 0) {
-            return nexusAppIDToState[nexusAppID][latestBlockNumber];
+            return nexusAppAddressToState[nexusAppAddress][latestBlockNumber];
         } else {
             if (blockNumber > latestBlockNumber) {
                 revert InvalidBlockNumber(blockNumber, latestBlockNumber);
             }
-            return nexusAppIDToState[nexusAppID][blockNumber];
+            return nexusAppAddressToState[nexusAppAddress][blockNumber];
         }
+    }
+
+    function updateImageId(bytes32 _imageId) external {
+        imageId = _imageId;
     }
 }

@@ -37,5 +37,5 @@ contract JournalExtractorTest is Test {
     }
 }
 
-// To run this test : 
+// To run this test :
 // forge test --match-contract JournalExtractorTest -vv
