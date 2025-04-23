@@ -7,7 +7,7 @@ use crate::types::H256;
 use anyhow::{anyhow, Error};
 use rocksdb::{Options, WriteBatchWithTransaction, DB};
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::to_value;
+use serde_json::to_string;
 use serde_json::{from_slice, to_vec};
 use sqlx::{migrate::Migrator, postgres::PgPoolOptions, PgPool};
 use tracing::{debug, error, info, instrument, span, Level};
@@ -171,9 +171,9 @@ impl StorageDb {
             "#,
             header_hash.as_slice(),
             block_number as i64,
-            to_value(&data.block)?,
+            to_string(&data.block)?,
             data.jmt_version as i64,
-            to_value(&data.zkvm_inputs)?,
+            to_string(&data.zkvm_inputs)?,
             data.block_status.to_string()
         )
         .execute(&self.db)
@@ -190,7 +190,7 @@ impl StorageDb {
             VALUES ($1, $2, $3, $4)
             "#,
             transaction_hash.as_slice(),
-            to_value(&tx.transaction)?,
+            to_string(&tx.transaction)?,
             tx.status.to_string(),
             tx.block_hash.map(|h| h.as_slice().to_vec())
         )

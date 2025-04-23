@@ -7,9 +7,9 @@
       "Left": [
         "Bytea",
         "Int8",
-        "Jsonb",
+        "Text",
         "Int8",
-        "Jsonb",
+        "Text",
         "Text"
       ]
     },
