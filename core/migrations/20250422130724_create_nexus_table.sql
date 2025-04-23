@@ -1,0 +1,17 @@
+-- Add migration script here
+
+CREATE TABLE nexus_blocks (
+    block_hash BYTEA PRIMARY KEY,
+    block_number BIGINT NOT NULL,
+    block JSONB NOT NULL,
+    jmt_version BIGINT NOT NULL,
+    zkvm_inputs JSONB NOT NULL,
+    block_status TEXT NOT NULL
+);
+
+CREATE TABLE transaction_with_status (
+    transaction_hash BYTEA PRIMARY KEY,
+    transaction JSONB NOT NULL,
+    status TEXT NOT NULL,
+    block_hash BYTEA
+);

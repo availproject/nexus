@@ -6,6 +6,11 @@ use rocksdb::{Options, WriteBatchWithTransaction, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
 use tracing::{debug, error, info, instrument, span, Level};
+use sqlx::{PgPool, postgres::PgPoolOptions, migrate::Migrator};
+use serde_json::to_value;
+use crate::types::TransactionWithStatus;
+use crate::types::NexusBlockWithPointers;
+use crate::traits::NexusTransaction;
 
 pub struct NodeDB {
     db: DB,
@@ -138,4 +143,67 @@ impl NodeDB {
         debug!("Attempting to set current root");
         self.put(b"current-root", root)
     }
+}
+
+pub struct StorageDb {
+    db: PgPool,
+}
+
+// static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
+
+impl StorageDb {
+    pub async fn init(db_url: String) -> anyhow::Result<Self> {
+        let pool = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&db_url)
+            .await?;
+
+        // Run migration
+        // MIGRATOR.run(&pool).await.expect("Migration failed");
+        info!("Postgres DB opened successfully");
+        Ok(Self { db: pool })
+    }
+
+    pub async fn insert_nexus_block_with_pointers(&self, data: &NexusBlockWithPointers) -> anyhow::Result<()> {
+        let header_hash = data.block.header.hash();
+        let block_number = data.block.header.number;
+        sqlx::query!(
+            r#"
+            INSERT INTO nexus_blocks (block_hash, block_number, block, jmt_version, zkvm_inputs, block_status)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+            header_hash.as_slice(),
+            block_number as i64,
+            to_value(&data.block)?,
+            data.jmt_version as i64,
+            to_value(&data.zkvm_inputs)?,
+            data.block_status.to_string()
+        )
+        .execute(&self.db)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn insert_transaction(
+        &self,
+        tx: &TransactionWithStatus,
+    ) -> anyhow::Result<()> {
+        let transaction_hash = tx.transaction.hash();
+        sqlx::query!(
+            r#"
+            INSERT INTO transaction_with_status (transaction_hash, transaction, status, block_hash)
+            VALUES ($1, $2, $3, $4)
+            "#,
+            transaction_hash.as_slice(),
+            to_value(&tx.transaction)?,
+            tx.status.to_string(),
+            tx.block_hash.map(|h| h.as_slice().to_vec())
+        )
+        .execute(&self.db)
+        .await?;
+
+        Ok(())
+    }
+
 }

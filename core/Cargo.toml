@@ -17,6 +17,7 @@ avail-core = { git = "https://github.com/availproject/avail-core", rev = "d62ce4
 serde = "1.0.196"
 sparse-merkle-tree = { git = "https://github.com/vibhurajeev/sparse-merkle-tree.git", rev = "a2f94a7", optional = true, default-features = false }
 rocksdb = { version = "0.22.0", optional = true }
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio", "macros", "migrate"], optional = true }
 serde_json = "1.0.114"
 parity-scale-codec = { version = "3", default-features = false, features = [
     "derive",
@@ -49,6 +50,7 @@ avail-rust = { git = "https://github.com/availproject/avail-rust.git", branch = 
 [features]
 native = [
     "rocksdb",
+    "sqlx",
     "sparse-merkle-tree/arch-64",
     "sparse-merkle-tree/std",
     "avail-subxt",

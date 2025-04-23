@@ -14,6 +14,7 @@ use avail_rust::{Filter as AvailFilter, Keypair};
 use jmt::storage::TreeUpdateBatch;
 use kzg::verify_row_kzg;
 use kzg::{compute_kzg_proof, compute_row_proof};
+use nexus_core::db::StorageDb;
 use nexus_core::types::BlobProof;
 use nexus_core::types::NexusZKVMInputs;
 #[cfg(any(feature = "risc0"))]
@@ -522,10 +523,11 @@ pub async fn get_blobs_for_block(sdk: &SDK, avail_block_hash: AvailH256, app_id:
     Ok((blobs, proofs))
 }
 
-#[instrument(level = "info", skip(node_db, state_machine, prover_mode, shutdown_rx, state, receiver, sdk))]
+#[instrument(level = "info", skip(node_db, storage_db, state_machine, prover_mode, shutdown_rx, state, receiver, sdk))]
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,
+    storage_db: Arc<StorageDb>,
     mut state_machine: StateMachine<ZKVM, Proof>,
     prover_mode: ProverMode,
     mut shutdown_rx: watch::Receiver<bool>,
@@ -636,6 +638,7 @@ pub async fn execution_engine_handle(
 
                     match save_batch_information(
                         &node_db,
+                        &storage_db,
                         &mut state_machine,
                         ProcessedBatchInfo {
                             avail_header: &header,
@@ -689,9 +692,10 @@ pub async fn execution_engine_handle(
     Ok(())
 }
 
-#[instrument(level = "debug", skip(node_db, state_machine, processed_batch_info))]
+#[instrument(level = "debug", skip(node_db, storage_db, state_machine, processed_batch_info))]
 pub async fn save_batch_information<'a>(
     node_db: &Arc<Mutex<NodeDB>>,
+    storage_db: &Arc<StorageDb>,
     state_machine: &mut StateMachine<ZKVM, Proof>,
     processed_batch_info: ProcessedBatchInfo<'a>,
 ) -> Result<(), Error> {
@@ -765,18 +769,25 @@ pub async fn save_batch_information<'a>(
         });
     }
     batch_transaction.put(nexus_hash.as_slice(), &processed_batch_info.header);
+
+    let nexus_block_with_pointers = NexusBlockWithPointers {
+        block: NexusBlock {
+            header: processed_batch_info.header.clone(),
+            transactions: txs_result_vec,
+        },
+        jmt_version: processed_batch_info.jmt_version,
+        zkvm_inputs: processed_batch_info.zkvm_inputs,
+        block_status: BlockStatus::ExecutionCompleted,
+    };
+
     batch_transaction.put(
         &[nexus_hash.as_slice(), b"-block"].concat(),
-        &NexusBlockWithPointers {
-            block: NexusBlock {
-                header: processed_batch_info.header.clone(),
-                transactions: txs_result_vec,
-            },
-            jmt_version: processed_batch_info.jmt_version,
-            zkvm_inputs: processed_batch_info.zkvm_inputs,
-            block_status: BlockStatus::ExecutionCompleted,
-        },
+        &nexus_block_with_pointers,
     );
+    // Inserting the block into storage db to be accessible by
+    // other services.
+    storage_db.insert_nexus_block_with_pointers(&nexus_block_with_pointers).await?;
+
     batch_transaction.put(
         &[processed_batch_info.header.number.to_be_bytes().as_slice(), b"-block"].concat(),
         &nexus_hash,
@@ -836,6 +847,7 @@ pub fn run_server(
 pub async fn run_nexus(
     relayer_mutex: Arc<Mutex<impl Relayer + Send + 'static>>,
     node_db: Arc<Mutex<NodeDB>>,
+    storage_db: Arc<StorageDb>,
     mut state_machine: StateMachine<ZKVM, Proof>,
     (prover_mode, server_port): (ProverMode, u32),
     state: Arc<Mutex<VmState>>,
@@ -887,6 +899,7 @@ pub async fn run_nexus(
         execution_engine_handle(
             receiver,
             node_db,
+            storage_db,
             state_machine,
             prover_mode,
             shutdown_rx_2,

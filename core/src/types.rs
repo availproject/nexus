@@ -152,6 +152,17 @@ pub enum TransactionStatus {
 }
 
 #[cfg(any(feature = "native"))]
+impl TransactionStatus {
+    pub fn to_string(&self) -> String {
+        match self {
+            TransactionStatus::InPool => "InPool".into(),
+            TransactionStatus::Failed => "Failed".into(),
+            TransactionStatus::Successful => "Successful".into(),
+        }
+    }
+}
+
+#[cfg(any(feature = "native"))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 pub struct NexusBlockWithTransactions {
     pub transactions: Vec<TransactionWithStatus>,
@@ -180,6 +191,18 @@ pub enum BlockStatus {
     ProofGenerationInProgress,
     ProofGenerationFailed,
     ProofGenerationSuccessful,
+}
+
+#[cfg(any(feature = "native"))]
+impl BlockStatus {
+    pub fn to_string(&self) -> String {
+        match self {
+            BlockStatus::ExecutionCompleted => "ExecutionCompleted".into(),
+            BlockStatus::ProofGenerationInProgress => "ProofGenerationInProgress".into(),
+            BlockStatus::ProofGenerationFailed => "ProofGenerationFailed".into(),
+            BlockStatus::ProofGenerationSuccessful => "ProofGenerationSuccessful".into(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
