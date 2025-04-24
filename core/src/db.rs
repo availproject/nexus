@@ -164,7 +164,7 @@ impl StorageDb {
     pub async fn insert_nexus_block_with_pointers(&self, data: &NexusBlockWithPointers) -> anyhow::Result<()> {
         let header_hash = data.block.header.hash();
         let block_number = data.block.header.number;
-        sqlx::query!(
+        let res = sqlx::query!(
             r#"
             INSERT INTO nexus_blocks (block_hash, block_number, block, jmt_version, zkvm_inputs, block_status)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -173,12 +173,11 @@ impl StorageDb {
             block_number as i64,
             to_string(&data.block)?,
             data.jmt_version as i64,
-            to_string(&data.zkvm_inputs)?,
+            bincode::serialize(&data.zkvm_inputs)?, // Using bincode here because serde doesn't work.
             data.block_status.to_string()
         )
         .execute(&self.db)
-        .await?;
-
+        .await;
         Ok(())
     }
 

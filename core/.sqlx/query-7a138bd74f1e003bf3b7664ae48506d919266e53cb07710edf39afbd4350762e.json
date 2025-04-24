@@ -9,7 +9,7 @@
         "Int8",
         "Text",
         "Int8",
-        "Text",
+        "Bytea",
         "Text"
       ]
     },

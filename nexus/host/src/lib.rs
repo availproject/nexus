@@ -784,9 +784,6 @@ pub async fn save_batch_information<'a>(
         &[nexus_hash.as_slice(), b"-block"].concat(),
         &nexus_block_with_pointers,
     );
-    // Inserting the block into storage db to be accessible by
-    // other services.
-    storage_db.insert_nexus_block_with_pointers(&nexus_block_with_pointers).await?;
 
     batch_transaction.put(
         &[processed_batch_info.header.number.to_be_bytes().as_slice(), b"-block"].concat(),
@@ -796,6 +793,10 @@ pub async fn save_batch_information<'a>(
     db_lock.put_batch(batch_transaction)?;
 
     db_lock.set_current_root(&processed_batch_info.header.state_root).unwrap();
+
+    // Inserting the block into storage db to be accessible by
+    // other services.
+    storage_db.insert_nexus_block_with_pointers(&nexus_block_with_pointers).await?;
 
     Ok(())
 }

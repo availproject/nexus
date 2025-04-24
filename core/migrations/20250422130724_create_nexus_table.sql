@@ -5,7 +5,7 @@ CREATE TABLE nexus_blocks (
     block_number BIGINT NOT NULL,
     block TEXT NOT NULL,
     jmt_version BIGINT NOT NULL,
-    zkvm_inputs TEXT NOT NULL,
+    zkvm_inputs BYTEA NOT NULL,
     block_status TEXT NOT NULL
 );
 
