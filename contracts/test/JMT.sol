@@ -9,7 +9,7 @@ import "../src/mock/ERC20.sol";
 import "../src/verification/ethereum/Verifier.sol";
 import {IRiscZeroVerifier} from "risc0/IRiscZeroVerifier.sol";
 import {RiscZeroCheats} from "risc0/test/RiscZeroCheats.sol";
-import {ImageID} from "../src/GethImageID.sol";
+import {ImageID} from "../src/NexusProverImageID.sol";
 
 contract EthereumVerifierTest is Test, RiscZeroCheats {
     NexusProofManager proofManager;
@@ -35,7 +35,7 @@ contract EthereumVerifierTest is Test, RiscZeroCheats {
         risc0Router = new RiscZeroVerifierRouter(msg.sender);
         vm.prank(msg.sender);
         risc0Router.addVerifier(bytes4(0), risc0Verifier);
-        proofManager = new NexusProofManager(address(risc0Router), ImageID.ADAPTER_ID);
+        proofManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID);
         verifier = new EthereumVerifier(INexusProofManager(address(proofManager)));
     }
 

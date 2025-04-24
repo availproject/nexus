@@ -7966,7 +7966,6 @@ name = "geth-methods"
 version = "1.0.0"
 dependencies = [
  "risc0-build",
- "risc0-build-ethereum",
 ]
 
 [[package]]
@@ -15812,6 +15811,7 @@ name = "prover"
 version = "1.0.0"
 dependencies = [
  "risc0-build",
+ "risc0-build-ethereum",
  "sp1-build 4.2.0",
 ]
 
@@ -25645,7 +25645,6 @@ name = "zksync-methods"
 version = "1.0.0"
 dependencies = [
  "risc0-build",
- "risc0-build-ethereum",
  "sp1-build 4.2.0",
 ]
 

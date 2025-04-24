@@ -18,6 +18,7 @@
 
 pragma solidity ^0.8.20;
 
-library ImageID {
-    bytes32 public constant ADAPTER_ID = bytes32(0x8fe2b8c0efb5a1879ea5c9b6af789de1222d55d10246bcd7715d25f2d4f1304f);
+library Elf {
+    string public constant NEXUS_RUNTIME_PATH =
+        "/Users/ocdbytes/Desktop/Avail/nexus/target/riscv-guest/prover/nexus_runtime/riscv32im-risc0-zkvm-elf/release/nexus_runtime.bin";
 }
