@@ -1,6 +1,6 @@
 use avail_rust::SDK;
 pub use avail_subxt::Header;
-use nexus_core::{db::StorageDb, state_machine::StateMachine, zkvm::ProverMode};
+use nexus_core::{db::SharedDB, state_machine::StateMachine, zkvm::ProverMode};
 
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         });
 
-        let storage_db = StorageDb::init(postgres_database_url).await.expect("Failed to init database.");
+        let shared_db = SharedDB::init(postgres_database_url).await.expect("Failed to init database.");
 
         // Spawn the main Nexus logic
         info!("Starting execution engine");
@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             run_nexus(
                 relayer_mutex,
                 node_db,
-                Arc::new(storage_db),
+                Arc::new(shared_db),
                 state_machine,
                 (prover_mode, port),
                 state,

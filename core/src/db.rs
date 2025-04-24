@@ -145,13 +145,13 @@ impl NodeDB {
     }
 }
 
-pub struct StorageDb {
+pub struct SharedDB {
     db: PgPool,
 }
 
 // static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
-impl StorageDb {
+impl SharedDB {
     pub async fn init(db_url: String) -> anyhow::Result<Self> {
         let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await?;
 
@@ -159,6 +159,22 @@ impl StorageDb {
         // MIGRATOR.run(&pool).await.expect("Migration failed");
         info!("Postgres DB opened successfully");
         Ok(Self { db: pool })
+    }
+
+    pub async fn get_latest_proven_block(&self) -> anyhow::Result<u64> {
+        let res = sqlx::query_as!(
+            NexusBlockWithPointers,
+            r#"
+            SELECT * FROM nexus_blocks
+            WHERE block_status = $1
+            ORDER BY block_number DESC
+            LIMIT 1
+            "#,
+            BlockStatus::ProofGenerationSuccessful.to_string()
+        )
+        .fetch_optional(&self.db)
+        .await;
+        Ok(res)
     }
 
     pub async fn insert_nexus_block_with_pointers(&self, data: &NexusBlockWithPointers) -> anyhow::Result<()> {
@@ -183,6 +199,7 @@ impl StorageDb {
 
     pub async fn insert_transaction(&self, tx: &TransactionWithStatus) -> anyhow::Result<()> {
         let transaction_hash = tx.transaction.hash();
+        //TODO: Move the prepare command to host and .sql
         sqlx::query!(
             r#"
             INSERT INTO transaction_with_status (transaction_hash, transaction, status, block_hash)
