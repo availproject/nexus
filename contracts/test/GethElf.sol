@@ -20,5 +20,5 @@ pragma solidity ^0.8.20;
 
 library Elf {
     string public constant ADAPTER_PATH =
-        "/Users/ocdbytes/Desktop/Avail/nexus/target/riscv-guest/geth-methods/adapter/riscv32im-risc0-zkvm-elf/release/adapter";
+        "/Users/ocdbytes/Desktop/Avail/nexus/target/riscv-guest/geth-methods/adapter/riscv32im-risc0-zkvm-elf/release/adapter.bin";
 }
