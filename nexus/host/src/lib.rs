@@ -316,7 +316,7 @@ pub async fn relayer_handle(
 pub async fn execute_batch<Z: ZKVMProver<P>, P: ZKVMProof + Serialize + Clone + DebugTrait + TryFrom<NexusProof>, E: ZKVMEnv>(
     blobs: &Vec<Blob>,
     blob_proofs: &Vec<BlobProof>,
-    state_machine: &mut StateMachine<E, P>,
+    state_machine: &mut StateMachine<P>,
     header: &AvailHeader,
     header_store: &mut HeaderStore,
     app_id: u32,
@@ -527,8 +527,7 @@ pub async fn get_blobs_for_block(sdk: &SDK, avail_block_hash: AvailH256, app_id:
 pub async fn execution_engine_handle(
     receiver: Arc<Mutex<UnboundedReceiver<Header>>>,
     node_db: Arc<Mutex<NodeDB>>,
-    storage_db: Arc<StorageDb>,
-    mut state_machine: StateMachine<ZKVM, Proof>,
+    mut state_machine: StateMachine<Proof>,
     prover_mode: ProverMode,
     mut shutdown_rx: watch::Receiver<bool>,
     state: Arc<Mutex<VmState>>,
@@ -695,8 +694,7 @@ pub async fn execution_engine_handle(
 #[instrument(level = "debug", skip(node_db, storage_db, state_machine, processed_batch_info))]
 pub async fn save_batch_information<'a>(
     node_db: &Arc<Mutex<NodeDB>>,
-    storage_db: &Arc<StorageDb>,
-    state_machine: &mut StateMachine<ZKVM, Proof>,
+    state_machine: &mut StateMachine<Proof>,
     processed_batch_info: ProcessedBatchInfo<'a>,
 ) -> Result<(), Error> {
     debug!(
@@ -848,8 +846,7 @@ pub fn run_server(
 pub async fn run_nexus(
     relayer_mutex: Arc<Mutex<impl Relayer + Send + 'static>>,
     node_db: Arc<Mutex<NodeDB>>,
-    storage_db: Arc<StorageDb>,
-    mut state_machine: StateMachine<ZKVM, Proof>,
+    mut state_machine: StateMachine<Proof>,
     (prover_mode, server_port): (ProverMode, u32),
     state: Arc<Mutex<VmState>>,
     mut shutdown_rx: watch::Receiver<bool>,

@@ -14,13 +14,13 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, warn};
 
-pub struct StateMachine<Z: ZKVMEnv, P: ZKVMProof + DebugTrait + Clone> {
-    stf: StateTransitionFunction<Z>,
+pub struct StateMachine<P: ZKVMProof + DebugTrait + Clone> {
+    stf: StateTransitionFunction<P>,
     state: Arc<Mutex<VmState>>,
     p: PhantomData<P>, //db: NodeDB,
 }
 
-impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, P> {
+impl<P: ZKVMProof + Serialize + DebugTrait + Clone + std::convert::TryFrom<crate::types::Proof>> StateMachine<P> {
     #[instrument(level = "debug", skip(state))]
     pub fn new(state: Arc<Mutex<VmState>>) -> Self {
         debug!("Creating new StateMachine");
@@ -117,7 +117,7 @@ impl<Z: ZKVMEnv, P: ZKVMProof + Serialize + DebugTrait + Clone> StateMachine<Z, 
 
         let version = prev_version + 1;
 
-        let (stf_state_result, tx_result) = self.stf.execute_batch_with_results(avail_header, old_nexus_headers, &txs, &pre_state)?;
+        let (stf_state_result, tx_result) = self.stf.execute_batch(avail_header, old_nexus_headers, &txs, &pre_state)?;
         let mut state_lock = self.state.lock().await;
 
         let (tree_update_batch, state_update, tx_result): (Option<TreeUpdateBatch>, StateUpdate, HashMap<H256, bool>) =
