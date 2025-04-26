@@ -5,8 +5,9 @@ import {JellyfishMerkleTreeVerifier} from "./lib/JellyfishMerkleTreeVerifier.sol
 import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
 import {JournalExtractor} from "./lib/JournalExtractor.sol";
 import {Structs} from "./lib/Structs.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract NexusProofManager {
+contract NexusProofManager is Ownable {
     uint256 public latestNexusBlockNumber = 0;
     RiscZeroVerifierRouter public immutable risc0Router;
     bytes32 public imageId; // added for the auto-generated contract
@@ -21,14 +22,14 @@ contract NexusProofManager {
     error NexusLeafInclusionCheckFailed();
     error InvalidAvailBridgeRootUpdate(uint256 nexusBlockNumber, bytes32 availHeaderHash);
 
-    constructor(address _risc0Router, bytes32 _imageId) {
+    constructor(address _risc0Router, bytes32 _imageId) Ownable(msg.sender) {
         risc0Router = RiscZeroVerifierRouter(_risc0Router);
         imageId = _imageId;
     }
 
     // nexus state root
     // updated when we verify the zk proof and then st block updated
-    function updateNexusBlock(uint256 blockNumber, bytes calldata _proof, bytes calldata journal) external {
+    function updateNexusBlock(uint256 blockNumber, bytes calldata _proof, bytes calldata journal) external onlyOwner {
         if (nexusHeader[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
         }
@@ -60,7 +61,7 @@ contract NexusProofManager {
         bytes32[] calldata siblings,
         bytes32 key,
         Structs.AccountState calldata accountState
-    ) external {
+    ) external onlyOwner {
         bytes32 valueHash = sha256(
             abi.encode(
                 accountState.statementDigest,
@@ -100,7 +101,7 @@ contract NexusProofManager {
         bytes32 availBlockHash,
         uint256 availBlockNumber,
         bytes32 bridgeRoot
-    ) external {
+    ) external onlyOwner {
         if (nexusHeader[nexusBlockNumber].availHeaderHash != availBlockHash) {
             revert InvalidAvailBridgeRootUpdate(nexusBlockNumber, availBlockHash);
         }
@@ -121,7 +122,7 @@ contract NexusProofManager {
         }
     }
 
-    function updateImageId(bytes32 _imageId) external {
+    function updateImageId(bytes32 _imageId) external onlyOwner {
         imageId = _imageId;
     }
 }

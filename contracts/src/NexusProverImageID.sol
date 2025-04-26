@@ -20,5 +20,5 @@ pragma solidity ^0.8.20;
 
 library ImageID {
     bytes32 public constant NEXUS_RUNTIME_ID =
-        bytes32(0x628827451f211a1f094be1ff20889c0b91aad4863ae6a882309be735d7a68711);
+        bytes32(0x2aaac6d0226094bfd76d1bcdcbb01fc259a793095366b2784c58f1bc3f4ceeb6);
 }

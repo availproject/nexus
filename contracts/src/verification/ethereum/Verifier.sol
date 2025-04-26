@@ -17,7 +17,9 @@ contract EthereumVerifier is StorageProof {
         address account,
         bytes calldata accountTrieProof
     ) external returns (bytes32) {
-        require(chainBlockNumber <= nexusStateManager.nexusAppAddressToLatestBlockNumber(nexusAppID), "Invalid block number");
+        require(
+            chainBlockNumber <= nexusStateManager.nexusAppAddressToLatestBlockNumber(nexusAppID), "Invalid block number"
+        );
         bytes32 stateRoot = nexusStateManager.getChainState(chainBlockNumber, nexusAppID);
         (,,, bytes32 storageRoot) = verifyAccount(stateRoot, accountTrieProof, account);
         return storageRoot;
