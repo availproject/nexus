@@ -203,6 +203,16 @@ impl BlockStatus {
             BlockStatus::ProofGenerationSuccessful => "ProofGenerationSuccessful".into(),
         }
     }
+
+    pub fn from_string(input: String) -> Self {
+        match input.as_str() {
+            "ExecutionCompleted" => BlockStatus::ExecutionCompleted,
+            "ProofGenerationInProgress" => BlockStatus::ProofGenerationInProgress,
+            "ProofGenerationFailed" => BlockStatus::ProofGenerationFailed,
+            "ProofGenerationSuccessful" => BlockStatus::ProofGenerationSuccessful,
+            _ => panic!("Unknown block status: {}", input),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -222,6 +232,17 @@ pub struct NexusBlockWithPointers {
     pub jmt_version: u64,
     pub zkvm_inputs: NexusZKVMInputs,
     pub block_status: BlockStatus,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NexusBlockWithPointersDbResponse {
+    pub block_hash: Vec<u8>,
+    pub block_number: i64,
+    pub block: String,
+    pub jmt_version: i64,
+    pub zkvm_inputs: Vec<u8>,
+    pub block_status: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

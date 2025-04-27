@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 
 use crate::traits::NexusTransaction;
+use crate::types::BlockStatus;
 use crate::types::NexusBlockWithPointers;
+use crate::types::NexusBlockWithPointersDbResponse;
 use crate::types::TransactionWithStatus;
 use crate::types::H256;
 use anyhow::{anyhow, Error};
 use rocksdb::{Options, WriteBatchWithTransaction, DB};
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::to_string;
 use serde_json::{from_slice, to_vec};
+use serde_json::{from_str, to_string};
 use sqlx::{migrate::Migrator, postgres::PgPoolOptions, PgPool};
 use tracing::{debug, error, info, instrument, span, Level};
 
@@ -161,11 +163,10 @@ impl SharedDB {
         Ok(Self { db: pool })
     }
 
-    pub async fn get_latest_proven_block(&self) -> anyhow::Result<u64> {
-        let res = sqlx::query_as!(
-            NexusBlockWithPointers,
+    pub async fn get_latest_proven_block(&self) -> anyhow::Result<Option<i64>> {
+        let block_number = sqlx::query_scalar!(
             r#"
-            SELECT * FROM nexus_blocks
+            SELECT block_number FROM nexus_blocks
             WHERE block_status = $1
             ORDER BY block_number DESC
             LIMIT 1
@@ -173,8 +174,9 @@ impl SharedDB {
             BlockStatus::ProofGenerationSuccessful.to_string()
         )
         .fetch_optional(&self.db)
-        .await;
-        Ok(res)
+        .await?;
+
+        Ok(block_number)
     }
 
     pub async fn insert_nexus_block_with_pointers(&self, data: &NexusBlockWithPointers) -> anyhow::Result<()> {
@@ -213,6 +215,51 @@ impl SharedDB {
         .execute(&self.db)
         .await?;
 
+        Ok(())
+    }
+
+    pub async fn get_block_with_number(&self, block_number: u64) -> anyhow::Result<Option<NexusBlockWithPointers>> {
+        let block = sqlx::query_as!(
+            NexusBlockWithPointersDbResponse,
+            r#"
+            SELECT 
+                block_hash, 
+                block_number, 
+                block, 
+                jmt_version, 
+                zkvm_inputs, 
+                block_status
+            FROM nexus_blocks
+            WHERE block_number = $1
+            "#,
+            block_number as i64
+        )
+        .fetch_optional(&self.db)
+        .await?;
+
+        match block {
+            Some(block) => Ok(Some(NexusBlockWithPointers {
+                block: from_str(&block.block)?,
+                jmt_version: block.jmt_version as u64,
+                zkvm_inputs: bincode::deserialize(&block.zkvm_inputs)?,
+                block_status: BlockStatus::from_string(block.block_status),
+            })),
+            None => Ok(None),
+        }
+    }
+
+    pub async fn update_block_status(&self, block_number: u64, new_status: BlockStatus) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"
+            UPDATE nexus_blocks
+            SET block_status = $1
+            WHERE block_number = $2
+            "#,
+            new_status.to_string(),
+            block_number as i64
+        )
+        .execute(&self.db)
+        .await?;
         Ok(())
     }
 }

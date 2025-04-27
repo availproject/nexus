@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT block_number FROM nexus_blocks\n            WHERE block_status = $1\n            ORDER BY block_number DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "block_number",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d0bfb85bd7034590d452af084ada1a9cbbdf9b3c91d8d63f58b6f384a376992f"
+}

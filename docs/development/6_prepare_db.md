@@ -16,7 +16,7 @@ export DATABASE_URL=postgres://user:password@localhost:5432/db_name
 
 # 2. Run migration script
 
-cd host/
+cd core/
 sqlx migrate run
 
 # 3. Prepare offline mode builds when database is not available
