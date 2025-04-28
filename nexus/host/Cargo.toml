@@ -9,7 +9,7 @@ avail-subxt = { git = "https://github.com/availproject/avail.git", tag = "v1.11.
     "std",
 ] }
 prover = { path = "../prover", optional = true }
-risc0-zkvm = { version = "1.2.0", default-features = false, optional = true }
+risc0-zkvm = { version = "2.0.0", default-features = false, optional = true }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3", features = [ "env-filter", "time" ] }
 serde = "1.0"

@@ -97,7 +97,8 @@ pub struct RiscZeroProof(pub Receipt);
 #[cfg(any(feature = "native-risc0"))]
 impl ZKVMProof for RiscZeroProof {
     fn public_inputs<V: serde::Serialize + serde::de::DeserializeOwned + Clone>(&mut self) -> Result<V, anyhow::Error> {
-        bincode::deserialize(&self.0.journal.bytes).map_err(|e| anyhow!(e))
+        let inputs: V = self.0.journal.decode()?;
+        Ok(inputs)
     }
 
     fn verify(&self, img_id: Option<[u8; 32]>, elf: Option<Vec<u8>>) -> Result<(), anyhow::Error> {
