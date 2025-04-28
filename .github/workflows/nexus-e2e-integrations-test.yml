@@ -51,7 +51,6 @@ jobs:
           echo "${HOME}/.risc0/bin" >> $GITHUB_PATH
           # Need to install for specific version next.
           ${HOME}/.risc0/bin/rzup install
-          ${HOME}/.risc0/bin/rzup install cargo-risczero 1.2.0
 
 #TODO: Run a local avail devnet once there is an infinity devnet release. Currently we use a deployment for the tests.
       - name: Build binaries
@@ -60,6 +59,22 @@ jobs:
             cargo build --bin node --no-default-features --features "risc0"
             cd ../../examples/mock_geth_adapter/host
             cargo build
+
+      - name: Setup Database
+        run: |
+            docker run --name my-postgres \
+              -e POSTGRES_USER=user \
+              -e POSTGRES_PASSWORD=password \
+              -e POSTGRES_DB=db_name \
+              -p 5432:5432 \
+              -d postgres:17
+
+            export DATABASE_URL=postgres://user:password@localhost:5432/db_name
+
+            cd core
+            cargo install sqlx-cli --no-default-features --features native-tls,postgres
+            sqlx migrate run
+            cargo sqlx prepare -- --lib --features native
 
       - name: Run integration tests
         run: |

@@ -390,6 +390,7 @@ async fn get_state(
         proof: siblings.clone(),
         value_hash: value_hash.clone(),
         account_encoded: hex::encode(account.encode()),
+        //TODO: replace with queried header if block_hash is provided.
         nexus_header: match header_store.first() {
             Some(i) => i.clone(),
             None => {

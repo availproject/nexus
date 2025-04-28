@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                block_hash, \n                block_number, \n                block, \n                jmt_version, \n                zkvm_inputs, \n                block_status\n            FROM nexus_blocks\n            WHERE block_number = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "block_hash",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 1,
+        "name": "block_number",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "block",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "jmt_version",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "zkvm_inputs",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 5,
+        "name": "block_status",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "10cb8c77f0b081fae8b0da003776fef6850b58ae6e3fc7e2630b2ff6c4c2ef07"
+}
