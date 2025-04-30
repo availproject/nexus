@@ -170,9 +170,9 @@ pub async fn sequencer_handle(mempool: Mempool, mut shutdown_rx: watch::Receiver
     }
 }
 
-#[instrument(level = "info", skip(node_db_mutex, shutdown_rx))]
+#[instrument(level = "info", skip(shared_db, shutdown_rx))]
 pub async fn prover_handle(
-    node_db_mutex: Arc<Mutex<NodeDB>>,
+    shared_db: Arc<SharedDB>,
     mut shutdown_rx: watch::Receiver<bool>,
     start_block: u32,
     prover_mode: ProverMode,
@@ -190,36 +190,33 @@ pub async fn prover_handle(
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         let (mut block_with_info, nexus_hash): (NexusBlockWithPointers, H256) = {
-            let mut node_db = node_db_mutex.lock().await;
-
-            let nexus_hash = match node_db.get::<H256>(&[block_to_prove.to_be_bytes().as_slice(), b"-block"].concat()) {
-                Ok(Some(i)) => i,
+            match shared_db.get_block_with_number(block_to_prove as u64).await {
+                Ok(Some(block)) => {
+                    let nexus_hash = block.block.header.hash();
+                    (block, nexus_hash)
+                }
                 Ok(None) => {
                     error!("Block {} not found retrying in sometime.", block_to_prove);
-
-                    continue;
-                }
-                Err(e) => {
-                    error!(error = ?e, "Error getting block hash for block number {}", block_to_prove);
-
-                    continue;
-                }
-            };
-
-            match node_db.get::<NexusBlockWithPointers>(&[nexus_hash.as_slice(), b"-block"].concat()) {
-                Ok(Some(i)) => (i, nexus_hash),
-                Ok(None) => {
-                    error!("Block {} not found retrying in sometime.", block_to_prove);
-
                     continue;
                 }
                 Err(e) => {
                     error!(error = ?e, "Error getting block details for block number {}", block_to_prove);
-
                     continue;
                 }
             }
         };
+
+        let block_prove_status = get_block_prove_status(&shared_db, block_to_prove as u64).await;
+
+        if block_prove_status == BlockStatus::ProofGenerationSuccessful {
+            info!(
+                "Block number {:?} already proved. Skipping.....",
+                block_to_prove
+            );
+            continue;
+        }
+
+        info!("Proving Block : {:?}", block_to_prove);
 
         let proof_result = match prove_batch::<Prover, Proof, ZKVM>(
             block_with_info.zkvm_inputs.clone(),
@@ -241,24 +238,59 @@ pub async fn prover_handle(
                 None
             }
         };
-        let node_db = node_db_mutex.lock().await;
 
         if proof_result.is_some() {
-            node_db.put(
-                &[nexus_hash.as_slice(), b"-proof"].concat(),
-                &proof_result.unwrap(),
-            )?;
+            // TODO : check if we need to store this actually. As it is not feched anywhere rn.
+            // node_db.put(
+            //     &[nexus_hash.as_slice(), b"-proof"].concat(),
+            //     &proof_result.unwrap(),
+            // )?;
+
+            // Updating only when proof result is successful.
+            // Updating the block status in shared DB to ProofGenerationSuccessful.
+            shared_db
+                .update_block_status(
+                    block_to_prove as u64,
+                    BlockStatus::ProofGenerationSuccessful,
+                )
+                .await?;
 
             block_to_prove += 1;
         }
-
-        node_db.put(
-            &[nexus_hash.as_slice(), b"-block"].concat(),
-            &block_with_info,
-        )?;
     }
 
     Ok(())
+}
+
+const MAX_RETRIES: u32 = 2;
+const RETRY_DELAY_SECS: u64 = 5;
+
+async fn get_block_prove_status(shared_db: &Arc<SharedDB>, block_number: u64) -> BlockStatus {
+    let mut retries = 0;
+    loop {
+        match shared_db
+            .get_block_with_number(block_number)
+            .await
+            .expect("Unable to fetch block. Some DB error.")
+        {
+            Some(block) => {
+                return block.block_status;
+            }
+            None => {
+                if retries == MAX_RETRIES {
+                    info!("Max retries reached, returning default block status");
+                    return BlockStatus::ExecutionCompleted;
+                }
+                error!(
+                    "Didn't found any block with number : {:?}. Retrying.....",
+                    block_number
+                );
+                retries += 1;
+                continue;
+            }
+        }
+        sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
+    }
 }
 
 #[instrument(level = "info", skip(relayer_mutex, node_db_mutex, shutdown_rx))]
@@ -813,11 +845,12 @@ pub struct ProcessedBatchInfo<'a> {
 pub fn run_server(
     mempool: Mempool,
     node_db: Arc<Mutex<NodeDB>>,
+    shared_db: Arc<SharedDB>,
     state: Arc<Mutex<VmState>>,
     mut shutdown_rx: watch::Receiver<bool>,
     port: u32,
 ) -> tokio::task::JoinHandle<()> {
-    let routes = routes(mempool, node_db, state.clone());
+    let routes = routes(mempool, node_db, shared_db, state.clone());
     let cors = warp::cors()
         .allow_any_origin()
         .allow_methods(vec!["POST"])
@@ -877,7 +910,14 @@ pub async fn run_nexus(
     let mempool = Mempool::new(node_db.clone());
     let mempool_clone = mempool.clone();
 
-    let server_handle = run_server(mempool, db_clone, state, shutdown_rx, server_port);
+    let server_handle = run_server(
+        mempool,
+        db_clone,
+        shared_db.clone(),
+        state,
+        shutdown_rx,
+        server_port,
+    );
     let relayer_handle = tokio::spawn(async move {
         relayer_handle(
             relayer_mutex,

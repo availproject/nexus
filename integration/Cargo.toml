@@ -12,3 +12,4 @@ adapter_sdk  = { path = "../adapter_sdk", features = [ "native-risc0" ] }
 geth-methods = { path = "../examples/mock_geth_adapter/methods" }
 hex          = "0.4.3"
 avail-rust   = { git = "https://github.com/availproject/avail-rust.git", branch = "toufeeq/scalable-da-2" }
+mock_elf     = { path = "../mock_elf" }
