@@ -152,6 +152,17 @@ pub enum TransactionStatus {
 }
 
 #[cfg(any(feature = "native"))]
+impl TransactionStatus {
+    pub fn to_string(&self) -> String {
+        match self {
+            TransactionStatus::InPool => "InPool".into(),
+            TransactionStatus::Failed => "Failed".into(),
+            TransactionStatus::Successful => "Successful".into(),
+        }
+    }
+}
+
+#[cfg(any(feature = "native"))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 pub struct NexusBlockWithTransactions {
     pub transactions: Vec<TransactionWithStatus>,
@@ -182,6 +193,28 @@ pub enum BlockStatus {
     ProofGenerationSuccessful,
 }
 
+#[cfg(any(feature = "native"))]
+impl BlockStatus {
+    pub fn to_string(&self) -> String {
+        match self {
+            BlockStatus::ExecutionCompleted => "ExecutionCompleted".into(),
+            BlockStatus::ProofGenerationInProgress => "ProofGenerationInProgress".into(),
+            BlockStatus::ProofGenerationFailed => "ProofGenerationFailed".into(),
+            BlockStatus::ProofGenerationSuccessful => "ProofGenerationSuccessful".into(),
+        }
+    }
+
+    pub fn from_string(input: String) -> Self {
+        match input.as_str() {
+            "ExecutionCompleted" => BlockStatus::ExecutionCompleted,
+            "ProofGenerationInProgress" => BlockStatus::ProofGenerationInProgress,
+            "ProofGenerationFailed" => BlockStatus::ProofGenerationFailed,
+            "ProofGenerationSuccessful" => BlockStatus::ProofGenerationSuccessful,
+            _ => panic!("Unknown block status: {}", input),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NexusZKVMInputs {
     pub blobs: Vec<Blob>,
@@ -199,6 +232,17 @@ pub struct NexusBlockWithPointers {
     pub jmt_version: u64,
     pub zkvm_inputs: NexusZKVMInputs,
     pub block_status: BlockStatus,
+}
+
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NexusBlockWithPointersDbResponse {
+    pub block_hash: Vec<u8>,
+    pub block_number: i64,
+    pub block: String,
+    pub jmt_version: i64,
+    pub zkvm_inputs: Vec<u8>,
+    pub block_status: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

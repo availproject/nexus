@@ -196,7 +196,8 @@ async fn main() -> Result<(), Error> {
 
                     // println!(">>> public inputs : {:?}", hex::encode(prove_info.receipt.clone().journal.bytes));
                     // println!(">>> proof : {:?}", hex::encode(encode_seal(&prove_info.receipt).unwrap()));
-
+                    // let decoded_journal: NexusRollupPI = prove_info.receipt.journal.decode()?;
+                    // println!(">>> journal : {:?}", decoded_journal);
                     let recursive_proof = RiscZeroProof(prove_info.receipt);
 
                     let tx = Transaction {

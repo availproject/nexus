@@ -12,10 +12,12 @@ use anyhow::anyhow;
 use jmt::{KeyHash, RootHash};
 use kzg::verify_row_kzg;
 
+#[cfg(not(feature = "native"))]
 pub struct ZKVMStateMachine<Z: ZKVMEnv> {
     stf: StateTransitionFunction<Z>,
 }
 
+#[cfg(not(feature = "native"))]
 impl<Z: ZKVMEnv> ZKVMStateMachine<Z> {
     pub fn new() -> Self {
         Self { stf: StateTransitionFunction::new() }

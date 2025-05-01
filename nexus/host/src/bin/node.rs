@@ -1,6 +1,6 @@
 use avail_rust::SDK;
 pub use avail_subxt::Header;
-use nexus_core::{state_machine::StateMachine, zkvm::ProverMode};
+use nexus_core::{db::SharedDB, state_machine::StateMachine, zkvm::ProverMode};
 
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     print_animated_logo(&prover_mode);
 
     let (node_db, state) = setup_components("./db");
-    let mut state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
+    let mut state_machine = StateMachine::<Proof>::new(state.clone());
 
     let avail_rpc = args
         .clone()
@@ -52,6 +52,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .find(|arg| arg.starts_with("--avail-rpc="))
         .map(|arg| arg.trim_start_matches("--avail-rpc="))
         .unwrap_or("wss://zero-devnet.avail.so:443/ws")
+        .to_string();
+    let postgres_database_url = args
+        .clone()
+        .iter()
+        .find(|arg| arg.starts_with("--database-url="))
+        .map(|arg| arg.trim_start_matches("--database-url="))
+        .unwrap_or("postgres://user:password@localhost:5432/db_name")
         .to_string();
     let avail_start_block: u32 = args
         .iter()
@@ -65,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .find(|arg| arg.starts_with("--app-id="))
         .map(|arg| arg.trim_start_matches("--app-id="))
-        .unwrap_or("wss://zero-devnet.avail.so:443/ws")
+        .unwrap_or("10")
         .to_string()
         .parse()?;
     let port = args
@@ -97,12 +104,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         });
 
+        let shared_db = SharedDB::init(postgres_database_url).await.expect("Failed to init database.");
+
         // Spawn the main Nexus logic
         info!("Starting execution engine");
         let nexus_task = tokio::spawn(async move {
             run_nexus(
                 relayer_mutex,
                 node_db,
+                Arc::new(shared_db),
                 state_machine,
                 (prover_mode, port),
                 state,
@@ -113,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 1,
                 avail_start_block,
             )
-            .await;
+            .await
         });
 
         // Wait for both tasks to complete
