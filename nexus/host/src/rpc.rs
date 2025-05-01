@@ -239,6 +239,7 @@ async fn get_block(
         }
     };
 
+    // TODO : improve the logic here. There are multiple calls going through the DBs.
     let block = match shared_db.get_block_with_number(nexus_block_number as u64).await {
         Ok(Some(b)) => b,
         Ok(None) => {

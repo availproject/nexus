@@ -110,6 +110,7 @@ async fn main() -> Result<(), Error> {
                         signature: TxSignature([0u8; 64]),
                         params: TxParams::InitAccount(InitAccount {
                             app_id: app_account_id.clone(),
+                            // Okay to use MOCK_GUEST_RISC0_ID as this adapter is only meant to be used in mock environments.
                             statement: StatementDigest(mock_elf::MOCK_GUEST_RISC0_ID),
                             start_nexus_hash: range[0],
                         }),

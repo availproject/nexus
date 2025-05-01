@@ -38,7 +38,7 @@ use serde_json;
 use sp_runtime::MultiSigner;
 use std::{collections::HashMap, mem, thread};
 use tokio::fs;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
@@ -206,9 +206,7 @@ pub async fn prover_handle(
             }
         };
 
-        let block_prove_status = get_block_prove_status(&shared_db, block_to_prove as u64).await;
-
-        if block_prove_status == BlockStatus::ProofGenerationSuccessful {
+        if block_with_info.block_status == BlockStatus::ProofGenerationSuccessful {
             info!(
                 "Block number {:?} already proved. Skipping.....",
                 block_to_prove
@@ -265,31 +263,28 @@ pub async fn prover_handle(
 const MAX_RETRIES: u32 = 2;
 const RETRY_DELAY_SECS: u64 = 5;
 
-async fn get_block_prove_status(shared_db: &Arc<SharedDB>, block_number: u64) -> BlockStatus {
+pub async fn get_latest_proven_block(shared_db: &Arc<SharedDB>) -> u64 {
     let mut retries = 0;
     loop {
         match shared_db
-            .get_block_with_number(block_number)
+            .get_latest_proven_block()
             .await
-            .expect("Unable to fetch block. Some DB error.")
+            .expect("Unable to fetch latest proven block. Some DB error.")
         {
             Some(block) => {
-                return block.block_status;
+                return (block + 1).try_into().unwrap();
             }
             None => {
                 if retries == MAX_RETRIES {
-                    info!("Max retries reached, returning default block status");
-                    return BlockStatus::ExecutionCompleted;
+                    info!("Max retries reached. Starting Proving from block 0");
+                    return 0;
                 }
-                error!(
-                    "Didn't found any block with number : {:?}. Retrying.....",
-                    block_number
-                );
+                sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
+                warn!("Didn't found any last proven block. Retrying.....");
                 retries += 1;
                 continue;
             }
         }
-        sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
     }
 }
 

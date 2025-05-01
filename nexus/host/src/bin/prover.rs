@@ -1,16 +1,12 @@
-use host::prover_handle;
+use host::{get_latest_proven_block, prover_handle};
 use nexus_core::db::SharedDB;
 use nexus_core::zkvm::ProverMode;
+use std::env::args;
 use std::sync::Arc;
-use std::{env::args, time::Duration};
 use tokio::sync::watch;
-use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use tracing_subscriber::fmt;
 use tracing_subscriber::EnvFilter;
-
-const MAX_RETRIES: u32 = 2;
-const RETRY_DELAY_SECS: u64 = 5;
 
 fn main() -> anyhow::Result<()> {
     // Initialize tracing subscriber
@@ -81,29 +77,4 @@ fn main() -> anyhow::Result<()> {
 
     info!("Prover stopped.");
     Ok(())
-}
-
-async fn get_latest_proven_block(shared_db: &Arc<SharedDB>) -> u64 {
-    let mut retries = 0;
-    loop {
-        sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
-        match shared_db
-            .get_latest_proven_block()
-            .await
-            .expect("Unable to fetch latest proven block. Some DB error.")
-        {
-            Some(block) => {
-                return (block + 1).try_into().unwrap();
-            }
-            None => {
-                if retries == MAX_RETRIES {
-                    info!("Max retries reached. Starting Proving from block 0");
-                    return 0;
-                }
-                warn!("Didn't found any last proven block. Retrying.....");
-                retries += 1;
-                continue;
-            }
-        }
-    }
 }
