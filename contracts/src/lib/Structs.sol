@@ -22,7 +22,7 @@ library Structs {
         bytes32 rollupHash;
     }
 
-    struct AccountState {
+    struct AppState {
         bytes32 statementDigest;
         bytes32 stateRoot;
         bytes32 startNexusHash;

@@ -15,7 +15,7 @@ contract NexusProofManager is Ownable {
     mapping(uint256 => Structs.NexusHeader) public nexusHeader;
     mapping(bytes32 => uint256) public nexusAppAddressToLatestBlockNumber;
     mapping(bytes32 => mapping(uint256 => bytes32)) public nexusAppAddressToState;
-    mapping(bytes32 => uint256) public availBridgeRootToAvailHeight;
+    mapping(uint256 => bytes32) public availHeightToAvailBridgeRoot;
 
     error AlreadyUpdatedBlock(uint256 blockNumber);
     error InvalidBlockNumber(uint256 blockNumber, uint256 latestBlockNumber);
@@ -59,31 +59,31 @@ contract NexusProofManager is Ownable {
     function updateChainState(
         uint256 nexusBlockNumber,
         bytes32[] calldata siblings,
-        bytes32 key,
-        Structs.AccountState calldata accountState
+        bytes32 appAddress,
+        Structs.AppState calldata appState
     ) external onlyOwner {
         bytes32 valueHash = sha256(
             abi.encode(
-                accountState.statementDigest,
-                accountState.stateRoot,
-                accountState.startNexusHash,
-                accountState.lastProofHeight,
-                accountState.height
+                appState.statementDigest,
+                appState.stateRoot,
+                appState.startNexusHash,
+                appState.lastProofHeight,
+                appState.height
             )
         );
         JellyfishMerkleTreeVerifier.Leaf memory leaf =
-            JellyfishMerkleTreeVerifier.Leaf({addr: key, valueHash: valueHash});
+            JellyfishMerkleTreeVerifier.Leaf({addr: appAddress, valueHash: valueHash});
 
         JellyfishMerkleTreeVerifier.Proof memory proof =
             JellyfishMerkleTreeVerifier.Proof({leaf: leaf, siblings: siblings});
 
         verifyRollupState(nexusHeader[nexusBlockNumber].stateRoot, proof, leaf);
 
-        if (nexusAppAddressToLatestBlockNumber[key] < accountState.height) {
-            nexusAppAddressToLatestBlockNumber[key] = accountState.height;
+        if (nexusAppAddressToLatestBlockNumber[appAddress] < appState.height) {
+            nexusAppAddressToLatestBlockNumber[appAddress] = appState.height;
         }
 
-        nexusAppAddressToState[key][accountState.height] = accountState.stateRoot;
+        nexusAppAddressToState[appAddress][appState.height] = appState.stateRoot;
     }
 
     function verifyRollupState(
@@ -107,10 +107,13 @@ contract NexusProofManager is Ownable {
         }
         // TODO : include a verification check after finalization
         // ! Do not use this code in production.
-        availBridgeRootToAvailHeight[bridgeRoot] = availBlockNumber;
+        availHeightToAvailBridgeRoot[availBlockNumber] = bridgeRoot;
     }
 
     function getChainState(uint256 blockNumber, bytes32 nexusAppAddress) external view returns (bytes32) {
+        if (nexusAppAddress == 0x0) {
+            return availHeightToAvailBridgeRoot[blockNumber];
+        }
         uint256 latestBlockNumber = nexusAppAddressToLatestBlockNumber[nexusAppAddress];
         if (blockNumber == 0) {
             return nexusAppAddressToState[nexusAppAddress][latestBlockNumber];

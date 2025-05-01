@@ -52,7 +52,7 @@ contract ZKSyncTest is Test, RiscZeroCheats {
     function testStorageProof() public {
         proofManager.updateNexusBlock(blockNumber, proof, journal);
         bytes32[] memory siblings;
-        Structs.AccountState memory state = Structs.AccountState(
+        Structs.AppState memory state = Structs.AppState(
             0xa01ae135624bda83c2804af67e0931b7069bcf5d9c68a90833460bd17acc6dd5,
             0x0000000000000000000000000000000000000000000000000000000000000000,
             0x30c23598430f6c4eb3d583a394240b281936dfc243e2417b4e8c9017a9679c56,
