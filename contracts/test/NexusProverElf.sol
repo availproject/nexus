@@ -20,5 +20,5 @@ pragma solidity ^0.8.20;
 
 library Elf {
     string public constant NEXUS_RUNTIME_PATH =
-        "/Users/ocdbytes/Desktop/Avail/playground/nexus/target/riscv-guest/prover/nexus_runtime/riscv32im-risc0-zkvm-elf/release/nexus_runtime.bin";
+        "/Users/ocdbytes/Desktop/Avail/nexus/target/riscv-guest/prover/nexus_runtime/riscv32im-risc0-zkvm-elf/release/nexus_runtime.bin";
 }
