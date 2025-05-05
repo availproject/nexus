@@ -14,4 +14,5 @@ fn main() {
 
     println!("Bytes read: {:?}", &bytes);
     env::commit_slice(&bytes);
+    // println!(">>> cycle count :{:?}", env::cycle_count());
 }
