@@ -14,6 +14,7 @@ import {VerifierInfo} from "../src/interfaces/INexusMailbox.sol";
 import {INexusVerifierWrapper} from "../src/interfaces/INexusVerifierWrapper.sol";
 import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
 import {ImageID} from "../src/NexusProverImageID.sol";
+import {IVectorx} from "../src/interfaces/IVectorx.sol";
 
 contract NexusDeployment is Script {
     struct NetworkConfig {
@@ -55,8 +56,12 @@ contract NexusDeployment is Script {
         RiscZeroVerifierRouter risc0Router = new RiscZeroVerifierRouter(msg.sender);
         // TODO : add logic for adding the verifier to the router.
 
+        // TODO : need to change this with actual implementation when writing tests
+        IVectorx vectorX = IVectorx(msg.sender);
+
         // Deploy NexusProofManager
-        NexusProofManager nexusManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID);
+        NexusProofManager nexusManager =
+            new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID, address(vectorX));
         console.log("NexusProofManager deployed to: ", address(nexusManager));
 
         // Deploy and initialize NexusMailbox

@@ -10,6 +10,7 @@ import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
 import {IRiscZeroVerifier} from "risc0/IRiscZeroVerifier.sol";
 import {RiscZeroCheats} from "risc0/test/RiscZeroCheats.sol";
 import {ImageID} from "../src/NexusProverImageID.sol";
+import {IVectorx} from "../src/interfaces/IVectorx.sol";
 
 contract EthereumVerifierTest is Test, RiscZeroCheats {
     NexusProofManager proofManager;
@@ -17,6 +18,7 @@ contract EthereumVerifierTest is Test, RiscZeroCheats {
     EthereumVerifier verifier;
     RiscZeroVerifierRouter risc0Router;
     IRiscZeroVerifier risc0Verifier;
+    IVectorx vectorX;
 
     bytes32[] dynamicPath;
 
@@ -38,9 +40,13 @@ contract EthereumVerifierTest is Test, RiscZeroCheats {
         erc20 = new ERC20Token("Avail", "Avail");
         risc0Verifier = deployRiscZeroVerifier();
         risc0Router = new RiscZeroVerifierRouter(msg.sender);
+
+        // TODO : need to change this with actual implementation when writing tests
+        vectorX = IVectorx(msg.sender);
+
         vm.prank(msg.sender);
         risc0Router.addVerifier(bytes4(0), risc0Verifier);
-        proofManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID);
+        proofManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID, address(vectorX));
         verifier = new EthereumVerifier(INexusProofManager(address(proofManager)));
     }
 

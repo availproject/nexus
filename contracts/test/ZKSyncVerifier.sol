@@ -15,6 +15,7 @@ import "../src/verification/zksync/ZKSyncNexusManagerRouter.sol";
 import {RiscZeroCheats} from "risc0/test/RiscZeroCheats.sol";
 import {IRiscZeroVerifier} from "risc0/IRiscZeroVerifier.sol";
 import {ImageID} from "../src/NexusProverImageID.sol";
+import {IVectorx} from "../src/interfaces/IVectorx.sol";
 
 contract ZKSyncTest is Test, RiscZeroCheats {
     NexusProofManager proofManager;
@@ -22,6 +23,7 @@ contract ZKSyncTest is Test, RiscZeroCheats {
     StorageProofMock verifier;
     RiscZeroVerifierRouter risc0Router;
     IRiscZeroVerifier risc0Verifier;
+    IVectorx vectorX;
 
     uint256 blockNumber = 121249;
     bytes32 appid = 0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
@@ -38,10 +40,14 @@ contract ZKSyncTest is Test, RiscZeroCheats {
         erc20 = new ERC20Token("Avail", "Avail");
 
         risc0Verifier = deployRiscZeroVerifier();
+
+        // TODO : need to change this with actual implementation when writing tests
+        vectorX = IVectorx(msg.sender);
+
         risc0Router = new RiscZeroVerifierRouter(msg.sender);
         vm.prank(msg.sender);
         risc0Router.addVerifier(bytes4(0), risc0Verifier);
-        proofManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID);
+        proofManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID, address(vectorX));
 
         SparseMerkleTree smt = new SparseMerkleTree();
         ZKSyncNexusManagerRouter zksyncDiamond =

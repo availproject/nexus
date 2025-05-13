@@ -6,11 +6,16 @@ import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
 import {JournalExtractor} from "./lib/JournalExtractor.sol";
 import {Structs} from "./lib/Structs.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IVectorx} from "./interfaces/IVectorx.sol";
+import {Merkle} from "./verification/merkle/Merkle.sol";
 
 contract NexusProofManager is Ownable {
     uint256 public latestNexusBlockNumber = 0;
     RiscZeroVerifierRouter public immutable risc0Router;
     bytes32 public imageId; // added for the auto-generated contract
+    IVectorx public vectorX;
+
+    using Merkle for bytes32[];
 
     mapping(uint256 => Structs.NexusHeader) public nexusHeader;
     mapping(bytes32 => uint256) public nexusAppAddressToLatestBlockNumber;
@@ -21,10 +26,13 @@ contract NexusProofManager is Ownable {
     error InvalidBlockNumber(uint256 blockNumber, uint256 latestBlockNumber);
     error NexusLeafInclusionCheckFailed();
     error InvalidAvailBridgeRootUpdate(uint256 nexusBlockNumber, bytes32 availHeaderHash);
+    error DataRootCommitmentEmpty();
+    error InvalidDataRootProof();
 
-    constructor(address _risc0Router, bytes32 _imageId) Ownable(msg.sender) {
+    constructor(address _risc0Router, bytes32 _imageId, address _vectorX) Ownable(msg.sender) {
         risc0Router = RiscZeroVerifierRouter(_risc0Router);
         imageId = _imageId;
+        vectorX = IVectorx(_vectorX);
     }
 
     // nexus state root
@@ -100,14 +108,29 @@ contract NexusProofManager is Ownable {
         uint256 nexusBlockNumber,
         bytes32 availBlockHash,
         uint256 availBlockNumber,
-        bytes32 bridgeRoot
+        Structs.AvailBridgeRootVerificationParams calldata availBridgeRootVerificationParams
     ) external onlyOwner {
         if (nexusHeader[nexusBlockNumber].availHeaderHash != availBlockHash) {
             revert InvalidAvailBridgeRootUpdate(nexusBlockNumber, availBlockHash);
         }
-        // TODO : include a verification check after finalization
-        // ! Do not use this code in production.
-        availHeightToAvailBridgeRoot[availBlockNumber] = bridgeRoot;
+
+        bytes32 dataRootCommitment = vectorX.dataRootCommitments(availBridgeRootVerificationParams.rangeHash);
+        if (dataRootCommitment == 0x0) {
+            revert DataRootCommitmentEmpty();
+        }
+        if (
+            !availBridgeRootVerificationParams.dataRootProof.verifySha2(
+                dataRootCommitment,
+                availBridgeRootVerificationParams.dataRootIndex,
+                keccak256(
+                    abi.encode(availBridgeRootVerificationParams.blobRoot, availBridgeRootVerificationParams.bridgeRoot)
+                )
+            )
+        ) {
+            revert InvalidDataRootProof();
+        }
+
+        availHeightToAvailBridgeRoot[availBlockNumber] = availBridgeRootVerificationParams.bridgeRoot;
     }
 
     function getChainState(uint256 blockNumber, bytes32 nexusAppAddress) external view returns (bytes32) {

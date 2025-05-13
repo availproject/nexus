@@ -29,4 +29,12 @@ library Structs {
         uint128 lastProofHeight;
         uint128 height;
     }
+
+    struct AvailBridgeRootVerificationParams {
+        bytes32 bridgeRoot;
+        uint256 dataRootIndex;
+        bytes32 blobRoot;
+        bytes32 rangeHash;
+        bytes32[] dataRootProof;
+    }
 }
