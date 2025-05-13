@@ -81,6 +81,34 @@ pub async fn run_nexus_client(avail_rpc_url: &str, start_block: u32, port: u32) 
     Ok(managed_process)
 }
 
+pub async fn run_nexus_prover() -> anyhow::Result<ManagedProcess> {
+    let target_binary = "../target/debug/prover";
+
+    // Check if we are in the directory
+    if !Path::new(&target_binary).is_file() {
+        return Err(anyhow!(
+            "binary not found: {}, run cargo build for nexus client",
+            target_binary
+        ));
+    }
+
+    let mut command = Command::new(target_binary);
+
+    // Running nexus in dev mode
+    command.env("RUST_LOG", "info");
+    command.env("RISC0_DEV_MODE", "1");
+    command.args(&["--dev"]);
+
+    let child = command.spawn()?;
+    println!("Prover client started with PID: {}", child.id());
+
+    let managed_process = ManagedProcess::new(child);
+
+    sleep(Duration::from_secs(10)).await;
+
+    Ok(managed_process)
+}
+
 pub async fn run_mock_geth_adapter_once(ethereum_rpc_url: &str, nexus_api_url: &str) -> anyhow::Result<ManagedProcess> {
     let target_binary = "../target/debug/geth-adapter-host";
 

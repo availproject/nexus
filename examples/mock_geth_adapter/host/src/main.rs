@@ -4,13 +4,12 @@ use geth_methods::{ADAPTER_ELF, ADAPTER_ID};
 use nexus_core::db::NodeDB;
 use nexus_core::traits::NexusTransaction;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, Proof, StatementDigest, SubmitProof, Transaction,
-    TransactionStatus, TxParams, TxSignature, H256,
+    AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, StatementDigest, SubmitProof, Transaction, TransactionStatus,
+    TxParams, TxSignature, H256,
 };
-use nexus_core::zkvm::risczero::RiscZeroProof;
+use nexus_core::zkvm::risczero::RiscZeroProver;
+use nexus_core::zkvm::traits::ZKVMProver;
 use nexus_core::zkvm::ProverMode;
-use risc0_zkvm::serde::to_vec;
-use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::env::args;
 use std::time::Duration;
@@ -111,7 +110,8 @@ async fn main() -> Result<(), Error> {
                         signature: TxSignature([0u8; 64]),
                         params: TxParams::InitAccount(InitAccount {
                             app_id: app_account_id.clone(),
-                            statement: StatementDigest(ADAPTER_ID),
+                            // Okay to use MOCK_GUEST_RISC0_ID as this adapter is only meant to be used in mock environments.
+                            statement: StatementDigest(mock_elf::MOCK_GUEST_RISC0_ID),
                             start_nexus_hash: range[0],
                         }),
                     };
@@ -162,43 +162,30 @@ async fn main() -> Result<(), Error> {
                         height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
-                        img_id: StatementDigest(ADAPTER_ID),
-                        rollup_hash: Some(H256::from(header.state_root.as_fixed_bytes().clone())),
+                        img_id: StatementDigest(mock_elf::MOCK_GUEST_RISC0_ID),
+                        rollup_hash: Some(H256::from([1u8; 32])),
                     };
 
-                    // println!(">>> public inputs: {:?}", public_inputs);
+                    // let public_input_vec = match to_vec(&public_inputs) {
+                    //     Ok(i) => i,
+                    //     Err(e) => {
+                    //         let err = anyhow::anyhow!("Could not encode public inputs of rollup.");
+                    //         if !poll_flag {
+                    //             return Err(err);
+                    //         }
+                    //         println!("{:?}", err);
+                    //         continue;
+                    //     }
+                    // };
 
-                    let public_input_vec = match to_vec(&public_inputs) {
-                        Ok(i) => i,
-                        Err(e) => {
-                            let err = anyhow::anyhow!("Could not encode public inputs of rollup.");
-                            if !poll_flag {
-                                return Err(err);
-                            }
-                            println!("{:?}", err);
-                            continue;
-                        }
-                    };
-
-                    let mut env_builder = ExecutorEnv::builder();
-                    let env = env_builder.write(&public_inputs).unwrap().build().unwrap();
-                    let prover = default_prover();
-                    let prove_info = match prover.prove(env, ADAPTER_ELF) {
-                        Ok(i) => i,
-                        Err(e) => {
-                            println!("Unable to generate proof due to error: {:?}", e);
-                            if !poll_flag {
-                                return Err(anyhow::anyhow!("Failed to generate proof: {:?}", e));
-                            }
-                            continue;
-                        }
-                    };
+                    let mut risc0_prover = RiscZeroProver::new(ADAPTER_ELF.to_vec(), ProverMode::MockProof);
+                    risc0_prover.add_input(&public_inputs)?;
+                    let recursive_proof = risc0_prover.prove()?;
 
                     // println!(">>> public inputs : {:?}", hex::encode(prove_info.receipt.clone().journal.bytes));
                     // println!(">>> proof : {:?}", hex::encode(encode_seal(&prove_info.receipt).unwrap()));
                     // let decoded_journal: NexusRollupPI = prove_info.receipt.journal.decode()?;
                     // println!(">>> journal : {:?}", decoded_journal);
-                    let recursive_proof = RiscZeroProof(prove_info.receipt);
 
                     let tx = Transaction {
                         signature: TxSignature([0u8; 64]),

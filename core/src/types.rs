@@ -167,6 +167,7 @@ impl TransactionStatus {
 pub struct NexusBlockWithTransactions {
     pub transactions: Vec<TransactionWithStatus>,
     pub header: NexusHeader,
+    pub block_status: BlockStatus,
 }
 
 #[cfg(any(feature = "native"))]
@@ -185,7 +186,7 @@ pub struct NexusBlock {
 }
 
 #[cfg(any(feature = "native"))]
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Encode, Decode, ToSchema)]
 pub enum BlockStatus {
     ExecutionCompleted,
     ProofGenerationInProgress,

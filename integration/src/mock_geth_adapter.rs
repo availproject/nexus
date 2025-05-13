@@ -1,10 +1,13 @@
+use crate::utils::run_nexus_prover;
 use crate::utils::{add_check_body_and_response, get_mock_server, run_mock_geth_adapter_once, run_nexus_client};
 use adapter_sdk::api::NexusAPI;
 use anyhow::anyhow;
 use avail_rust::rpc;
 use avail_rust::SDK;
 use geth_methods::ADAPTER_ID;
-use nexus_core::types::{AccountWithProof, AppAccountId, AppId, InitAccount, Sha256, StatementDigest, Transaction, TxParams, TxSignature, H256};
+use nexus_core::types::{
+    AccountWithProof, AppAccountId, AppId, BlockStatus, InitAccount, Sha256, StatementDigest, Transaction, TxParams, TxSignature, H256,
+};
 use nexus_core::utils::hasher::Digest;
 use std::env;
 use std::time::Duration;
@@ -49,6 +52,9 @@ async fn test_integration_mock_geth_adapter() {
     let _nexus_client = run_nexus_client(&avail_rpc_url, finalized_header.number, NEXUS_PORT)
         .await
         .expect("Failed to run nexus");
+
+    // run nexus prover
+    let _nexus_prover = run_nexus_prover().await.expect("Failed to run nexus prover");
 
     // Check If we are able to fetch state from nexus node
     let app_id = AppId(100);
@@ -114,6 +120,16 @@ async fn test_integration_mock_geth_adapter() {
         hex::encode(calculated_hash)
     );
 
+    // Wait for 120 secs as a buffer time
+    sleep(Duration::from_secs(120)).await;
+
+    // The block should be proved
+    let block = nexus_api
+        .get_block(final_account_state.nexus_header.number)
+        .await
+        .expect("Unable to get block");
+    assert_eq!(block.block_status, BlockStatus::ProofGenerationSuccessful);
+
     mock.assert();
 }
 
@@ -146,7 +162,8 @@ async fn register_account(nexus_api: &NexusAPI, app_account_id: AppAccountId) {
         signature: TxSignature([0u8; 64]),
         params: TxParams::InitAccount(InitAccount {
             app_id: app_account_id.clone(),
-            statement: StatementDigest(ADAPTER_ID),
+            // As we are using the mock proof method we need to include
+            statement: StatementDigest(mock_elf::MOCK_GUEST_RISC0_ID),
             start_nexus_hash: range[0],
         }),
     };

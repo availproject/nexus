@@ -1,6 +1,6 @@
 use core::convert::Infallible;
 use jmt::ValueHash;
-use nexus_core::db::NodeDB;
+use nexus_core::db::{NodeDB, SharedDB};
 use nexus_core::mempool::Mempool;
 use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
@@ -203,50 +203,44 @@ async fn tx_status(db: Arc<Mutex<NodeDB>>, tx_hash: H256) -> Result<WithStatus<S
         (status = 500, description = "Internal error", body = String)
     )
 )]
-async fn get_block(db: Arc<Mutex<NodeDB>>, block_hash_opt: Option<H256>, block_number_opt: Option<u32>) -> Result<WithStatus<String>, Rejection> {
+async fn get_block(
+    db: Arc<Mutex<NodeDB>>,
+    shared_db: Arc<SharedDB>,
+    block_hash_opt: Option<H256>,
+    block_number_opt: Option<u32>,
+) -> Result<WithStatus<String>, Rejection> {
     let db_lock = db.lock().await;
 
-    let nexus_hash = if block_number_opt.is_some() {
-        let block_number = block_number_opt.unwrap();
-        match db_lock.get::<H256>(&[block_number.to_be_bytes().as_slice(), b"-block"].concat()) {
-            Ok(Some(hash)) => hash,
-            Ok(None) => {
-                return Ok(warp::reply::with_status(
-                    "Nexus height does not exist".to_string(),
-                    warp::http::StatusCode::BAD_REQUEST,
-                ))
-            }
-            Err(_) => {
-                return Ok(warp::reply::with_status(
-                    "Internal error when retrieving block number to hash mapping".to_string(),
-                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        }
+    let nexus_block_number = if block_number_opt.is_some() {
+        block_number_opt.unwrap()
     } else {
         match block_hash_opt {
-            Some(hash) => hash,
-            None => match db_lock.get::<HeaderStore>(b"previous_headers") {
-                Ok(Some(headers)) => match headers.first().map(|h| h.hash()) {
-                    Some(hash) => hash,
-                    None => {
-                        return Ok(warp::reply::with_status(
-                            "Latest headers not retrievable".to_string(),
-                            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                        ))
-                    }
-                },
-                _ => {
+            Some(hash) => match db_lock.get::<NexusBlockWithPointers>(&[hash.as_slice(), b"-block"].concat()) {
+                Ok(Some(block)) => block.block.header.number,
+                Ok(None) => {
                     return Ok(warp::reply::with_status(
-                        "Latest headers not retrievable".to_string(),
+                        "Nexus height does not exist".to_string(),
+                        warp::http::StatusCode::BAD_REQUEST,
+                    ))
+                }
+                Err(e) => {
+                    return Ok(warp::reply::with_status(
+                        "Internal error when retrieving block to nexus hash mapping".to_string(),
                         warp::http::StatusCode::INTERNAL_SERVER_ERROR,
                     ))
                 }
             },
+            None => {
+                return Ok(warp::reply::with_status(
+                    "Internal error when retrieving block to nexus hash mapping".to_string(),
+                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
         }
     };
 
-    let block = match db_lock.get::<NexusBlockWithPointers>(&[nexus_hash.as_slice(), b"-block"].concat()) {
+    // TODO : improve the logic here. There are multiple calls going through the DBs.
+    let block = match shared_db.get_block_with_number(nexus_block_number as u64).await {
         Ok(Some(b)) => b,
         Ok(None) => {
             return Ok(warp::reply::with_status(
@@ -284,6 +278,7 @@ async fn get_block(db: Arc<Mutex<NodeDB>>, block_hash_opt: Option<H256>, block_n
     let block_with_txs: NexusBlockWithTransactions = NexusBlockWithTransactions {
         transactions: txs,
         header: block.block.header,
+        block_status: block.block_status,
     };
 
     match serde_json::to_string(&block_with_txs) {
@@ -631,6 +626,7 @@ async fn range(db: Arc<Mutex<NodeDB>>) -> Result<WithStatus<String>, Rejection> 
 pub fn routes(
     mempool: Mempool,
     db: Arc<Mutex<NodeDB>>,
+    shared_db: Arc<SharedDB>,
     vm_state: Arc<Mutex<VmState>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let mempool_clone = mempool.clone();
@@ -678,9 +674,10 @@ pub fn routes(
     let block = warp::path("block")
         .and(warp::get())
         .and(warp::any().map(move || db_clone_5.clone()))
+        .and(warp::any().map(move || shared_db.clone()))
         .and(warp::query::<HashMap<String, String>>())
         .and_then(
-            |db: Arc<Mutex<NodeDB>>, params: HashMap<String, String>| async move {
+            |db: Arc<Mutex<NodeDB>>, shared_db: Arc<SharedDB>, params: HashMap<String, String>| async move {
                 let block_hash = match params
                     .get("block_hash")
                     .map(|hash_str| H256::try_from(hash_str.as_str()))
@@ -709,7 +706,7 @@ pub fn routes(
                     Err(e) => return Ok(e),
                 };
 
-                get_block(db, block_hash, block_number).await
+                get_block(db, shared_db, block_hash, block_number).await
             },
         );
 

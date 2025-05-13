@@ -1,11 +1,14 @@
 #![no_main]
 use adapter_sdk::types::AdapterPublicInputs;
-use risc0_zkvm::guest::env;
+use nexus_core::zkvm::{risczero::ZKVM, traits::ZKVMEnv};
 
 risc0_zkvm::guest::entry!(main);
 
 fn main() {
-    let adapter_public_inputs: AdapterPublicInputs = env::read();
+    run::<ZKVM>();
+}
 
-    env::commit(&adapter_public_inputs);
+fn run<Z: ZKVMEnv>() {
+    let adapter_public_inputs = Z::read_input::<AdapterPublicInputs>().expect("msg");
+    Z::commit(&adapter_public_inputs);
 }
