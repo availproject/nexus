@@ -2,6 +2,7 @@
 pragma solidity ^0.8.21;
 
 import {Structs} from "./Structs.sol";
+import "forge-std/console.sol";
 
 library JournalExtractor {
     function extractNexusHeader(bytes calldata data) public pure returns (Structs.NexusHeader memory) {
@@ -53,71 +54,25 @@ library JournalExtractor {
         return Structs.NexusHeader(parentHash, prevStateRoot, stateRoot, availHeaderHash, number);
     }
 
-    function extractJournal(bytes calldata journal) public pure returns (Structs.Journal memory) {
-        // For nexusHash (first 256 bytes, extracting first byte from each 4-byte chunk)
-        bytes32 nexusHash = 0;
-        for (uint256 i = 0; i < 32; i++) {
-            uint256 bytePos = i * 4; // Position in the journal
-            if (bytePos < journal.length) {
-                // Shift left by 8 bits (1 byte) and add the new byte
-                nexusHash = bytes32(uint256(nexusHash) << 8 | uint8(journal[bytePos]));
-            }
+    function extractNexusHeaderMockProof(bytes memory data) public pure returns (Structs.NexusHeader memory header) {
+        require(data.length == 132, "Invalid data length");
+
+        bytes32 parentHash;
+        bytes32 prevStateRoot;
+        bytes32 stateRoot;
+        bytes32 availHeaderHash;
+        uint32 num;
+
+        assembly {
+            parentHash := mload(add(data, 32))
+            prevStateRoot := mload(add(data, 64))
+            stateRoot := mload(add(data, 96))
+            availHeaderHash := mload(add(data, 128))
+            num := shr(224, mload(add(data, 160))) // only last 4 bytes
         }
 
-        // For stateRoot (next 256 bytes)
-        bytes32 stateRoot = 0;
-        for (uint256 i = 0; i < 32; i++) {
-            uint256 bytePos = 128 + (i * 4);
-            if (bytePos < journal.length) {
-                stateRoot = bytes32(uint256(stateRoot) << 8 | uint8(journal[bytePos]));
-            }
-        }
+        console.log(num);
 
-        // For height (next 4 bytes)
-        uint32 height = 0;
-        for (uint256 i = 0; i < 4; i++) {
-            uint256 bytePos = 129 + i;
-            if (bytePos < journal.length) {
-                height = height << 8 | uint32(uint8(journal[bytePos]));
-            }
-        }
-
-        // For startNexusHash (next 256 bytes)
-        bytes32 startNexusHash = 0;
-        for (uint256 i = 0; i < 32; i++) {
-            uint256 bytePos = 260 + (i * 4);
-            if (bytePos < journal.length) {
-                startNexusHash = bytes32(uint256(startNexusHash) << 8 | uint8(journal[bytePos]));
-            }
-        }
-
-        // For appId (next 256 bytes)
-        bytes32 appId = 0;
-        for (uint256 i = 0; i < 32; i++) {
-            uint256 bytePos = 388 + (i * 4);
-            if (bytePos < journal.length) {
-                appId = bytes32(uint256(appId) << 8 | uint8(journal[bytePos]));
-            }
-        }
-
-        // For imgId (direct bytes32)
-        bytes32 imgId;
-        uint256 imgOffset = 516;
-        if (imgOffset + 32 <= journal.length) {
-            assembly {
-                imgId := calldataload(add(journal.offset, imgOffset))
-            }
-        }
-
-        // For rollupHash (next 256 bytes)
-        bytes32 rollupHash = 0;
-        for (uint256 i = 0; i < 32; i++) {
-            uint256 bytePos = 550 + (i * 4);
-            if (bytePos < journal.length) {
-                rollupHash = bytes32(uint256(rollupHash) << 8 | uint8(journal[bytePos]));
-            }
-        }
-
-        return Structs.Journal(nexusHash, stateRoot, height, startNexusHash, appId, imgId, rollupHash);
+        header = Structs.NexusHeader(parentHash, prevStateRoot, stateRoot, availHeaderHash, num);
     }
 }

@@ -38,26 +38,31 @@ contract NexusProofManager is Ownable {
     // nexus state root
     // updated when we verify the zk proof and then st block updated
     function updateNexusBlock(uint256 blockNumber, bytes calldata _proof, bytes calldata journal) external onlyOwner {
+        Structs.NexusHeader memory nexusHeaderStruct;
+        // If length of journal is 132 it is from a mock elf journal. Otherwise we use the default extractor
+        if (journal.length == 132) {
+            nexusHeaderStruct = JournalExtractor.extractNexusHeaderMockProof(journal);
+        } else {
+            nexusHeaderStruct = JournalExtractor.extractNexusHeader(journal);
+        }
+
         if (nexusHeader[blockNumber].stateRoot != bytes32(0)) {
             revert AlreadyUpdatedBlock(blockNumber);
         }
-
-        Structs.NexusHeader memory nexusHeaderStruct = JournalExtractor.extractNexusHeader(journal);
 
         nexusHeader[blockNumber] = Structs.NexusHeader({
             parentHash: nexusHeaderStruct.parentHash,
             prevStateRoot: nexusHeaderStruct.prevStateRoot,
             stateRoot: nexusHeaderStruct.stateRoot,
             availHeaderHash: nexusHeaderStruct.availHeaderHash,
-            number: nexusHeaderStruct.number
+            number: uint32(blockNumber)
         });
 
-        // To be uncommented after proving PR is merged.
-        // risc0Router.verify(
-        //     proof, // bytes calldata seal
-        //     imageId, // bytes32 ImageID
-        //     sha256(journal) // bytes32 JournalDigest
-        // );
+        risc0Router.verify(
+            _proof, // bytes calldata seal
+            imageId, // bytes32 ImageID
+            sha256(journal) // bytes32 JournalDigest
+        );
 
         if (blockNumber > latestNexusBlockNumber) {
             latestNexusBlockNumber = blockNumber;

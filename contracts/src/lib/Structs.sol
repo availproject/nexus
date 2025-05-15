@@ -10,18 +10,6 @@ library Structs {
         uint32 number;
     }
 
-    // Taken from (NexusRollupPI) :
-    // https://github.com/availproject/nexus/blob/441dad65a4d617f4d262159aca2b4c6873dd7f5c/core/src/types.rs#L110
-    struct Journal {
-        bytes32 nexusHash;
-        bytes32 stateRoot;
-        uint32 height;
-        bytes32 startNexusHash;
-        bytes32 appId;
-        bytes32 imgId;
-        bytes32 rollupHash;
-    }
-
     struct AppState {
         bytes32 statementDigest;
         bytes32 stateRoot;

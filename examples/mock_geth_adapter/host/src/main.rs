@@ -135,18 +135,19 @@ async fn main() -> Result<(), Error> {
 
                 let height: u32 = header.number.unwrap().as_u32();
 
+                // Added here in case one wants to get the correct account state in order to prove the state on contract side.
+                // tokio::time::sleep(Duration::from_secs(200)).await;
+
                 if current_height > last_height {
-                    // let app_account_id =
-                    //     AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-                    // let account_with_proof: AccountWithProof =
-                    //     match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-                    //         Ok(i) => i,
-                    //         Err(e) => {
-                    //             println!("{:?}", e);
-                    //
-                    //             continue;
-                    //         }
-                    //     };
+                    let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+                    let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+                        Ok(i) => i,
+                        Err(e) => {
+                            println!("{:?}", e);
+
+                            continue;
+                        }
+                    };
                     // println!("\n\n\n>>> account with proof : {:?}", account_with_proof);
                     // println!(">>> statement digest : {:?}", hex::encode(account_with_proof.account.statement.0.encode()));
                     // println!(">>> state root : {:?}", hex::encode(account_with_proof.account.state_root));
@@ -163,7 +164,7 @@ async fn main() -> Result<(), Error> {
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
                         img_id: StatementDigest(mock_elf::MOCK_GUEST_RISC0_ID),
-                        rollup_hash: Some(H256::from([1u8; 32])),
+                        rollup_hash: Some(H256::from(header.state_root.as_fixed_bytes().clone())),
                     };
 
                     // let public_input_vec = match to_vec(&public_inputs) {
@@ -273,21 +274,24 @@ async fn main() -> Result<(), Error> {
             },
         )?;
 
-        println!("Sleeping for 10 seconds\n\n\n");
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        println!("Sleeping for 200 seconds\n\n\n");
+        tokio::time::sleep(Duration::from_secs(200)).await;
 
-        // let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
-        // let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
-        //     Ok(i) => i,
-        //     Err(e) => {
-        //         println!("{:?}", e);
-        //
-        //         continue;
-        //     }
-        // };
-        //
+        let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
+        let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
+            Ok(i) => i,
+            Err(e) => {
+                println!("{:?}", e);
+
+                continue;
+            }
+        };
+
         // println!("\n\n\n>>> account with proof : {:?}", account_with_proof);
-        // // println!(">>> statement digest : {:?}", hex::encode(account_with_proof.account.statement.0.encode()));
+        // println!(
+        //     ">>> statement digest : {:?}",
+        //     hex::encode(account_with_proof.account.statement.0.encode())
+        // );
         // println!(
         //     ">>> state root : {:?}",
         //     hex::encode(account_with_proof.account.state_root)
@@ -316,3 +320,4 @@ async fn main() -> Result<(), Error> {
 // To run :
 // With polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> <nexus_api_url> --dev --poll
 // Without polling: RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- <ethereum_url> <nexus_api_url> --dev
+// RUST_LOG=debug RISC0_DEV_MODE=1 cargo run -- https://hoodi.infura.io/v3/3586b818e4b34d8cba327e0e69ed9fb0 http://127.0.0.1:7000 --dev
