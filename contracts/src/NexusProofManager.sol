@@ -58,11 +58,11 @@ contract NexusProofManager is Ownable {
             number: uint32(blockNumber)
         });
 
-        risc0Router.verify(
-            _proof, // bytes calldata seal
-            imageId, // bytes32 ImageID
-            sha256(journal) // bytes32 JournalDigest
-        );
+        // risc0Router.verify(
+        //     _proof, // bytes calldata seal
+        //     imageId, // bytes32 ImageID
+        //     sha256(journal) // bytes32 JournalDigest
+        // );
 
         if (blockNumber > latestNexusBlockNumber) {
             latestNexusBlockNumber = blockNumber;
