@@ -88,6 +88,13 @@ impl<'a> ZKVMProver<RiscZeroProof> for RiscZeroProver<'a> {
 
         Ok(RiscZeroProof(receipt.receipt))
     }
+
+    fn vk(&self, adapter_id: [u32; 8]) -> [u32; 8] {
+        match self.prover_mode {
+            ProverMode::MockProof => MOCK_GUEST_RISC0_ID,
+            _ => adapter_id,
+        }
+    }
 }
 
 #[cfg(any(feature = "native-risc0"))]

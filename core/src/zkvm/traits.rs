@@ -9,7 +9,7 @@ pub trait ZKVMProver<R: ZKVMProof> {
     fn add_input<T: Serialize>(&mut self, input: &T) -> Result<(), anyhow::Error>;
     fn add_proof_for_recursion(&mut self, proof: R) -> Result<(), anyhow::Error>;
     fn prove(&mut self) -> Result<R, anyhow::Error>;
-    // fn vk(&self) -> [u8; 32];
+    fn vk(&self, adapter_id: [u32; 8]) -> [u32; 8];
 }
 
 #[cfg(any(feature = "native"))]

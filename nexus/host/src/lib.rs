@@ -196,7 +196,7 @@ pub async fn prover_handle(
                     (block, nexus_hash)
                 }
                 Ok(None) => {
-                    error!("Block {} not found retrying in sometime.", block_to_prove);
+                    warn!("Block {} not found retrying in sometime.", block_to_prove);
                     continue;
                 }
                 Err(e) => {

@@ -101,6 +101,10 @@ impl ZKVMProver<Sp1Proof> for Sp1Prover {
 
         Ok(proof)
     }
+
+    fn vk(&self, adapter_id: [u32; 8]) -> [u32; 8] {
+        self.vk()
+    }
 }
 // #[cfg(any(feature = "native-sp1"))]
 // #[derive(Debug, Clone, Serialize, Deserialize)]
