@@ -266,11 +266,8 @@ const RETRY_DELAY_SECS: u64 = 5;
 pub async fn get_latest_proven_block(shared_db: &Arc<SharedDB>) -> Result<u64, Error> {
     let mut retries = 0;
     loop {
-        match shared_db
-            .get_latest_proven_block()
-            .await?
-        {
-           Some(block) => {
+        match shared_db.get_latest_proven_block().await? {
+            Some(block) => {
                 return Ok((block + 1).try_into().unwrap());
             }
             None => {
@@ -283,7 +280,6 @@ pub async fn get_latest_proven_block(shared_db: &Arc<SharedDB>) -> Result<u64, E
                 retries += 1;
                 continue;
             }
-            
         }
     }
 }
