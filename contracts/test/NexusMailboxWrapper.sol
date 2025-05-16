@@ -18,28 +18,19 @@ contract NexusMailboxWrapper is NexusMailbox {
         bytes calldata proof
     ) public {
         VerifierInfo memory verifierInfo = verifierWrappers[from];
-        verifierInfo.verifier.parseAndVerify(
-            chainblockNumber,
-            receiptHash,
-            proof,
-            verifierInfo.mailboxAddress
-        );
+        verifierInfo.verifier.parseAndVerify(chainblockNumber, receiptHash, proof, verifierInfo.mailboxAddress);
         verifiedMessages[keccak256(abi.encode(from, receiptHash))] = receipt;
     }
 
-    function searchWrapper(
-        bytes32[] memory chainIdTo,
-        address[] memory to
-    ) public view returns (address) {
+    function searchWrapper(bytes32[] memory chainIdTo, address[] memory to) public view returns (address) {
         return search(chainIdTo, to);
     }
 
-    function sortWrapper(
-        bytes32[] memory chainIdTo,
-        address[] memory to,
-        int256 left,
-        int256 right
-    ) public pure returns (bytes32[] memory, address[] memory) {
+    function sortWrapper(bytes32[] memory chainIdTo, address[] memory to, int256 left, int256 right)
+        public
+        pure
+        returns (bytes32[] memory, address[] memory)
+    {
         quickSort(chainIdTo, to, left, right);
         return (chainIdTo, to);
     }

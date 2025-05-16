@@ -1,30 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.21;
 
-import "forge-std/test.sol";
+import "forge-std/Test.sol";
 import "../src/NexusProofManager.sol";
 import "../src/interfaces/INexusProofManager.sol";
 import "../src/mock/ERC20.sol";
 import "../src/verification/ethereum/Verifier.sol";
+import {RiscZeroVerifierRouter} from "risc0/RiscZeroVerifierRouter.sol";
+import {IRiscZeroVerifier} from "risc0/IRiscZeroVerifier.sol";
+import {RiscZeroCheats} from "risc0/test/RiscZeroCheats.sol";
+import {ImageID} from "../src/NexusProverImageID.sol";
+import {IVectorx} from "../src/interfaces/IVectorx.sol";
 
-contract EthereumVerifierTest is Test {
+contract EthereumVerifierTest is Test, RiscZeroCheats {
     NexusProofManager proofManager;
     ERC20Token erc20;
     EthereumVerifier verifier;
+    RiscZeroVerifierRouter risc0Router;
+    IRiscZeroVerifier risc0Verifier;
+    IVectorx vectorX;
 
     bytes32[] dynamicPath;
 
     uint256 blockNumber = 123;
     bytes32 stateRoot = 0x646298a2ebc208f4ea2e41298eec4a6c6b3a5cb76318681529b28bdcb4867ec0;
-    bytes32 blockHash = 0x5f574db327c747d944da576c21506ac2a90dc8f19bbc55791642c5e40d3b100e;
-    bytes32 appid = 0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
     address account = 0xDC11f7E700A4c898AE5CAddB1082cFfa76512aDD;
     bytes32 private constant EMPTY_TRIE_ROOT_HASH = 0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
     bytes32 private constant EMPTY_CODE_HASH = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
 
+    // parameters for `updateNexusBlock` function
+    // IMP : proof used here is a fake proof. Not a STARK proof
+    // This journal is nexus proof which is generated through mock elf proving.
+    bytes journal =
+        hex"e2d612283fc162a34ec4cae21335f10efad0234e23f281aae67215b0edb0dca178960bb207f285632596f8932b98117adec87241e5c09346cbc5637ede0df7c4e7cce75ae1f47fab781b78e332473d7d9a43c713b1f533b06eda6b38e7c4dd04c2df954f375c6273ad0a38ccff49bc230daec7cd9a4418b8e247f6ff7ecd87bf0f000000";
+    // seal : extracted using `encode_seal` function
+    bytes proof = hex"fffffffffa454345a5049d6b0e9d44d59d788b07f0b04b7afc7337ba113be0e28d684895";
+
     function setUp() public {
         erc20 = new ERC20Token("Avail", "Avail");
-        proofManager = new NexusProofManager();
+        risc0Verifier = deployRiscZeroVerifier();
+        risc0Router = new RiscZeroVerifierRouter(msg.sender);
+
+        // TODO : need to change this with actual implementation when writing tests
+        vectorX = IVectorx(msg.sender);
+
+        vm.prank(msg.sender);
+        risc0Router.addVerifier(0xffffffff, risc0Verifier);
+        proofManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID, address(vectorX));
         verifier = new EthereumVerifier(INexusProofManager(address(proofManager)));
     }
 
@@ -36,7 +58,7 @@ contract EthereumVerifierTest is Test {
     }
 
     function testStorageProof() public {
-        proofManager.updateNexusBlock(blockNumber, NexusProofManager.NexusBlock(stateRoot, blockHash));
+        proofManager.updateNexusBlock(blockNumber, proof, journal);
         bytes memory storageProof =
             hex"f9032cb90214f90211a0fa5e2fd2d6e72c8e43b0ecbeb17a319100e1afbbdb29b63a697bcdbd4a76a2c9a06eb6224a9564b438ad325d0488179f5030a4326eef2ed1ac2d7519d4294174aba061ef152c381b12802824b71a91afc98c04a5b6e51d389fb9f2c05e5abe31b3e5a04e89079af75d215b6bc8b9da9d4004924c10f630376ad15c0a38aca26f72181aa041546186685e7844b9eb3e9aae302edd9e4bea2623126f7b6d1c960eb40c011ca0edd7174916748bfa8745eb7c7ae6d918407122e59528613c45378c4fb2ce754fa0fbcd97095a84dca96a677c8cecc8c896dc30873b04f26c75e9c178d0ca37e6aca0e0c78dc9d094e0862de0a5c9c985baf6559e2c40bec51992680b214bc6bb4f35a057ff5978a35d5ec99f026666883f5f027fde694459680ec6e57fc298e2e98186a0c9d21353484f8b32ef324257ad91a3ec3c38a7b8406e8a4f8ee4df36db357af9a0e6d922b0ba239623bb6e760dca22188040f4cc5a0ec67956f7a150caf572c960a0e8d15b5addd823945cf6fc4bfbbad157509404495f1837252b0ee02218968373a0d3296997569db72f2d654f637d919044d60780c9dd0b0991cfa7643d342a3923a0829e3a88a6375481ab9af6f12a2aacf1ce623d271db7aee004d554a0614429aaa0e1fbeb68483387d5bc0b5c55ed390b8fe3eeb317e1529ccaa9c7a41f0446d7a4a079f4c602db086d596a7a47dbcaaa6a0d6e75f1ccc8165907610e76c93abfbfe580b893f891a09f74f37bdf07e2d73e875c821a01a72ec9e3e5362cddcfa3521296476e6da1f880808080a038d9d8c71f2ce4639e7da19dc4c9d007e8b899611eea89b30c58963958b9e1a08080a0c50af823ddd4cfc519ce820f15c121ca41cdebf06b1c3ef90f864120f4aefc468080808080a0eb10e85ce708885e53342a886ef11efbe1d3594a12fa790df637d075eac860b18080b853f8518080808080a06faf57464a2fd95b0ab5ca730e0bcb746ddf4998391c1f0c25a1c7aecd71b4c8808080808080808080a070498144d3ce4caf58f156fda7f3056e5cb58bfca06621a384d441c6c691a2ae80aae99f3787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb5ace88872386f26fc10000";
         bytes32 storageRoot = 0xed339d10818912537ecff9846d024bbb91f43c025e0cf6bd9776170b11a77233;

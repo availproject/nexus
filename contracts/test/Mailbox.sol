@@ -11,38 +11,56 @@ import "../src/verification/zksync/StorageProof.sol";
 import "../src/verification/zksync/SparseMerkleTree.sol";
 import "../src/verification/zksync/VerifierWrapper.sol";
 import "../src/verification/zksync/ZKSyncNexusManagerRouter.sol";
+import {Structs} from "../src/lib/Structs.sol";
+import {IRiscZeroVerifier} from "risc0/IRiscZeroVerifier.sol";
+import {RiscZeroCheats} from "risc0/test/RiscZeroCheats.sol";
+import {ImageID} from "../src/NexusProverImageID.sol";
+import {IVectorx} from "../src/interfaces/IVectorx.sol";
 
 import "./NexusMailboxWrapper.sol";
 
-contract MailBoxTest is Test {
+contract MailBoxTest is Test, RiscZeroCheats {
     NexusMailboxWrapper mailbox;
     NexusProofManager proofManager;
     ERC20Token erc20;
     VerifierWrapper wrapper;
+    RiscZeroVerifierRouter risc0Router;
+    IRiscZeroVerifier risc0Verifier;
+    IVectorx vectorX;
 
     uint256 targetnexusAppID = 137;
-    bytes32 appIdDestination =
-        0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
+    bytes32 appIdDestination = 0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
+
+    // parameters for `updateNexusBlock` function
+    // IMP : proof used here is a fake proof. Not a STARK proof
+    // This journal is nexus proof which is generated through mock elf proving.
+    bytes journal =
+        hex"e2d612283fc162a34ec4cae21335f10efad0234e23f281aae67215b0edb0dca178960bb207f285632596f8932b98117adec87241e5c09346cbc5637ede0df7c4e7cce75ae1f47fab781b78e332473d7d9a43c713b1f533b06eda6b38e7c4dd04c2df954f375c6273ad0a38ccff49bc230daec7cd9a4418b8e247f6ff7ecd87bf0f000000";
+    // seal : extracted using `encode_seal` function
+    bytes proof = hex"fffffffffa454345a5049d6b0e9d44d59d788b07f0b04b7afc7337ba113be0e28d684895";
+
     function setUp() public {
         mailbox = new NexusMailboxWrapper();
         mailbox.initialize(appIdDestination);
         erc20 = new ERC20Token("Avail", "Avail");
-        proofManager = new NexusProofManager();
+
+        risc0Verifier = deployRiscZeroVerifier();
+
+        // TODO : need to change this with actual implementation when writing tests
+        vectorX = IVectorx(msg.sender);
+
+        risc0Router = new RiscZeroVerifierRouter(msg.sender);
+        vm.prank(msg.sender);
+        risc0Router.addVerifier(bytes4(0), risc0Verifier);
+        proofManager = new NexusProofManager(address(risc0Router), ImageID.NEXUS_RUNTIME_ID, address(vectorX));
+
         SparseMerkleTree smt = new SparseMerkleTree();
-        ZKSyncNexusManagerRouter zksyncDiamond = new ZKSyncNexusManagerRouter(
-            INexusProofManager(address(proofManager)),
-            appIdDestination
-        );
-        wrapper = new VerifierWrapper(
-            IZKSyncNexusManagerRouter(address(zksyncDiamond)),
-            smt
-        );
+        ZKSyncNexusManagerRouter zksyncDiamond =
+            new ZKSyncNexusManagerRouter(INexusProofManager(address(proofManager)), appIdDestination);
+        wrapper = new VerifierWrapper(IZKSyncNexusManagerRouter(address(zksyncDiamond)), smt);
         mailbox.addOrUpdateWrapper(
             bytes32(targetnexusAppID),
-            VerifierInfo(
-                INexusVerifierWrapper(address(wrapper)),
-                0x9a03a545A60263216c4310Be05C34B71C170903A
-            )
+            VerifierInfo(INexusVerifierWrapper(address(wrapper)), 0x9a03a545A60263216c4310Be05C34B71C170903A)
         );
     }
 
@@ -74,42 +92,21 @@ contract MailBoxTest is Test {
     function testReceiveReceipt() public {
         mailbox.addOrUpdateWrapper(
             bytes32(targetnexusAppID),
-            VerifierInfo(
-                INexusVerifierWrapper(address(wrapper)),
-                0x6bc15F6C8abD245812C7eC650D4586b9B52Ae546
-            )
+            VerifierInfo(INexusVerifierWrapper(address(wrapper)), 0x6bc15F6C8abD245812C7eC650D4586b9B52Ae546)
         );
         uint256 key = 0xfaaf1897615a4d5824a81780f33dd422a304cae5e7b14f0f9215d1a3deeea9e2;
 
         bytes32 value = 0x7fc8e033e28402e82ae3c4a4e6d7d02ab3941505362bdb58c429a2ffc9870802;
         bytes32[] memory dynamicPath = new bytes32[](9);
-        dynamicPath[0] = bytes32(
-            0xba5325838c32aa67257f995767d0a51bb9652e86b162dcc8fbb43b15cc5c7ae5
-        );
-        dynamicPath[1] = bytes32(
-            0x01de01ebbdc33833eb4e9049fa9bb20f0268737312999115a14d553c661a3b6c
-        );
-        dynamicPath[2] = bytes32(
-            0xc89cb40d1ae178bbc7e18800b0aa460f53a070d710c4c70ebc8731f0d3812e22
-        );
-        dynamicPath[3] = bytes32(
-            0xc631fffdfdbc27ed0e4f61bc50b799ee0d9b67d5e9cac886e703144e9572712d
-        );
-        dynamicPath[4] = bytes32(
-            0x4e1e5eb29f3378179f87112827a22ce510fd6b80b11d4ea70b8ca50414e1e67b
-        );
-        dynamicPath[5] = bytes32(
-            0xdd2ee4dcfdab21b5746de659fc8742cf5671520826ee90216e142b165c26eb3f
-        );
-        dynamicPath[6] = bytes32(
-            0xe01a1ba6f8acab9e567849199d1af48b883532a642724b269d824745f07d959a
-        );
-        dynamicPath[7] = bytes32(
-            0xbd4efdde3e1211ff26d4549887187e6b4ab232b718f4902e5e7ccf00493e7b68
-        );
-        dynamicPath[8] = bytes32(
-            0xdc9a374febf417a247dbf3974ca6b39344266105d9c93f32a9fa2301e6d19a98
-        );
+        dynamicPath[0] = bytes32(0xba5325838c32aa67257f995767d0a51bb9652e86b162dcc8fbb43b15cc5c7ae5);
+        dynamicPath[1] = bytes32(0x01de01ebbdc33833eb4e9049fa9bb20f0268737312999115a14d553c661a3b6c);
+        dynamicPath[2] = bytes32(0xc89cb40d1ae178bbc7e18800b0aa460f53a070d710c4c70ebc8731f0d3812e22);
+        dynamicPath[3] = bytes32(0xc631fffdfdbc27ed0e4f61bc50b799ee0d9b67d5e9cac886e703144e9572712d);
+        dynamicPath[4] = bytes32(0x4e1e5eb29f3378179f87112827a22ce510fd6b80b11d4ea70b8ca50414e1e67b);
+        dynamicPath[5] = bytes32(0xdd2ee4dcfdab21b5746de659fc8742cf5671520826ee90216e142b165c26eb3f);
+        dynamicPath[6] = bytes32(0xe01a1ba6f8acab9e567849199d1af48b883532a642724b269d824745f07d959a);
+        dynamicPath[7] = bytes32(0xbd4efdde3e1211ff26d4549887187e6b4ab232b718f4902e5e7ccf00493e7b68);
+        dynamicPath[8] = bytes32(0xdc9a374febf417a247dbf3974ca6b39344266105d9c93f32a9fa2301e6d19a98);
 
         StorageProof memory proof = StorageProof(
             123,
@@ -141,94 +138,41 @@ contract MailBoxTest is Test {
             nonce: mailboxNonce
         });
 
-        mailbox.checkVerificationOfEncoding(
-            0,
-            receipt,
-            bytes32(targetnexusAppID),
-            value,
-            encoding
-        );
+        mailbox.checkVerificationOfEncoding(0, receipt, bytes32(targetnexusAppID), value, encoding);
     }
 
     function testReceiveReceiptCallback() public {
-        uint256 blockNumber = 121249;
-        bytes32 stateRoot = 0x640e68e66ba589e11f7006501a79ec882851e42fdb0e11649dd6881df3a5ed9c;
-        bytes32 blockHash = 0x640e68e66ba589e11f7006501a79ec882851e42fdb0e11649dd6881df3a5ed9c;
-        bytes32 appid = 0x1f5ff885ceb5bf1350c4449316b7d703034c1278ab25bcc923d5347645a0117e;
+        uint256 blockNumber = 15;
+        bytes32 appid = 0x3655ca59b7d566ae06297c200f98d04da2e8e89812d627bc29297c25db60362d;
         uint128 chainBlockNumber = 660;
-
-        uint256 key = 0xcef9eeeac760226b597a2b40094bd64f19121e98613c58b193167c303344b15f;
-        proofManager.updateNexusBlock(
-            blockNumber,
-            NexusProofManager.NexusBlock(stateRoot, blockHash)
+        proofManager.updateNexusBlock(blockNumber, proof, journal);
+        bytes32[] memory siblings;
+        Structs.AppState memory state = Structs.AppState(
+            0xb0abae3a180de2034da3ce8084bc0afcbea6a5f64efb4bb3c9b9c4a841fdaa62,
+            0x78960bb207f285632596f8932b98117adec87241e5c09346cbc5637ede0df7c4,
+            0xadb3f87a06a0f912592ba7c77aa784a383c80486e75969b48f8cb5453bcc91ba,
+            1,
+            398570
         );
-        bytes32[] memory siblings = new bytes32[](3);
-        siblings[
-            0
-        ] = 0xcb105c19f4be44ed55f3c69f6cb75473a17dd4f005ffb3ba06086c8e8208c1fe;
-        siblings[
-            1
-        ] = 0x0000000000000000000000000000000000000000000000000000000000000000;
-        siblings[
-            2
-        ] = 0x0000000000000000000000000000000000000000000000000000000000000000;
-        NexusProofManager.AccountState memory state = NexusProofManager
-            .AccountState(
-                0xd48b446b8785f787021914f1bea9d6ec04e9480806e56acf9ee17f1bb23bad48,
-                0x84b2b689fba40661e61ed5e0df1ab3bc989832b218814f363249774c3a32102f,
-                0x8fbfdcd52c25ef8a2841f83a3adf19b1e0bee8b3ee7b4eff04e97319436af334,
-                121248,
-                chainBlockNumber
-            );
 
         proofManager.updateChainState(blockNumber, siblings, appid, state);
 
         bytes32[] memory dynamicPath = new bytes32[](15);
-        dynamicPath[
-            0
-        ] = 0xc2792a032a5dcdbf741731810685dc60d31559df51b95d5b715285697242954a;
-        dynamicPath[
-            1
-        ] = 0xf9727f1b8a07653de7bb30692db15f5ce2afa51fe7ffce8545f68c29960ebd4a;
-        dynamicPath[
-            2
-        ] = 0xef14b47a044ee399fd4451d464a8b6b1b40c0a14bacfedfa0f0cf441755ddaf7;
-        dynamicPath[
-            3
-        ] = 0xfa5f2b69b20b51dd71dfece0e1dcb3c436101a8ca204b44cc6419d3f5c17ac7b;
-        dynamicPath[
-            4
-        ] = 0x216728456e979189d34149ae1b3d2a8430134f1981d10ca84374c32204b0005a;
-        dynamicPath[
-            5
-        ] = 0x4ef45453f4f99186929756cc6677530541e0d62e7a3ac1436e42d6b02e876bb2;
-        dynamicPath[
-            6
-        ] = 0x81f9e053944516b399589b36ee9d4fa25664327154f74d6f3a98b4c1f3ba3e90;
-        dynamicPath[
-            7
-        ] = 0x976f15832bfc9ea6a09053ff51d14b9e174ae9dbc8f22d243e7c4f144be8bed3;
-        dynamicPath[
-            8
-        ] = 0x4ff77af28422b94f8d54241674f8f81cdd2b35f01d1c548b9606b4b941565e02;
-        dynamicPath[
-            9
-        ] = 0x16e7429492f8db53f154ab50ad43959dd011d4de0864af44bec6b4bd75a4a09e;
-        dynamicPath[
-            10
-        ] = 0x078ab2581c8a5b380c48bf067199876377e3a06dfd2248b57e60a9df501977f6;
-        dynamicPath[
-            11
-        ] = 0xb61730f6a498d4a081187bcdf924ba4588d595aca7228b03f38ed631001fc6ac;
-        dynamicPath[
-            12
-        ] = 0x72b06356414b0a3f5fed00f9453e0565238d2ffecc000820821714747f32765b;
-        dynamicPath[
-            13
-        ] = 0xf2c9dc3dbf1e7a87aae33c95eea8c8e31ccdb5e1eaaa36ccec0e0e77352d6856;
-        dynamicPath[
-            14
-        ] = 0x90cfcac4642304a3d87b0a20c4e0961b07e3a7a9ebb1ec221fe9eac7bff90342;
+        dynamicPath[0] = 0xc2792a032a5dcdbf741731810685dc60d31559df51b95d5b715285697242954a;
+        dynamicPath[1] = 0xf9727f1b8a07653de7bb30692db15f5ce2afa51fe7ffce8545f68c29960ebd4a;
+        dynamicPath[2] = 0xef14b47a044ee399fd4451d464a8b6b1b40c0a14bacfedfa0f0cf441755ddaf7;
+        dynamicPath[3] = 0xfa5f2b69b20b51dd71dfece0e1dcb3c436101a8ca204b44cc6419d3f5c17ac7b;
+        dynamicPath[4] = 0x216728456e979189d34149ae1b3d2a8430134f1981d10ca84374c32204b0005a;
+        dynamicPath[5] = 0x4ef45453f4f99186929756cc6677530541e0d62e7a3ac1436e42d6b02e876bb2;
+        dynamicPath[6] = 0x81f9e053944516b399589b36ee9d4fa25664327154f74d6f3a98b4c1f3ba3e90;
+        dynamicPath[7] = 0x976f15832bfc9ea6a09053ff51d14b9e174ae9dbc8f22d243e7c4f144be8bed3;
+        dynamicPath[8] = 0x4ff77af28422b94f8d54241674f8f81cdd2b35f01d1c548b9606b4b941565e02;
+        dynamicPath[9] = 0x16e7429492f8db53f154ab50ad43959dd011d4de0864af44bec6b4bd75a4a09e;
+        dynamicPath[10] = 0x078ab2581c8a5b380c48bf067199876377e3a06dfd2248b57e60a9df501977f6;
+        dynamicPath[11] = 0xb61730f6a498d4a081187bcdf924ba4588d595aca7228b03f38ed631001fc6ac;
+        dynamicPath[12] = 0x72b06356414b0a3f5fed00f9453e0565238d2ffecc000820821714747f32765b;
+        dynamicPath[13] = 0xf2c9dc3dbf1e7a87aae33c95eea8c8e31ccdb5e1eaaa36ccec0e0e77352d6856;
+        dynamicPath[14] = 0x90cfcac4642304a3d87b0a20c4e0961b07e3a7a9ebb1ec221fe9eac7bff90342;
 
         StorageProof memory proof = StorageProof(
             660,
@@ -286,12 +230,7 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (nexusAppIDTo, to) = mailbox.sortWrapper(
-            nexusAppIDTo,
-            to,
-            0,
-            int256(length - 1)
-        );
+        (nexusAppIDTo, to) = mailbox.sortWrapper(nexusAppIDTo, to, 0, int256(length - 1));
 
         assertEq(nexusAppIDTo[0], bytes32(targetnexusAppID - 2));
         assertEq(nexusAppIDTo[1], bytes32(targetnexusAppID - 1));
@@ -323,12 +262,7 @@ contract MailBoxTest is Test {
         to[3] = vm.addr(3);
         to[4] = vm.addr(4);
 
-        (nexusAppIDTo, to) = mailbox.sortWrapper(
-            nexusAppIDTo,
-            to,
-            0,
-            int256(length - 1)
-        );
+        (nexusAppIDTo, to) = mailbox.sortWrapper(nexusAppIDTo, to, 0, int256(length - 1));
 
         address toAddr = mailbox.searchWrapper(nexusAppIDTo, to);
         assertEq(toAddr, vm.addr(2));
