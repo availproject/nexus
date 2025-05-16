@@ -276,8 +276,9 @@ async fn main() -> Result<(), Error> {
             },
         )?;
 
-        println!("Sleeping for 200 seconds\n\n\n");
-        tokio::time::sleep(Duration::from_secs(200)).await;
+        // Added here in case one wants to get the correct account state in order to prove the state on contract side.
+        // println!("Sleeping for 200 seconds\n\n\n");
+        // tokio::time::sleep(Duration::from_secs(200)).await;
 
         let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
         let account_with_proof: AccountWithProof = match nexus_api.get_account_state(&app_account_id.as_h256()).await {
