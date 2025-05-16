@@ -64,9 +64,13 @@ fn main() -> anyhow::Result<()> {
         });
 
         let shared_db = Arc::new(SharedDB::init(postgres_database_url).await.expect("Failed to init database."));
-        let latest_proven_block = match get_latest_proven_block(&shared_db).await {
-            Ok(block) if block >= start_block as u64 => block as u32,
-            _ => start_block
+        let latest_proven_block = {
+            let block = get_latest_proven_block(&shared_db).await.expect("Initial shared DB call failed.");
+            if block < start_block as u64 {
+                start_block
+            } else {
+                block as u32
+            }
         };
 
         info!("Starting prover engine with block {}", latest_proven_block);
