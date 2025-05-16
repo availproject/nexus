@@ -71,6 +71,9 @@ async fn main() -> Result<(), Error> {
     let app_account_id = AppAccountId::from(adapter_state_data.adapter_config.app_id.clone());
     let account_with_proof: AccountWithProof = nexus_api.get_account_state(&app_account_id.as_h256()).await?;
 
+    // Init Risc Zero Prover
+    let mut risc0_prover = RiscZeroProver::new(ADAPTER_ELF.to_vec(), ProverMode::MockProof);
+
     // Main loop to fetch headers and run adapter
     let mut last_height = adapter_state_data.last_height;
     let mut start_nexus_hash = None;
@@ -111,7 +114,7 @@ async fn main() -> Result<(), Error> {
                         params: TxParams::InitAccount(InitAccount {
                             app_id: app_account_id.clone(),
                             // Okay to use MOCK_GUEST_RISC0_ID as this adapter is only meant to be used in mock environments.
-                            statement: StatementDigest(mock_elf::MOCK_GUEST_RISC0_ID),
+                            statement: StatementDigest(risc0_prover.vk(ADAPTER_ID)),
                             start_nexus_hash: range[0],
                         }),
                     };
@@ -163,7 +166,7 @@ async fn main() -> Result<(), Error> {
                         height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
-                        img_id: StatementDigest(mock_elf::MOCK_GUEST_RISC0_ID),
+                        img_id: StatementDigest(risc0_prover.vk(ADAPTER_ID)),
                         rollup_hash: Some(H256::from(header.state_root.as_fixed_bytes().clone())),
                     };
 
@@ -179,7 +182,6 @@ async fn main() -> Result<(), Error> {
                     //     }
                     // };
 
-                    let mut risc0_prover = RiscZeroProver::new(ADAPTER_ELF.to_vec(), ProverMode::MockProof);
                     risc0_prover.add_input(&public_inputs)?;
                     let recursive_proof = risc0_prover.prove()?;
 

@@ -196,7 +196,7 @@ pub async fn prover_handle(
                     (block, nexus_hash)
                 }
                 Ok(None) => {
-                    error!("Block {} not found retrying in sometime.", block_to_prove);
+                    warn!("Block {} not found retrying in sometime.", block_to_prove);
                     continue;
                 }
                 Err(e) => {
@@ -263,21 +263,17 @@ pub async fn prover_handle(
 const MAX_RETRIES: u32 = 2;
 const RETRY_DELAY_SECS: u64 = 5;
 
-pub async fn get_latest_proven_block(shared_db: &Arc<SharedDB>) -> u64 {
+pub async fn get_latest_proven_block(shared_db: &Arc<SharedDB>) -> Result<u64, Error> {
     let mut retries = 0;
     loop {
-        match shared_db
-            .get_latest_proven_block()
-            .await
-            .expect("Unable to fetch latest proven block. Some DB error.")
-        {
+        match shared_db.get_latest_proven_block().await? {
             Some(block) => {
-                return (block + 1).try_into().unwrap();
+                return Ok((block + 1).try_into().unwrap());
             }
             None => {
                 if retries == MAX_RETRIES {
                     info!("Max retries reached. Starting Proving from block 0");
-                    return 0;
+                    return Ok(0);
                 }
                 sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
                 warn!("Didn't found any last proven block. Retrying.....");
@@ -820,6 +816,7 @@ pub async fn save_batch_information<'a>(
 
     // Inserting the block into storage db to be accessible by
     // other services.
+    println!("Adding nexus block with pointers to postgresql");
     shared_db.insert_nexus_block_with_pointers(&nexus_block_with_pointers).await?;
 
     Ok(())
