@@ -195,7 +195,7 @@ impl SharedDB {
             data.block_status.to_string()
         )
         .execute(&self.db)
-        .await;
+        .await.map_err(|e| anyhow!("Failed to insert nexus block with pointers: {}", e))?;
         Ok(())
     }
 

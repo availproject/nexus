@@ -33,6 +33,14 @@ fn main() -> anyhow::Result<()> {
         .map(|arg| arg.trim_start_matches("--database-url="))
         .unwrap_or("postgres://user:password@localhost:5432/db_name")
         .to_string();
+    let start_block = args
+        .clone()
+        .iter()
+        .find(|arg| arg.starts_with("--start-block="))
+        .map(|arg| arg.trim_start_matches("--start-block="))
+        .unwrap_or("0")
+        .parse::<u32>()
+        .map_err(|_| anyhow::anyhow!("Invalid start-block value: must be a valid u32"))?;
     let dev_flag = args.iter().any(|arg| arg == "--dev");
     if dev_flag {
         info!("⚠️  Running in dev mode - proofs are not valid");
@@ -56,14 +64,17 @@ fn main() -> anyhow::Result<()> {
         });
 
         let shared_db = Arc::new(SharedDB::init(postgres_database_url).await.expect("Failed to init database."));
-        let latest_proven_block = get_latest_proven_block(&shared_db).await;
+        let latest_proven_block = match get_latest_proven_block(&shared_db).await {
+            Ok(block) if block >= start_block as u64 => block as u32,
+            _ => start_block
+        };
 
-        info!("Starting prover engine");
+        info!("Starting prover engine with block {}", latest_proven_block);
         let prover_task = tokio::spawn(async move {
             prover_handle(
                 shared_db.clone(),
                 shutdown_rx,
-                latest_proven_block as u32,
+                latest_proven_block,
                 prover_mode,
             )
             .await
