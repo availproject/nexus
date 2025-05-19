@@ -1,9 +1,9 @@
 [formatting]
-array_trailing_comma = true
-column_width = 80
-compact_arrays = false
+array_trailing_comma  = true
+column_width          = 80
+compact_arrays        = false
 compact_inline_tables = false
-indent_string = "    "
-reorder_keys = false
-reorder_arrays = false
-align_entries = true
+indent_string         = "    "
+reorder_keys          = false
+reorder_arrays        = false
+align_entries         = true

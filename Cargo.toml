@@ -1,40 +1,40 @@
 [workspace]
 resolver = "2"
 members = [
-  "relayer",
-  "core",
-  "nexus/host",
-  "nexus/prover",
-  "nexus/prover/sp1-guest",
-  "nexus/prover/risc0-guest",
-  "examples/demo_rollup/host",
-  "examples/demo_rollup/methods",
-  "examples/demo_rollup/methods/guest",
-  "examples/demo_rollup/core",
-  "examples/mock_geth_adapter/host",
-  "examples/mock_geth_adapter/methods",
-  "examples/mock_geth_adapter/methods/guest",
-  "examples/mock_geth_adapter/core",
-  "examples/zksync_adapter/host",
-  "examples/zksync_adapter/methods",
-  "examples/zksync_adapter/methods/risc0-guest",
-  "examples/zksync_adapter/methods/sp1-guest",
-  "examples/zksync_adapter/core",
-  "examples/ethereum_adapter/methods",
-  "examples/ethereum_adapter/host",
-  "adapter_sdk",
-  "nexus_cli",
-  "examples/zksync_adapter/bench",
-  "nexus/bench",
-  "nexus_bench_setup",
-  "kzg",
-  "mock_elf",
-  "mock_elf/risc0-guest",
-  "mock_elf/sp1-guest",
-  "examples/ethereum_adapter/core",
-  "examples/ethereum_adapter/methods/risc0-guest",
-  "examples/ethereum_adapter/methods/sp1-guest",
-  "integration",
+    "relayer",
+    "core",
+    "nexus/host",
+    "nexus/prover",
+    "nexus/prover/sp1-guest",
+    "nexus/prover/risc0-guest",
+    "examples/demo_rollup/host",
+    "examples/demo_rollup/methods",
+    "examples/demo_rollup/methods/guest",
+    "examples/demo_rollup/core",
+    "examples/mock_geth_adapter/host",
+    "examples/mock_geth_adapter/methods",
+    "examples/mock_geth_adapter/methods/guest",
+    "examples/mock_geth_adapter/core",
+    "examples/zksync_adapter/host",
+    "examples/zksync_adapter/methods",
+    "examples/zksync_adapter/methods/risc0-guest",
+    "examples/zksync_adapter/methods/sp1-guest",
+    "examples/zksync_adapter/core",
+    "examples/ethereum_adapter/methods",
+    "examples/ethereum_adapter/host",
+    "adapter_sdk",
+    "nexus_cli",
+    "examples/zksync_adapter/bench",
+    "nexus/bench",
+    "nexus_bench_setup",
+    "kzg",
+    "mock_elf",
+    "mock_elf/risc0-guest",
+    "mock_elf/sp1-guest",
+    "examples/ethereum_adapter/core",
+    "examples/ethereum_adapter/methods/risc0-guest",
+    "examples/ethereum_adapter/methods/sp1-guest",
+    "integration",
 ]
 
 [workspace.package]
@@ -43,27 +43,27 @@ version = "1.0.0"
 [workspace.dependencies]
 #Helios dependencies
 helios-consensus-core = { git = "https://github.com/a16z/helios", tag = "0.8.1" }
-helios-ethereum = { git = "https://github.com/a16z/helios", tag = "0.8.1" }
-tree_hash = "0.9.0"
-alloy = { version = "0.9.1", features = ["full"] }
-alloy-sol-types = "0.8.15"
+helios-ethereum       = { git = "https://github.com/a16z/helios", tag = "0.8.1" }
+tree_hash             = "0.9.0"
+alloy                 = { version = "0.9.1", features = [ "full" ] }
+alloy-sol-types       = "0.8.15"
 
 #General dependencies
 serde = "1.0"
 anyhow = "1.0"
 serde_json = "1.0.113"
-reqwest = { version = "0.12.9", features = ["json"] }
+reqwest = { version = "0.12.9", features = [ "json" ] }
 tokio = "1.38.0"
 derive_more = { git = "https://github.com/JelteF/derive_more", tag = "v1.0.0", features = [
-  "display",
+    "display",
 ] }
 tracing = "0.1.41"
 
 [patch.crates-io]
-sp-core = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
-sp-io = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
-sp-runtime = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
-sp-std = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-core         = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-io           = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-runtime      = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
+sp-std          = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 sp-core-hashing = { git = "https://github.com/availproject/substrate.git", branch = "goldberg" }
 # Remove below patch once rust version can be updated for zkvm
 bumpalo = { git = "https://github.com/fitzgen/bumpalo", tag = "3.14.0" }

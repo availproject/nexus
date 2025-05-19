@@ -1,10 +1,10 @@
 [package]
-name = "geth-methods"
+name              = "geth-methods"
 version.workspace = true
-edition = "2021"
+edition           = "2021"
 
 [build-dependencies]
 risc0-build = { version = "2.0.0" }
 
 [package.metadata.risc0]
-methods = ["guest"]
+methods = [ "guest" ]

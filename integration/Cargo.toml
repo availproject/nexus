@@ -1,15 +1,15 @@
 [package]
-name = "integration-tests"
+name              = "integration-tests"
 version.workspace = true
-edition = "2021"
+edition           = "2021"
 
 [dependencies]
-nexus-core = { path = "../core" }
-tokio = { version = "1.36.0", features = ["signal"] }
-anyhow = "1.0.89"
-httpmock = "0.7.0"
-adapter_sdk = { path = "../adapter_sdk", features = ["native-risc0"] }
+nexus-core   = { path = "../core" }
+tokio        = { version = "1.36.0", features = [ "signal" ] }
+anyhow       = "1.0.89"
+httpmock     = "0.7.0"
+adapter_sdk  = { path = "../adapter_sdk", features = [ "native-risc0" ] }
 geth-methods = { path = "../examples/mock_geth_adapter/methods" }
-hex = "0.4.3"
-avail-rust = { git = "https://github.com/availproject/avail-rust.git", branch = "toufeeq/scalable-da-2" }
-mock_elf = { path = "../mock_elf" }
+hex          = "0.4.3"
+avail-rust   = { git = "https://github.com/availproject/avail-rust.git", branch = "toufeeq/scalable-da-2" }
+mock_elf     = { path = "../mock_elf" }
