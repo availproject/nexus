@@ -5,8 +5,8 @@ use nexus_core::mempool::Mempool;
 use nexus_core::state::VmState;
 use nexus_core::state_machine::StateMachine;
 use nexus_core::types::{
-    AccountState, AccountWithProof, AvailHeader, HeaderStore, NexusBlockWithPointers, NexusBlockWithTransactions, NexusHeader, StatementDigest,
-    Transaction, TransactionWithStatus, H256,
+    AccountState, AccountWithProof, AvailHeader, BlockProof, HeaderStore, NexusBlockWithPointers, NexusBlockWithTransactions, NexusHeader,
+    StatementDigest, Transaction, TransactionWithStatus, H256,
 };
 use nexus_core::utils::hasher::Sha256;
 use serde::{Deserialize, Serialize};
@@ -91,6 +91,7 @@ impl From<AccountWithProof> for AccountWithProofHex {
         submit_tx,
         tx_status,
         get_block,
+        get_block_proof,
         get_state,
         get_state_hex,
         get_header,
@@ -107,6 +108,7 @@ impl From<AccountWithProof> for AccountWithProofHex {
             nexus_core::types::InitAccount,
             nexus_core::types::NexusHeader,
             nexus_core::types::TransactionStatus,
+            nexus_core::types::BlockProof,
             nexus_core::state::types::AccountState,
             nexus_core::state::types::StatementDigest
         )
@@ -149,6 +151,86 @@ async fn submit_tx(mempool: Mempool, tx: Transaction) -> Result<WithStatus<Strin
         )),
         Err(_) => Ok(warp::reply::with_status(
             "Internal Mempool error".to_string(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        )),
+    }
+}
+
+/// Get block proof by hash, number or latest
+#[utoipa::path(
+    get,
+    path = "/block-proof",
+    tag = "nexus",
+    params(
+        ("block_hash" = Option<String>, Query, description = "Block hash in hex format. If not provided, returns the latest block"),
+        ("block_number" = Option<u32>, Query, description = "Block number to query. If not provided, returns the latest block")
+    ),
+    responses(
+        (status = 200, description = "Block found", body = BlockProof),
+        (status = 404, description = "Block not found", body = String),
+        (status = 400, description = "Invalid hash format", body = String),
+        (status = 500, description = "Internal error", body = String)
+    )
+)]
+async fn get_block_proof(
+    db: Arc<Mutex<NodeDB>>,
+    shared_db: Arc<SharedDB>,
+    block_hash_opt: Option<H256>,
+    block_number_opt: Option<u32>,
+) -> Result<WithStatus<String>, Rejection> {
+    let db_lock = db.lock().await;
+
+    let nexus_block_number = if block_number_opt.is_some() {
+        block_number_opt.unwrap()
+    } else {
+        match block_hash_opt {
+            Some(hash) => match db_lock.get::<NexusBlockWithPointers>(&[hash.as_slice(), b"-block"].concat()) {
+                Ok(Some(block)) => block.block.header.number,
+                Ok(None) => {
+                    return Ok(warp::reply::with_status(
+                        "Nexus height does not exist".to_string(),
+                        warp::http::StatusCode::BAD_REQUEST,
+                    ))
+                }
+                Err(e) => {
+                    return Ok(warp::reply::with_status(
+                        "Internal error when retrieving block to nexus hash mapping".to_string(),
+                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    ))
+                }
+            },
+            None => {
+                return Ok(warp::reply::with_status(
+                    "Internal error when retrieving block to nexus hash mapping".to_string(),
+                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
+        }
+    };
+
+    let block_proof = match shared_db.get_block_proof_by_number(nexus_block_number as u64).await {
+        Ok(Some(b)) => b,
+        Ok(None) => {
+            return Ok(warp::reply::with_status(
+                "Block not found".to_string(),
+                warp::http::StatusCode::BAD_REQUEST,
+            ))
+        }
+        Err(_) => {
+            return Ok(warp::reply::with_status(
+                "Error retrieving block".to_string(),
+                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+    };
+
+    match serde_json::to_string(&block_proof) {
+        Ok(serialized_response) => Ok(warp::reply::with_status(
+            serialized_response,
+            warp::http::StatusCode::OK,
+        )),
+        Err(_) => Ok(warp::reply::with_status(
+            "Internal encoding error".to_string(),
             warp::http::StatusCode::INTERNAL_SERVER_ERROR,
         )),
     }
@@ -636,6 +718,8 @@ pub fn routes(
     let db_clone_3 = db.clone();
     let db_clone_4 = db.clone();
     let db_clone_5 = db.clone();
+    let db_clone_6 = db.clone();
+    let shared_db_1 = shared_db.clone();
 
     let health_check = warp::path("health")
         .and(warp::get())
@@ -707,6 +791,45 @@ pub fn routes(
                 };
 
                 get_block(db, shared_db, block_hash, block_number).await
+            },
+        );
+
+    let block_proof = warp::path("block-proof")
+        .and(warp::get())
+        .and(warp::any().map(move || db_clone_6.clone()))
+        .and(warp::any().map(move || shared_db_1.clone()))
+        .and(warp::query::<HashMap<String, String>>())
+        .and_then(
+            |db: Arc<Mutex<NodeDB>>, shared_db: Arc<SharedDB>, params: HashMap<String, String>| async move {
+                let block_hash = match params
+                    .get("block_hash")
+                    .map(|hash_str| H256::try_from(hash_str.as_str()))
+                    .transpose()
+                    .map_err(|_| {
+                        warp::reply::with_status(
+                            "Invalid hash".to_string(),
+                            warp::http::StatusCode::BAD_REQUEST,
+                        )
+                    }) {
+                    Ok(i) => i,
+                    Err(e) => return Ok(e),
+                };
+
+                let block_number = match params
+                    .get("block_number")
+                    .map(|hash_str| hash_str.parse::<u32>())
+                    .transpose()
+                    .map_err(|_| {
+                        warp::reply::with_status(
+                            "Invalid block number".to_string(),
+                            warp::http::StatusCode::BAD_REQUEST,
+                        )
+                    }) {
+                    Ok(i) => i,
+                    Err(e) => return Ok(e),
+                };
+
+                get_block_proof(db, shared_db, block_hash, block_number).await
             },
         );
 
@@ -817,6 +940,7 @@ pub fn routes(
     tx.or(health_check)
         .or(tx_status)
         .or(block)
+        .or(block_proof)
         .or(submit_batch)
         .or(header)
         .or(account)

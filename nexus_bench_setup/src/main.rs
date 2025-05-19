@@ -49,7 +49,7 @@ struct AdapterStateData {
     adapter_config: AdapterConfig,
 }
 
-fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, HeaderStore) {
+fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<Proof>, HeaderStore) {
     let db_path = "./db";
 
     let runtime_db_path = String::from("./db/runtime_db");
@@ -62,7 +62,7 @@ fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Head
     db_options.create_if_missing(true);
 
     let state = Arc::new(Mutex::new(VmState::new(&String::from(runtime_db_path))));
-    let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
+    let state_machine = StateMachine::<Proof>::new(state.clone());
 
     let header_store: HeaderStore = HeaderStore::new(23);
 

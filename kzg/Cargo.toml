@@ -1,5 +1,5 @@
 [package]
-name    = "kzg"
+name = "kzg"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,9 +10,9 @@ kate-recovery = { git = "https://github.com/availproject/avail-core.git", branch
 hex = "0.4.3"
 anyhow = "1.0.96"
 bls12_381 = { version = "0.8.0", default-features = false, features = [
-    "groups",
-    "pairings",
-    "alloc",
+  "groups",
+  "pairings",
+  "alloc",
 ] }
-ff = { version = "0.13.0", default-features = false, features = [ "derive" ] }
+ff = { version = "0.13.0", default-features = false, features = ["derive"] }
 ark-ff = { version = "0.4.0-alpha.7", default-features = false }

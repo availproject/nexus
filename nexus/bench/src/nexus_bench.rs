@@ -32,7 +32,7 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
-fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
+fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<Proof>, Vec<AvailHeader>, HeaderStore) {
     let db_path = "./db";
     let prover_mode_string = match prover_mode {
         ProverMode::NoAggregation => "no_aggregation",
@@ -53,7 +53,7 @@ fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<
     db_options.create_if_missing(true);
 
     let state = Arc::new(Mutex::new(VmState::new(&String::from(runtime_db_path))));
-    let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
+    let state_machine = StateMachine::<Proof>::new(state.clone());
 
     let avail_header = File::open("../mock_data/avail_header.json").unwrap();
     let avail_header_reader = BufReader::new(avail_header);

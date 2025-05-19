@@ -246,6 +246,14 @@ pub struct NexusBlockWithPointersDbResponse {
     pub block_status: String,
 }
 
+#[cfg(any(feature = "native"))]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct BlockProof {
+    pub block_hash: Vec<u8>,
+    pub block_number: i64,
+    pub proof: Vec<u8>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StateUpdate {
     pub pre_state_root: H256,

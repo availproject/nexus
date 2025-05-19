@@ -1,15 +1,13 @@
 [package]
-name              = "ethereum-adapter"
+name = "ethereum-adapter"
 version.workspace = true
-edition           = "2021"
+edition = "2021"
 
 [dependencies]
-risc0-zkvm = { version = "2.0.0", default-features = false, features = [
-    'std',
-] }
+risc0-zkvm = { version = "2.0.0", default-features = false, features = ['std'] }
 nexus-core = { path = "../../../../core", default-features = false, features = [
-    "zkvm-risc0",
+  "zkvm-risc0",
 ] }
 ethereum-core = { path = "../../core", default-features = false, features = [
-    "zkvm-risc0",
+  "zkvm-risc0",
 ] }

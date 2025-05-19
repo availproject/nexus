@@ -1,14 +1,14 @@
 [package]
-name              = "ethereum-adapter-sp1"
+name = "ethereum-adapter-sp1"
 version.workspace = true
-edition           = "2021"
+edition = "2021"
 
 [dependencies]
 nexus-core = { path = "../../../../core", default-features = false, features = [
-    "zkvm-sp1",
+  "zkvm-sp1",
 ] }
 ethereum-core = { path = "../../core", default-features = false, features = [
-    "zkvm-sp1",
+  "zkvm-sp1",
 ] }
-sp1-zkvm = { version = "4.1.0", features = [ "verify" ] }
+sp1-zkvm = { version = "4.1.0", features = ["verify"] }
 sp1-derive = { version = "4.1.0" }

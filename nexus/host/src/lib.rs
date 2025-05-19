@@ -253,6 +253,14 @@ pub async fn prover_handle(
                 )
                 .await?;
 
+            shared_db
+                .insert_proof(
+                    block_to_prove as u64,
+                    block_with_info.block.header.hash(),
+                    bincode::serialize(&proof_result.unwrap().0)?,
+                )
+                .await?;
+
             block_to_prove += 1;
         }
     }

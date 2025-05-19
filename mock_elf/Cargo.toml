@@ -1,15 +1,15 @@
 [package]
-name              = "mock_elf"
+name = "mock_elf"
 version.workspace = true
-edition           = "2021"
+edition = "2021"
 
 [build-dependencies]
 risc0-build = { version = "2.0.0", optional = true }
-sp1-build   = { version = "3.4.0", optional = true }
+sp1-build = { version = "3.4.0", optional = true }
 
 [package.metadata.risc0]
-methods = [ "risc0-guest" ]
+methods = ["risc0-guest"]
 
 [features]
-sp1   = [ "sp1-build" ]
-risc0 = [ "risc0-build" ]
+sp1 = ["sp1-build"]
+risc0 = ["risc0-build"]

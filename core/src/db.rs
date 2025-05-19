@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::traits::NexusTransaction;
+use crate::types::BlockProof;
 use crate::types::BlockStatus;
 use crate::types::NexusBlockWithPointers;
 use crate::types::NexusBlockWithPointersDbResponse;
@@ -262,5 +263,34 @@ impl SharedDB {
         .execute(&self.db)
         .await?;
         Ok(())
+    }
+
+    pub async fn insert_proof(&self, block_number: u64, block_hash: H256, proof: Vec<u8>) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"
+            INSERT INTO proofs (block_hash, block_number, proof)
+            VALUES ($1, $2, $3)
+            "#,
+            block_hash.as_slice(),
+            block_number as i64,
+            proof.as_slice()
+        )
+        .execute(&self.db)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_block_proof_by_number(&self, block_number: u64) -> anyhow::Result<Option<BlockProof>> {
+        let block_proof = sqlx::query_as!(
+            BlockProof,
+            r#"
+            SELECT * FROM proofs
+            WHERE block_number = $1
+            "#,
+            block_number as i64
+        )
+        .fetch_optional(&self.db)
+        .await?;
+        Ok(block_proof)
     }
 }
