@@ -204,7 +204,7 @@ fn move_mock_data(src_dir: &Path, dst_dir: &Path) -> io::Result<()> {
 async fn main() -> Result<(), Error> {
     let app_id: u32 = 200;
 
-    let mut prover_mode: ProverMode = ProverMode::Compressed;
+    let mut prover_mode: ProverMode = ProverMode::MockProof;
     let (mut state_machine, mut header_store) = create_mock_data(prover_mode.clone());
     let mock_txs: Vec<Transaction> = Vec::new();
 

@@ -114,7 +114,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let prover_mode_param = env::var("PROVER_MODE").unwrap_or_else(|_| "default".to_string());
 
-    if !["compressed", "no_aggregation", "groth16"].contains(&prover_mode_param.as_str()) {
+    if !["compressed", "no_aggregation", "groth16", "mock_proof"].contains(&prover_mode_param.as_str()) {
         eprintln!("Usage: PROVER_MODE=<compressed, no_aggregation> cargo bench");
         return Ok(());
     }
@@ -124,6 +124,7 @@ async fn main() -> Result<(), anyhow::Error> {
         "compressed" => ProverMode::Compressed,
         "no_aggregation" => ProverMode::NoAggregation,
         "groth16" => ProverMode::Groth16,
+        "mock_proof" => ProverMode::MockProof,
         _ => {
             eprintln!("Usage: PROVER_MODE=<compressed, no_aggregation> cargo bench");
             return Ok(());
@@ -133,7 +134,6 @@ async fn main() -> Result<(), anyhow::Error> {
     let file_path = format!("./mock_data/zkvm_inputs_1_{}.bin", suffix);
     let bytes = std::fs::read(&file_path).expect(&format!("Failed to read file: {}", file_path));
     let (zkvm_inputs_1, nexus_header_1): (NexusZKVMInputs, NexusHeader) = bincode::deserialize(&bytes).expect("Failed to decode zkvm_inputs_1");
-
     let proof = prove_batch::<Prover, Proof, ZKVM>(zkvm_inputs_1, nexus_header_1, &prover_mode)
         .await
         .expect("Failed to prove zkvm_inputs_1");
