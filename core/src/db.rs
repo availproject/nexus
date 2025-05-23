@@ -12,7 +12,7 @@ use rocksdb::{Options, WriteBatchWithTransaction, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
 use serde_json::{from_str, to_string};
-use sqlx::{migrate::Migrator, postgres::PgPoolOptions, PgPool};
+use sqlx::{migrate::Migrator, postgres::PgPoolOptions, PgPool, Transaction};
 use tracing::{debug, error, info, instrument, span, Level};
 
 pub struct NodeDB {
@@ -164,6 +164,10 @@ impl SharedDB {
         Ok(Self { db: pool })
     }
 
+    fn pool(&self) -> &PgPool {
+        &self.db
+    }
+
     pub async fn get_latest_proven_block(&self) -> anyhow::Result<Option<i64>> {
         let block_number = sqlx::query_scalar!(
             r#"
@@ -250,7 +254,16 @@ impl SharedDB {
         }
     }
 
-    pub async fn update_block_status(&self, block_number: u64, new_status: BlockStatus) -> anyhow::Result<()> {
+    pub async fn update_block_status_and_submit_proof(
+        &self,
+        block_number: u64,
+        block_hash: H256,
+        proof: Vec<u8>,
+        new_status: BlockStatus,
+    ) -> anyhow::Result<()> {
+        let pool = self.pool();
+        let mut tx = pool.begin().await?;
+
         sqlx::query!(
             r#"
             UPDATE nexus_blocks
@@ -260,12 +273,9 @@ impl SharedDB {
             new_status.to_string(),
             block_number as i64
         )
-        .execute(&self.db)
+        .execute(&mut *tx)
         .await?;
-        Ok(())
-    }
 
-    pub async fn insert_proof(&self, block_number: u64, block_hash: H256, proof: Vec<u8>) -> anyhow::Result<()> {
         sqlx::query!(
             r#"
             INSERT INTO proofs (block_hash, block_number, proof)
@@ -275,8 +285,10 @@ impl SharedDB {
             block_number as i64,
             proof.as_slice()
         )
-        .execute(&self.db)
+        .execute(&mut *tx)
         .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 

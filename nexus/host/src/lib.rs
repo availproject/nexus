@@ -247,17 +247,11 @@ pub async fn prover_handle(
             // Updating only when proof result is successful.
             // Updating the block status in shared DB to ProofGenerationSuccessful.
             shared_db
-                .update_block_status(
-                    block_to_prove as u64,
-                    BlockStatus::ProofGenerationSuccessful,
-                )
-                .await?;
-
-            shared_db
-                .insert_proof(
+                .update_block_status_and_submit_proof(
                     block_to_prove as u64,
                     block_with_info.block.header.hash(),
                     bincode::serialize(&proof_result.unwrap().0)?,
+                    BlockStatus::ProofGenerationSuccessful,
                 )
                 .await?;
 
