@@ -15,3 +15,9 @@ CREATE TABLE transaction_with_status (
     status TEXT NOT NULL,
     block_hash BYTEA
 );
+
+CREATE TABLE proofs (
+    block_hash BYTEA PRIMARY KEY,
+    block_number BIGINT NOT NULL,
+    proof BYTEA NOT NULL
+);

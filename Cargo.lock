@@ -2774,7 +2774,7 @@ dependencies = [
  "sparse-merkle-tree",
  "zksync-core",
  "zksync-methods",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/vibhurajeev/zksync-era)",
 ]
 
 [[package]]
@@ -2789,7 +2789,7 @@ dependencies = [
  "nexus-core",
  "prover",
  "risc0-zkvm",
- "risc0-zkvm-platform 2.0.2",
+ "risc0-zkvm-platform",
  "rocksdb",
  "serde",
  "serde_json",
@@ -6232,7 +6232,7 @@ dependencies = [
 name = "ethereum-adapter-methods"
 version = "1.0.0"
 dependencies = [
- "risc0-build 2.1.1",
+ "risc0-build",
  "sp1-build 4.1.4",
 ]
 
@@ -7657,7 +7657,7 @@ dependencies = [
 name = "geth-methods"
 version = "1.0.0"
 dependencies = [
- "risc0-build 2.1.1",
+ "risc0-build",
 ]
 
 [[package]]
@@ -10549,7 +10549,7 @@ dependencies = [
 name = "methods"
 version = "1.0.0"
 dependencies = [
- "risc0-build 2.1.1",
+ "risc0-build",
 ]
 
 [[package]]
@@ -10634,7 +10634,7 @@ checksum = "c9be0862c1b3f26a88803c4a49de6889c10e608b3ee9344e6ef5b45fb37ad3d1"
 name = "mock_elf"
 version = "1.0.0"
 dependencies = [
- "risc0-build 2.1.1",
+ "risc0-build",
  "sp1-build 3.4.0",
 ]
 
@@ -10643,7 +10643,7 @@ name = "mock_guest_risc0"
 version = "1.0.0"
 dependencies = [
  "risc0-zkvm",
- "risc0-zkvm-platform 2.0.2",
+ "risc0-zkvm-platform",
 ]
 
 [[package]]
@@ -10856,7 +10856,7 @@ version = "1.0.0"
 dependencies = [
  "nexus-core",
  "risc0-zkvm",
- "risc0-zkvm-platform 2.0.2",
+ "risc0-zkvm-platform",
 ]
 
 [[package]]
@@ -15569,7 +15569,7 @@ dependencies = [
 name = "prover"
 version = "1.0.0"
 dependencies = [
- "risc0-build 2.1.1",
+ "risc0-build",
  "sp1-build 4.1.4",
 ]
 
@@ -16240,21 +16240,6 @@ dependencies = [
 
 [[package]]
 name = "risc0-binfmt"
-version = "1.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9d893807e609dd44942644aef5137ad87d178a032c5932b0c68cdec538c3370"
-dependencies = [
- "anyhow",
- "borsh",
- "elf",
- "risc0-zkp 1.2.5",
- "risc0-zkvm-platform 1.2.5",
- "serde",
- "tracing",
-]
-
-[[package]]
-name = "risc0-binfmt"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4fe7599ac55ad77515608ec42a9727001559fe4f579c533cb7c973b54800c05"
@@ -16265,30 +16250,11 @@ dependencies = [
  "elf",
  "lazy_static",
  "postcard",
- "risc0-zkp 2.0.1",
- "risc0-zkvm-platform 2.0.2",
+ "risc0-zkp",
+ "risc0-zkvm-platform",
  "semver 1.0.26",
  "serde",
  "tracing",
-]
-
-[[package]]
-name = "risc0-build"
-version = "1.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98bcfd51f182f7e94209249ca3a0c64df0ab0dbfe151bd5fcbe2b708c4f9f17f"
-dependencies = [
- "anyhow",
- "cargo_metadata 0.18.1",
- "dirs",
- "docker-generate",
- "hex",
- "risc0-binfmt 1.2.5",
- "risc0-zkp 1.2.5",
- "risc0-zkvm-platform 1.2.5",
- "serde",
- "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -16303,10 +16269,10 @@ dependencies = [
  "dirs",
  "docker-generate",
  "hex",
- "risc0-binfmt 2.0.1",
+ "risc0-binfmt",
  "risc0-zkos-v1compat",
- "risc0-zkp 2.0.1",
- "risc0-zkvm-platform 2.0.2",
+ "risc0-zkp",
+ "risc0-zkvm-platform",
  "rzup",
  "semver 1.0.26",
  "serde",
@@ -16342,12 +16308,12 @@ dependencies = [
  "keccak",
  "paste",
  "rayon",
- "risc0-binfmt 2.0.1",
+ "risc0-binfmt",
  "risc0-circuit-keccak-sys",
  "risc0-circuit-recursion",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-sys",
- "risc0-zkp 2.0.1",
+ "risc0-zkp",
  "tracing",
  "xz2",
 ]
@@ -16363,7 +16329,7 @@ dependencies = [
  "derive_more 2.0.1",
  "glob",
  "risc0-build-kernel",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-sys",
  "sppark",
 ]
@@ -16385,9 +16351,9 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "risc0-circuit-recursion-sys",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-sys",
- "risc0-zkp 2.0.1",
+ "risc0-zkp",
  "serde",
  "sha2 0.10.8",
  "tracing",
@@ -16402,7 +16368,7 @@ checksum = "0a7f8aee9b6b299fc5c3259a1a6e00a49a17dfd55811e90070840a887b113645"
 dependencies = [
  "glob",
  "risc0-build-kernel",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-sys",
  "sppark",
 ]
@@ -16429,11 +16395,11 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "ringbuffer",
- "risc0-binfmt 2.0.1",
+ "risc0-binfmt",
  "risc0-circuit-rv32im-sys",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-sys",
- "risc0-zkp 2.0.1",
+ "risc0-zkp",
  "serde",
  "smallvec 1.14.0",
  "tracing",
@@ -16450,19 +16416,9 @@ dependencies = [
  "derive_more 2.0.1",
  "glob",
  "risc0-build-kernel",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-sys",
  "sppark",
-]
-
-[[package]]
-name = "risc0-core"
-version = "1.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2492abd92da4eb2a6e5e9e74757d00b1c29c03bb867266c85752cb22a03a920"
-dependencies = [
- "bytemuck",
- "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -16493,9 +16449,9 @@ dependencies = [
  "hex",
  "num-bigint 0.4.6",
  "num-traits",
- "risc0-binfmt 2.0.1",
- "risc0-core 2.0.0",
- "risc0-zkp 2.0.1",
+ "risc0-binfmt",
+ "risc0-core",
+ "risc0-zkp",
  "serde",
  "serde_json",
  "stability",
@@ -16527,30 +16483,6 @@ dependencies = [
 
 [[package]]
 name = "risc0-zkp"
-version = "1.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8a6e3c078d7a7d27eda9383db8d080f7200ac4e5e65c1971d454a0286c00cae"
-dependencies = [
- "anyhow",
- "blake2",
- "borsh",
- "bytemuck",
- "cfg-if",
- "digest 0.10.7",
- "hex",
- "hex-literal 0.4.1",
- "metal",
- "paste",
- "rand_core 0.6.4",
- "risc0-core 1.2.5",
- "risc0-zkvm-platform 1.2.5",
- "serde",
- "sha2 0.10.8",
- "tracing",
-]
-
-[[package]]
-name = "risc0-zkp"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa210a232361fd671b30918469856b64d715f2564956d0a5df97ab6cb116d28b"
@@ -16572,9 +16504,9 @@ dependencies = [
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rayon",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-sys",
- "risc0-zkvm-platform 2.0.2",
+ "risc0-zkvm-platform",
  "serde",
  "sha2 0.10.8",
  "stability",
@@ -16606,16 +16538,16 @@ dependencies = [
  "prost 0.13.5",
  "rand 0.8.5",
  "rayon",
- "risc0-binfmt 2.0.1",
- "risc0-build 2.1.1",
+ "risc0-binfmt",
+ "risc0-build",
  "risc0-circuit-keccak",
  "risc0-circuit-recursion",
  "risc0-circuit-rv32im",
- "risc0-core 2.0.0",
+ "risc0-core",
  "risc0-groth16",
  "risc0-zkos-v1compat",
- "risc0-zkp 2.0.1",
- "risc0-zkvm-platform 2.0.2",
+ "risc0-zkp",
+ "risc0-zkvm-platform",
  "rrs-lib",
  "rustc-demangle",
  "rzup",
@@ -16626,16 +16558,6 @@ dependencies = [
  "tempfile",
  "tracing",
  "typetag",
-]
-
-[[package]]
-name = "risc0-zkvm-platform"
-version = "1.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "778e0235c87d8e18f13da5c71bfe69b1beb7c08694c75d19eae9dbed09a59c57"
-dependencies = [
- "cfg-if",
- "stability",
 ]
 
 [[package]]
@@ -25480,7 +25402,7 @@ dependencies = [
  "web3",
  "zksync-core",
  "zksync-methods",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/vibhurajeev/zksync-era)",
 ]
 
 [[package]]
@@ -25508,7 +25430,7 @@ dependencies = [
  "serde",
  "substrate-bn",
  "tiny-keccak",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/ocdbytes/zksync-era)",
  "zksync_types",
 ]
 
@@ -25516,8 +25438,30 @@ dependencies = [
 name = "zksync-methods"
 version = "1.0.0"
 dependencies = [
- "risc0-build 1.2.5",
+ "risc0-build",
  "sp1-build 4.1.4",
+]
+
+[[package]]
+name = "zksync_basic_types"
+version = "0.1.0"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "const-decoder",
+ "ethabi",
+ "hex",
+ "num_enum 0.7.3",
+ "secrecy 0.8.0",
+ "serde",
+ "serde_json",
+ "serde_with 1.14.0",
+ "sha2 0.10.8",
+ "strum 0.26.3",
+ "thiserror 1.0.69",
+ "tiny-keccak",
+ "url",
 ]
 
 [[package]]
@@ -25576,21 +25520,21 @@ dependencies = [
 [[package]]
 name = "zksync_contracts"
 version = "0.1.0"
-source = "git+https://github.com/vibhurajeev/zksync-era#b02525e05610b77d0fb8758d6665cfa0f3436b24"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
 dependencies = [
  "envy",
  "hex",
  "once_cell",
  "serde",
  "serde_json",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/ocdbytes/zksync-era)",
  "zksync_utils",
 ]
 
 [[package]]
 name = "zksync_crypto_primitives"
 version = "0.1.0"
-source = "git+https://github.com/vibhurajeev/zksync-era#b02525e05610b77d0fb8758d6665cfa0f3436b24"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
 dependencies = [
  "anyhow",
  "blake2",
@@ -25601,16 +25545,16 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "thiserror 1.0.69",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/ocdbytes/zksync-era)",
 ]
 
 [[package]]
 name = "zksync_mini_merkle_tree"
 version = "0.1.0"
-source = "git+https://github.com/vibhurajeev/zksync-era#b02525e05610b77d0fb8758d6665cfa0f3436b24"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
 dependencies = [
  "once_cell",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/ocdbytes/zksync-era)",
  "zksync_crypto_primitives",
 ]
 
@@ -25655,16 +25599,16 @@ dependencies = [
 [[package]]
 name = "zksync_system_constants"
 version = "0.1.0"
-source = "git+https://github.com/vibhurajeev/zksync-era#b02525e05610b77d0fb8758d6665cfa0f3436b24"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
 dependencies = [
  "once_cell",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/ocdbytes/zksync-era)",
 ]
 
 [[package]]
 name = "zksync_types"
 version = "0.1.0"
-source = "git+https://github.com/vibhurajeev/zksync-era#b02525e05610b77d0fb8758d6665cfa0f3436b24"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
 dependencies = [
  "anyhow",
  "bigdecimal",
@@ -25684,7 +25628,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "tracing",
- "zksync_basic_types",
+ "zksync_basic_types 0.1.0 (git+https://github.com/ocdbytes/zksync-era)",
  "zksync_contracts",
  "zksync_crypto_primitives",
  "zksync_mini_merkle_tree",
@@ -25696,7 +25640,7 @@ dependencies = [
 [[package]]
 name = "zksync_utils"
 version = "0.1.0"
-source = "git+https://github.com/vibhurajeev/zksync-era#b02525e05610b77d0fb8758d6665cfa0f3436b24"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
 dependencies = [
  "anyhow",
  "futures",
@@ -25712,7 +25656,7 @@ dependencies = [
 [[package]]
 name = "zksync_vlog"
 version = "0.1.0"
-source = "git+https://github.com/vibhurajeev/zksync-era#b02525e05610b77d0fb8758d6665cfa0f3436b24"
+source = "git+https://github.com/ocdbytes/zksync-era#ae33ff6806661c856c00f7978f6f9233bb08651e"
 dependencies = [
  "anyhow",
  "chrono",

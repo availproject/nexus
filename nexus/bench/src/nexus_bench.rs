@@ -32,38 +32,6 @@ use env_logger;
 #[cfg(any(feature = "sp1"))]
 use log;
 
-fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Vec<AvailHeader>, HeaderStore) {
-    let db_path = "./db";
-    let prover_mode_string = match prover_mode {
-        ProverMode::NoAggregation => "no_aggregation",
-        ProverMode::Compressed => "compressed",
-        ProverMode::Groth16 => "groth16",
-        ProverMode::MockProof => "mock_proof",
-    };
-
-    let node_db_path = format!("./db/node_db_{}", prover_mode_string);
-    let runtime_db_path = format!("./db/runtime_db_{}", prover_mode_string);
-
-    if fs::metadata(db_path).is_ok() {
-        fs::remove_dir_all(db_path).expect("Failed to remove existing node_db directory");
-    }
-
-    let _node_db: NodeDB = NodeDB::from_path(&String::from(node_db_path));
-    let mut db_options = Options::default();
-    db_options.create_if_missing(true);
-
-    let state = Arc::new(Mutex::new(VmState::new(&String::from(runtime_db_path))));
-    let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
-
-    let avail_header = File::open("../mock_data/avail_header.json").unwrap();
-    let avail_header_reader = BufReader::new(avail_header);
-    let avail_headers: Vec<AvailHeader> = from_reader(avail_header_reader).unwrap();
-
-    let header_store: HeaderStore = HeaderStore::new(23);
-
-    (state_machine, avail_headers, header_store)
-}
-
 async fn bench_init_account_transactions(prover_mode: ProverMode) -> Proof {
     let suffix = if cfg!(feature = "risc0") { "risc0" } else { "sp1" };
     let file_path = format!("./mock_data/zkvm_inputs_2_{}.bin", suffix);
@@ -114,7 +82,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let prover_mode_param = env::var("PROVER_MODE").unwrap_or_else(|_| "default".to_string());
 
-    if !["compressed", "no_aggregation", "groth16"].contains(&prover_mode_param.as_str()) {
+    if !["compressed", "no_aggregation", "groth16", "mock_proof"].contains(&prover_mode_param.as_str()) {
         eprintln!("Usage: PROVER_MODE=<compressed, no_aggregation> cargo bench");
         return Ok(());
     }
@@ -124,6 +92,7 @@ async fn main() -> Result<(), anyhow::Error> {
         "compressed" => ProverMode::Compressed,
         "no_aggregation" => ProverMode::NoAggregation,
         "groth16" => ProverMode::Groth16,
+        "mock_proof" => ProverMode::MockProof,
         _ => {
             eprintln!("Usage: PROVER_MODE=<compressed, no_aggregation> cargo bench");
             return Ok(());
@@ -133,7 +102,6 @@ async fn main() -> Result<(), anyhow::Error> {
     let file_path = format!("./mock_data/zkvm_inputs_1_{}.bin", suffix);
     let bytes = std::fs::read(&file_path).expect(&format!("Failed to read file: {}", file_path));
     let (zkvm_inputs_1, nexus_header_1): (NexusZKVMInputs, NexusHeader) = bincode::deserialize(&bytes).expect("Failed to decode zkvm_inputs_1");
-
     let proof = prove_batch::<Prover, Proof, ZKVM>(zkvm_inputs_1, nexus_header_1, &prover_mode)
         .await
         .expect("Failed to prove zkvm_inputs_1");

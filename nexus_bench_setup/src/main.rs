@@ -49,7 +49,7 @@ struct AdapterStateData {
     adapter_config: AdapterConfig,
 }
 
-fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, HeaderStore) {
+fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<Proof>, HeaderStore) {
     let db_path = "./db";
 
     let runtime_db_path = String::from("./db/runtime_db");
@@ -62,7 +62,7 @@ fn create_mock_data(prover_mode: ProverMode) -> (StateMachine<ZKVM, Proof>, Head
     db_options.create_if_missing(true);
 
     let state = Arc::new(Mutex::new(VmState::new(&String::from(runtime_db_path))));
-    let state_machine = StateMachine::<ZKVM, Proof>::new(state.clone());
+    let state_machine = StateMachine::<Proof>::new(state.clone());
 
     let header_store: HeaderStore = HeaderStore::new(23);
 
@@ -204,7 +204,7 @@ fn move_mock_data(src_dir: &Path, dst_dir: &Path) -> io::Result<()> {
 async fn main() -> Result<(), Error> {
     let app_id: u32 = 200;
 
-    let mut prover_mode: ProverMode = ProverMode::Compressed;
+    let mut prover_mode: ProverMode = ProverMode::MockProof;
     let (mut state_machine, mut header_store) = create_mock_data(prover_mode.clone());
     let mock_txs: Vec<Transaction> = Vec::new();
 
