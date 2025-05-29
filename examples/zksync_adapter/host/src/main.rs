@@ -101,6 +101,9 @@ async fn main() -> Result<(), Error> {
     #[cfg(feature = "sp1")]
     let ZKSYNC_ADAPTER_ID = Prover::new(ZKSYNC_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(); // since sp1 doesn't implements verify method on proof object
 
+    // Initiating prover temporariliy to get the ada[ter id based on prover mode :
+    let verification_key = Prover::new(ZKSYNC_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(ZKSYNC_ADAPTER_ID);
+
     // Retrieve or initialize the adapter state data from the database
     let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
         data
@@ -266,7 +269,7 @@ async fn main() -> Result<(), Error> {
                 let rollup_hash = recursive_proof.clone().public_inputs::<NexusRollupPI>().unwrap().rollup_hash.unwrap();
 
                 #[cfg(feature = "risc0")]
-                match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
+                match recursive_proof.0.verify(verification_key) {
                     Ok(()) => {
                         println!("Proof verification successful");
                         ()
@@ -291,7 +294,7 @@ async fn main() -> Result<(), Error> {
                         height: current_height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
-                        img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                        img_id: StatementDigest(verification_key),
                         rollup_hash: Some(rollup_hash),
                     };
 
