@@ -54,19 +54,20 @@ async fn main() -> Result<(), Error> {
 
     // Retrieve Ethereum node URL and command-line arguments
     let args: Vec<String> = args().collect();
-    if args.len() <= 2 {
-        if args.len() == 2 && args[1] == "--dev" {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+    if args.len() <= 3 {
+        if args.len() == 3 && args[1] == "--dev" {
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
 
-        if args.len() < 2 {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+        if args.len() < 3 {
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
     }
 
     let zksync_proof_api_url = &args[1];
+    let nexus_api_url = &args[2];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
     let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
 
@@ -84,12 +85,12 @@ async fn main() -> Result<(), Error> {
                 }
             }
         } else {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
     }
 
-    let nexus_api = NexusAPI::new(&"http://dev.nexus.avail.tools");
+    let nexus_api = NexusAPI::new(nexus_api_url);
 
     // Create or open the database
     let db_path = format!("db/{:?}", app_id);
