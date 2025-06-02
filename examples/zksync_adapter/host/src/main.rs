@@ -54,19 +54,20 @@ async fn main() -> Result<(), Error> {
 
     // Retrieve Ethereum node URL and command-line arguments
     let args: Vec<String> = args().collect();
-    if args.len() <= 2 {
-        if args.len() == 2 && args[1] == "--dev" {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+    if args.len() <= 3 {
+        if args.len() == 3 && args[1] == "--dev" {
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
 
-        if args.len() < 2 {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+        if args.len() < 3 {
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
     }
 
     let zksync_proof_api_url = &args[1];
+    let nexus_api_url = &args[2];
     let dev_flag = args.iter().any(|arg| arg == "--dev");
     let prover_mode = if dev_flag { ProverMode::MockProof } else { ProverMode::Compressed };
 
@@ -84,12 +85,12 @@ async fn main() -> Result<(), Error> {
                 }
             }
         } else {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> [--dev] [--app_id <value>]");
+            eprintln!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
     }
 
-    let nexus_api = NexusAPI::new(&"http://dev.nexus.avail.tools");
+    let nexus_api = NexusAPI::new(nexus_api_url);
 
     // Create or open the database
     let db_path = format!("db/{:?}", app_id);
@@ -100,6 +101,9 @@ async fn main() -> Result<(), Error> {
 
     #[cfg(feature = "sp1")]
     let ZKSYNC_ADAPTER_ID = Prover::new(ZKSYNC_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(); // since sp1 doesn't implements verify method on proof object
+
+    // Initiating prover temporariliy to get the ada[ter id based on prover mode :
+    let verification_key = Prover::new(ZKSYNC_ADAPTER_ELF.to_vec(), prover_mode.clone()).vk(ZKSYNC_ADAPTER_ID);
 
     // Retrieve or initialize the adapter state data from the database
     let adapter_state_data = if let Some(data) = db.get::<AdapterStateData>(b"adapter_state_data")? {
@@ -266,7 +270,7 @@ async fn main() -> Result<(), Error> {
                 let rollup_hash = recursive_proof.clone().public_inputs::<NexusRollupPI>().unwrap().rollup_hash.unwrap();
 
                 #[cfg(feature = "risc0")]
-                match recursive_proof.0.verify(ZKSYNC_ADAPTER_ID) {
+                match recursive_proof.0.verify(verification_key) {
                     Ok(()) => {
                         println!("Proof verification successful");
                         ()
@@ -291,7 +295,7 @@ async fn main() -> Result<(), Error> {
                         height: current_height,
                         start_nexus_hash: start_nexus_hash.unwrap_or_else(|| H256::from(account_with_proof.account.start_nexus_hash)),
                         app_id: app_account_id.clone(),
-                        img_id: StatementDigest(ZKSYNC_ADAPTER_ID),
+                        img_id: StatementDigest(verification_key),
                         rollup_hash: Some(rollup_hash),
                     };
 
