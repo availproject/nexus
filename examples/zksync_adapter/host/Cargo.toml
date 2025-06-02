@@ -30,6 +30,15 @@ primitive-types = "0.12"
 env_logger = "0.11.5"
 log = "0.4.22"
 zksync_basic_types = { git = "https://github.com/vibhurajeev/zksync-era" }
+# OTEL
+opentelemetry = { version = "0.24.0", features = [ "metrics", "logs" ] }
+opentelemetry_sdk = { version = "0.24.0", features = [ "rt-tokio", "logs" ] }
+opentelemetry-otlp = { version = "0.17.0", features = [
+    "tonic",
+    "metrics",
+    "logs",
+] }
+opentelemetry-semantic-conventions = { version = "0.25.0" }
 
 [features]
 default = [ "risc0" ]

@@ -1,5 +1,6 @@
 use adapter_sdk::{api::NexusAPI, types::AdapterConfig};
 use anyhow::{anyhow, Context, Error};
+use metrics::AdapterMetrics;
 use nexus_core::db::NodeDB;
 use nexus_core::types::{
     AccountState, AccountWithProof, AppAccountId, AppId, InitAccount, NexusRollupPI, StatementDigest, SubmitProof, Transaction, TxParams,
@@ -23,14 +24,11 @@ use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value as SerdeValue};
-use std::collections::HashMap;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::fmt;
 use std::env::args;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
-use std::time::Duration;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::fs;
-use zksync_core::{L1BatchWithMetadata, ProofWithCommitmentAndL1BatchMetaData, STF};
+use std::time::{Duration, Instant};
+use zksync_core::{ProofWithCommitmentAndL1BatchMetaData, STF};
 
 #[cfg(any(feature = "sp1"))]
 use sp1_sdk::utils;
@@ -39,6 +37,8 @@ use sp1_sdk::utils;
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
 mod proof_api;
+mod instrumentation;
+mod metrics;
 // Your NodeDB struct and methods implementation here
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -49,6 +49,22 @@ struct AdapterStateData {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    // Initialize tracing subscriber
+    fmt()
+        .with_env_filter(
+            EnvFilter::from_default_env()
+                .add_directive("nexus=info".parse().unwrap())
+                .add_directive("info".parse().unwrap()),
+        )
+        .with_thread_names(false)
+        .with_target(false)
+        .with_file(false)
+        .with_line_number(false)
+        .with_level(true)
+        .with_ansi(true)
+        .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
+        .init();
+
     #[cfg(any(feature = "sp1"))]
     utils::setup_logger();
 
@@ -80,15 +96,21 @@ async fn main() -> Result<(), Error> {
             match app_id_value.parse::<u32>() {
                 Ok(id) => app_id = id,
                 Err(_) => {
-                    eprintln!("Invalid app_id value. Please provide a valid number.");
+                    log::error!("Invalid app_id value. Please provide a valid number.");
                     return Ok(());
                 }
             }
         } else {
-            eprintln!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
+            log::error!("Usage: cargo run -- <zksync_proof_api_url> <nexus_api_url> [--dev] [--app_id <value>]");
             return Ok(());
         }
     }
+
+    // Setup Instrumentation
+    let mut analytics = instrumentation::Instrumentation::new(format!("zksync-adapter-{}", app_id));
+    analytics.setup()?;
+
+    let adapter_metrics = AdapterMetrics::init();
 
     let nexus_api = NexusAPI::new(nexus_api_url);
 
@@ -131,7 +153,7 @@ async fn main() -> Result<(), Error> {
         prover_mode.clone(),
     );
 
-    println!(
+    log::info!(
         "Starting nexus with AppAccountId: {:?} \n, and start height {last_height}",
         AppAccountId::from(adapter_state_data.adapter_config.app_id.clone()),
     );
@@ -171,7 +193,7 @@ async fn main() -> Result<(), Error> {
 
         nexus_api.send_tx(tx).await?;
 
-        println!("Waiting for 10 seconds for account to be initiated");
+        log::info!("Waiting for 10 seconds for account to be initiated");
         tokio::time::sleep(Duration::from_secs(10)).await;
     }
 
@@ -217,7 +239,7 @@ async fn main() -> Result<(), Error> {
                 //last_height = account_with_proof.account.height;
 
                 if account_with_proof.account == AccountState::zero() {
-                    println!("Account state is not initiated, restart may be required");
+                    log::info!("Account state is not initiated, restart may be required");
                     tokio::time::sleep(Duration::from_secs(2)).await;
 
                     continue;
@@ -242,16 +264,17 @@ async fn main() -> Result<(), Error> {
                 let range = match nexus_api.get_range().await {
                     Ok(i) => i,
                     Err(e) => {
-                        println!("{:?}", e);
+                        log::error!("{:?}", e);
                         continue;
                     }
                 };
 
                 if range.is_empty() {
-                    println!("Nexus does not have a valid range, retrying.");
+                    log::info!("Nexus does not have a valid range, retrying.");
                     continue;
                 }
 
+                let start = Instant::now();
                 let mut recursive_proof = stf.create_recursive_proof::<Prover, Proof, ZKVM>(
                     prev_proof_with_pi,
                     account_state,
@@ -261,8 +284,10 @@ async fn main() -> Result<(), Error> {
                     versioned_hashes,
                     range[0],
                 )?;
+                let proving_time = start.elapsed().as_secs();
+                adapter_metrics.block_proving_time.record(proving_time, &[]);
 
-                println!(
+                log::info!(
                     "Current proof data: {:?}",
                     recursive_proof.clone().public_inputs::<NexusRollupPI>().unwrap().rollup_hash.unwrap()
                 );
@@ -325,19 +350,21 @@ async fn main() -> Result<(), Error> {
                     // .await;
                     match nexus_api.send_tx(tx).await {
                         Ok(i) => {
-                            println!(
+                            adapter_metrics.latest_height.record(public_inputs.height.clone() as u64, &[]);
+                            adapter_metrics.blocks_proved.add(1, &[]);
+                            log::info!(
                                 "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
                                 &app_account_id, i, &public_inputs.state_root
-                            )
+                            );
                         }
                         Err(e) => {
-                            println!("Error when iniating account: {:?}", e);
+                            log::error!("Error when iniating account: {:?}", e);
 
                             continue;
                         }
                     }
                 } else {
-                    println!(
+                    log::warn!(
                         "Current height is lesser than height on nexus. current height: {} nexus height: {}",
                         current_height, height_on_nexus
                     );
@@ -361,17 +388,17 @@ async fn main() -> Result<(), Error> {
                 }
             }
             Ok(ProofAPIResponse::Pending) => {
-                println!("Got no header, sleeping for 10 seconds to try fetching");
+                log::warn!("Got no header, sleeping for 10 seconds to try fetching");
             }
             Ok(ProofAPIResponse::Pruned) => {
-                println!("Error fetching proof - Already pruned. Need to fetch from indexer");
+                log::error!("Error fetching proof - Already pruned. Need to fetch from indexer");
 
                 return Err(anyhow!(
                     "Error fetching proof - Already pruned. Need to fetch from indexer which is not implemented, exiting"
                 ));
             }
             Err(e) => {
-                println!("Err while fetching proof {:?}", e);
+                log::error!("Err while fetching proof {:?}", e);
             }
         }
 
