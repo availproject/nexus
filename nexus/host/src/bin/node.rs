@@ -5,6 +5,7 @@ use nexus_core::{db::SharedDB, state_machine::StateMachine, zkvm::ProverMode};
 #[cfg(any(feature = "risc0"))]
 use nexus_core::zkvm::risczero::{RiscZeroProof as Proof, RiscZeroProver as Prover, ZKVM};
 
+use host::instrumentation::Instrumentation;
 use host::{run_nexus, setup_components};
 #[cfg(any(feature = "sp1"))]
 use nexus_core::zkvm::sp1::{Sp1Proof as Proof, Sp1Prover as Prover, SP1ZKVM as ZKVM};
@@ -32,6 +33,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_ansi(true)
         .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
         .init();
+
+    // Setup Instrumentation
+    let mut analytics = Instrumentation::new("nexus-node".to_string());
+    analytics.setup()?;
 
     let args: Vec<String> = args().collect();
     let dev_flag = args.iter().any(|arg| arg == "--dev");

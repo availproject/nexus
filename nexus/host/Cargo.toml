@@ -30,6 +30,15 @@ reqwest = { version = "0.12.9", features = [ "json" ] }
 utoipa = { version = "5.3", features = [ "axum_extras" ] }
 utoipa-swagger-ui = "5.0"
 kzg = { path = "../../kzg" }
+# OTEL
+opentelemetry = { version = "0.24.0", features = [ "metrics", "logs" ] }
+opentelemetry_sdk = { version = "0.24.0", features = [ "rt-tokio", "logs" ] }
+opentelemetry-otlp = { version = "0.17.0", features = [
+    "tonic",
+    "metrics",
+    "logs",
+] }
+opentelemetry-semantic-conventions = { version = "0.25.0" }
 
 [features]
 default = [ "risc0" ]                                                     # need to change this to run with sp1
