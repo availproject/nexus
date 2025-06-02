@@ -24,10 +24,10 @@ use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value as SerdeValue};
-use tracing_subscriber::EnvFilter;
-use tracing_subscriber::fmt;
 use std::env::args;
 use std::time::{Duration, Instant};
+use tracing_subscriber::fmt;
+use tracing_subscriber::EnvFilter;
 use zksync_core::{ProofWithCommitmentAndL1BatchMetaData, STF};
 
 #[cfg(any(feature = "sp1"))]
@@ -36,9 +36,9 @@ use sp1_sdk::utils;
 #[cfg(feature = "risc0")] // for now
 use zksync_methods::{ZKSYNC_ADAPTER_ELF, ZKSYNC_ADAPTER_ID};
 
-mod proof_api;
 mod instrumentation;
 mod metrics;
+mod proof_api;
 // Your NodeDB struct and methods implementation here
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -354,7 +354,9 @@ async fn main() -> Result<(), Error> {
                             adapter_metrics.blocks_proved.add(1, &[]);
                             log::info!(
                                 "Submitted proof to update state root on nexus. AppAccountId: {:?} Response: {:?} Stateroot: {:?}",
-                                &app_account_id, i, &public_inputs.state_root
+                                &app_account_id,
+                                i,
+                                &public_inputs.state_root
                             );
                         }
                         Err(e) => {
@@ -366,7 +368,8 @@ async fn main() -> Result<(), Error> {
                 } else {
                     log::warn!(
                         "Current height is lesser than height on nexus. current height: {} nexus height: {}",
-                        current_height, height_on_nexus
+                        current_height,
+                        height_on_nexus
                     );
                 }
 
