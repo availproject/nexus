@@ -1,5 +1,7 @@
+use host::instrumentation::Instrumentation;
 use host::{get_latest_proven_block, prover_handle};
 use nexus_core::db::SharedDB;
+use nexus_core::metrics::ProvingMetrics;
 use nexus_core::zkvm::ProverMode;
 use std::env::args;
 use std::sync::Arc;
@@ -24,6 +26,10 @@ fn main() -> anyhow::Result<()> {
         .with_ansi(true)
         .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
         .init();
+
+    // Setup Instrumentation
+    let mut analytics = Instrumentation::new("nexus-prover".to_string());
+    analytics.setup()?;
 
     let args: Vec<String> = args().collect();
     let postgres_database_url = args
@@ -73,6 +79,8 @@ fn main() -> anyhow::Result<()> {
             }
         };
 
+        let proving_metrics = ProvingMetrics::init();
+
         info!("Starting prover engine with block {}", latest_proven_block);
         let prover_task = tokio::spawn(async move {
             prover_handle(
@@ -80,6 +88,7 @@ fn main() -> anyhow::Result<()> {
                 shutdown_rx,
                 latest_proven_block,
                 prover_mode,
+                proving_metrics,
             )
             .await
         });

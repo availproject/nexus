@@ -4,6 +4,8 @@ pub mod db;
 mod h256;
 #[cfg(any(feature = "native"))]
 pub mod mempool;
+#[cfg(any(feature = "native"))]
+pub mod metrics;
 #[cfg(not(feature = "native"))]
 pub mod nexus_guest;
 pub mod state;
